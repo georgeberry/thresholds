@@ -28,12 +28,12 @@ class ThresholdGraph(object):
 
     allows easy creation/storage/iteration/logging of various graphs with various thresholds
     '''
-    def __init__(self, rand_graph_type='regular', threshold_type='integer', thresholds=2, covariates=None, neighbors=10, nodes=1000, seed_fraction = 0.01):
+    def __init__(self, rand_graph_type='regular', threshold_type='integer', thresholds=2, covariates=None, neighbors=10, nodes=1000, seed_fraction = 0.03):
 
-        self.df = pd.DataFrame(columns=('ego','activated','activated alters', 'timestep', 'covariate'))
+        self.df = pd.DataFrame(columns=('ego','activated','activated alters', 'timestep', 'covariate', 'true threshold'))
         self.create_random_graph(rand_graph_type, neighbors, nodes)
         self.set_thresholds(thresholds, covariates)
-        self.seed_nodes(seed_fraction)
+        self.seed_nodes(seed_fraction) #looks good up to here
 
 
     def create_random_graph(self, rand_graph_type, neighbors, nodes):
@@ -59,6 +59,7 @@ class ThresholdGraph(object):
                 self.g.node[node]['covariate'] = None
         elif hasattr(thresholds, '__iter__') and covariates != None: 
             assert len(thresholds) == self.g.order(), 'OMG WRONG NUMBER OF THRESHOLDS OR COVARIATES'
+            print 'cov'
             for idx, node in enumerate(self.g.nodes_iter()):
                 self.g.node[node]['threshold'] = thresholds[idx]
                 self.g.node[node]['covariate'] = covariates[idx]
@@ -82,8 +83,13 @@ class ThresholdGraph(object):
         new_graph = deepcopy(self.g)
         new_graph.graph['timestep'] += 1
 
-        for ego in new_graph.nodes_iter():
+        #print new_graph.size()
+        #print new_graph.order()
+
+        for ego in self.g.nodes_iter():
+            #print new_graph.node[ego]
             if self.g.node[ego]['activated'] == 1:
+                #print self.g.node[ego]
                 #print 'passing'
                 #no need to evaluate if already activated
                 continue
@@ -92,20 +98,16 @@ class ThresholdGraph(object):
                 activated_alters += self.g.node[alter]['activated']
             if activated_alters >= self.g.node[ego]['threshold']:
                 new_graph.node[ego]['activated'] = 1
-            if new_graph.node[ego]['covariate']:
-                self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'], new_graph.node[ego]['covariate'])
+            if new_graph.node[ego]['covariate'] != None:
+                self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'], new_graph.node[ego]['threshold'], new_graph.node[ego]['covariate'])
             else:
-                self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'])
+                self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'], new_graph.node[ego]['threshold'])
         self.g = new_graph
 
 
-    def add_node_to_df(self, ego, activated, activated_alters, timestep, covariate=None):
+    def add_node_to_df(self, ego, activated, activated_alters, timestep, true_threshold, covariate=None):
         rows, cols = self.df.shape
-        if covariate:
-            pass
-        else:
-            self.df.loc[rows + 1] = [ego, activated, activated_alters, timestep, covariate]
-
+        self.df.loc[rows + 1] = [ego, activated, activated_alters, timestep, covariate, true_threshold]
 
     def __call__(self, num_iter=10):
         for _ in range(num_iter):
@@ -116,6 +118,7 @@ class ThresholdGraph(object):
         pass
 
 
+    @timer
     def prune(self):
         '''
         throw out all but last unactivated and first activated
@@ -129,7 +132,7 @@ class ThresholdGraph(object):
         we can approx it by giving (after - before / 2), where n is the jump
         '''
         df = self.df
-        self.pruned_df = pd.DataFrame(columns=('ego','activated','activated alters','timestep','covariate'))
+        self.pruned_df = pd.DataFrame(columns=('ego','activated','activated alters','timestep','covariate', 'true threshold'))
         indexes = df['ego']
         for ego in set(indexes):
             unactivated_df = df.loc[(df['ego'] == ego) & (df['activated'] == 0)]
@@ -145,9 +148,10 @@ class ThresholdGraph(object):
             max_unactivated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 0) & (df['timestep'] == max_time_unactivated)]
             min_activated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 1) & (df['timestep'] == min_time_activated)]
 
-            #print '-'*50
-            #print max_unactivated_row
-            #print min_activated_row
+            #if max_unactivated_row['covariate'].iloc[0] == 2:
+            #    print '-'*50
+            #    print max_unactivated_row
+            #    print min_activated_row
 
             #we need to assure that we're getting the actual adoption exposure
             if min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] != 1:
@@ -157,15 +161,47 @@ class ThresholdGraph(object):
             self.pruned_df.loc[rows + 1] = min_activated_row.as_matrix()
 
 
+    def clean_df(self):
+        #just first time individuals adopt
+        cleaned_df = pd.DataFrame(columns=('ego','activated','activated alters','timestep','covariate', 'true threshold'))
+
+        df = self.df.loc[self.df['activated'] == 1]
+        for ego in set(df['ego']):
+            unactivated_df = df.loc[(df['ego'] == ego) & (df['activated'] == 0)]
+            activated_df = df.loc[(df['ego'] == ego) & (df['activated'] == 1)]
+
+            #for seeds
+            #if unactivated_df.shape[0] == 0 or activated_df.shape[0] == 0:
+            #    continue
+
+            #max_time_unactivated = max(unactivated_df['timestep'])
+            min_time_activated = min(activated_df['timestep'])
+
+            #max_unactivated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 0) & (df['timestep'] == max_time_unactivated)]
+            min_activated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 1) & (df['timestep'] == min_time_activated)]
+
+            #if max_unactivated_row['covariate'].iloc[0] == 2:
+            #    print '-'*50
+            #    print max_unactivated_row
+            #    print min_activated_row
+
+            #we need to assure that we're getting the actual adoption exposure
+            #if min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] != 1:
+            #    continue
+
+            rows, cols = cleaned_df.shape
+            cleaned_df.loc[rows + 1] = min_activated_row.as_matrix() 
+        return cleaned_df
+
     def OLS(self, pruned=True):
         if pruned:
             df = self.pruned_df
         else:
-            df = self.df
-        y = df['activated']
-        activated = df['activated alters']
-        constant = pd.Series([1]*activated.shape[0], index=activated.index)
-        X = pd.DataFrame({'constant': constant, 'activated alters': activated})
+            df = self.clean_df()
+        y = df['activated alters']
+        covariate = df['covariate']
+        constant = pd.Series([1]*covariate.shape[0], index=covariate.index)
+        X = pd.DataFrame({'constant': constant, 'covariate': covariate})
         y = y.as_matrix()
         X = X.as_matrix()
 
@@ -176,74 +212,25 @@ class ThresholdGraph(object):
         return beta
 
 
-#first test
+if __name__ == '__main__':
+    #first test
+    #the wrong constant catches early adopters
+    #the wrong covariate number systematically underestimates thresholds
+    #why? because 
 
-thresholds = [1]*500 + [2]*500
-covariates = [0]*500 + [1]*500
-shuffle(thresholds)
-shuffle(covariates)
+    thresholds = [1]*500 + [2]*500
+    shuffle(thresholds)
+    covariates = [x - 1 for x in thresholds]
+    #thresholds = [1]*500 + [5]*500
+    #shuffle(thresholds)
+    #covariates = [x - 1 if x == 1 else x - 4 for x in thresholds]
 
-
-tg = ThresholdGraph(nodes = 1000, thresholds=thresholds, covariates=covariates)
-tg(10)
-tg.prune()
-print tg.pruned_df
-print tg.OLS()
-
-#y = tg.df['activated']
-#X = tg.df['activated alters']
-#X = sm.add_constant(X)
-
-'''
-#this will be really, really wrong
-#even though the model is really, really "sure"
-#high R^2 is interesting
-model = sm.OLS(y,X)
-results = model.fit()
-print(results.summary())
-
-#logit is also junk
-model = sm.Logit(y,X)
-results = model.fit()
-print(results.summary())
-
-#throw out all observations after we observe a switch
-#this gets us closer
-new_df = pd.DataFrame(columns=('ego', 'activated', 'activated alters', 'wave'))
-tracker = {x:0 for x in g.nodes_iter()}
-
-for row in df.index:
-    rows, cols = new_df.shape
-    ego = df.loc[row]['ego']
-    activated = df.loc[row]['activated']
-    r = df.loc[row]
-    if tracker[ego] == 0:
-        if activated == 1:
-            tracker[ego] = 1
-            new_df.loc[rows+1] = list(r)
-        else:
-            new_df.loc[rows+1] = list(r)
-
-y = new_df['activated']
-X = new_df['activated alters']
-X = sm.add_constant(X)
-
-#this will be really, really wrong
-#even though the model is really, really "sure"
-#high R^2 is interesting
-model = sm.OLS(y,X)
-results = model.fit()
-print(results.summary())
+    tg = ThresholdGraph(nodes = 1000, thresholds=thresholds, covariates=covariates)
+    tg(5)
+    tg.prune()
+    #print tg.pruned_df
+    print tg.OLS()
+    print tg.OLS(pruned=False) #really, really wrong
+    
 
 
-# what if we were to throw out all observations where the individual did not have 1, 2, 3, etc. exposures
-# so if a person's first exposure was with 3 friends, we throw that out
-
-
-
-
-#second test
-
-#probablistic model, something like an SIR
-
-'''
