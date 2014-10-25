@@ -3,7 +3,7 @@ import statsmodels.api as sm
 import pandas as pd
 import numpy as np
 import numpy.linalg as la
-from random import random, gauss, randint, shuffle
+from random import random, gauss, randint, uniform, shuffle
 from copy import deepcopy
 from time import time
 from functools import wraps
@@ -37,7 +37,7 @@ class ThresholdGraph(object):
             So taking thresholds[0] and covariates[0] gives the threshold and covariates for individual 1
 
     '''
-    def __init__(self, thresholds, covariates=None, rand_graph_type='regular', threshold_type='integer', neighbors=10, num_nodes=1000, seed_fraction = 0.03):
+    def __init__(self, thresholds, covariates=None, rand_graph_type='regular', threshold_type='integer', neighbors=15, num_nodes=1000, seed_fraction = 0.03):
 
         if covariates:
             self.covariate_names = sorted(covariates[0].keys())
@@ -184,11 +184,19 @@ class ThresholdGraph(object):
             #    print min_activated_row
 
             #we need to assure that we're getting the actual adoption exposure
-            if min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] != 1:
+            if min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] == 2:
                 continue
-
+                #try averaging past two
+                #diff = (min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0])/float(2)
+                #row_as_matrix = min_activated_row.as_matrix()
+                #col_num = list(min_activated_row.columns).index('activated alters')
+                #row_as_matrix[0][col_num] = diff
+            elif min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] == 1:
+                row_as_matrix = min_activated_row.as_matrix()
+            else:
+                continue
             rows, cols = pruned_df.shape
-            pruned_df.loc[rows + 1] = min_activated_row.as_matrix()
+            pruned_df.loc[rows + 1] = row_as_matrix
         return pruned_df
 
 
@@ -228,7 +236,6 @@ class ThresholdGraph(object):
         return cleaned_df
 
 
-    @timer
     def OLS(self, correct=True):
         if correct:
             df = self.correctly_prune_df()
@@ -282,21 +289,26 @@ class ThresholdGraph(object):
                     individual_covariates[name] = random()
                 elif distribution == 'binary':
                     individual_covariates[name] = randint(0,1)
+            
+                #add the effect of manipulation here
                 individual_threshold += beta * individual_covariates[name]
+            error = gauss(0,1)
+            individual_threshold += error
 
-            thresholds.append(individual_threshold)
+            thresholds.append(individual_threshold) 
             covariates.append(individual_covariates)
 
         return thresholds, covariates
 
 
 #if __name__ == '__main__':
-thresholds, covariates = ThresholdGraph.gen_thresholds(num_nodes=10000, default=3, technophile=(-1, 'binary'), height=(1, 'gauss'), weight=(.5, 'gauss'))
-tg = ThresholdGraph(num_nodes=10000, thresholds=thresholds, covariates=covariates)
-tg(10)
-#pruned = tg.correctly_prune_df()
-print tg.OLS(correct=True)
+thresholds, covariates = ThresholdGraph.gen_thresholds(num_nodes=1000, default=2.5, height=(1, 'binary')) #technophile=(-1, 'binary')) #, height=(1, 'gauss'), weight=(.5, 'gauss'))
 
-#print tg.pruned_df
+for _ in range(1):
+    tg = ThresholdGraph(num_nodes=1000, thresholds=thresholds, covariates=covariates)
+    tg(10)
+    print tg.covariate_names
+    print tg.OLS(correct=True)
+
 #print tg.OLS()
-#print tg.OLS(pruned=False) #really, really wrong
+print tg.OLS(correct=False) #wrong coefficients
