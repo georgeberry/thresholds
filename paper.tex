@@ -1,7 +1,10 @@
 \documentclass{article}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
 \usepackage[utf8]{inputenc}
 
-\title{threshold-model}
+\title{A Simple Model for Empirically Determining Thresholds}
 \author{George Berry}
 \date{October 2014}
 
@@ -10,6 +13,305 @@
 \maketitle
 
 \section{Introduction}
+
+Social scientists have frequently asked a version of the question: ``How many peers does it take to encourage an actor to do something.'' Actors are most often individuals, but may be companies, states, or other organizations. The question has been investigated in a variety of contexts, including legislation diffusion, cascading failures of banks, adoption of corporate policies, diffusion of information online, and product adoption. Despite this, the peer-influence question has been difficult to operationalize empirically, leading to a variety of methods that often require researchers to make stringent a priori assumptions about the diffusion process. This difficulty comes from two sources: an inability to precisely measure changing costs and benefits to actors resulting from friends' adoption, and the difficulty of applying current theoretical threshold models to empirical data.
+
+In a simple sense, many theoretical studies have operationalized the question ``Given a graph and a distribution of thresholds, what type of cascade do we see?'' This question has been addressed with the most energy in the physics or sociophysics literature, often under the name percolation. Alternatively, it has been addressed in computer science, generally in the vein of the influence maximization problem, where the challenge is to find a polynomial time algorithm to approximate the optimal choice of seed nodes given a budget constraint (i.e. one can only pick $k$ nodes). 
+
+In contrast to this approach, I ask the question ``Given a graph and a cascade (or series of cascades), how do we figure out individual thresholds?'' This question has been seldom addressed, and I am aware of little outside a small literature in computer science that deals with $p_k$ curves (Romero 2011, for instance), and extensions to the work of Kempe et al. (2003) that operationalize their model in a machine learning context (see Goyal 2010). However, it is clear that this question has broad relevance for a range of social scientists: we frequently observe diffusion processes and wish to better understand the factors that lead to individuals adopting.
+
+In this paper, I address this threshold detection question by: 1) Redefining a threshold in a way more appropriate for social analysis; 2) Addressing the conditions under which these thresholds may be recovered. In this vein, I demonstrate the difficulty of using current models from computer science and physics for empirical social analysis. I draw a distinction between an \emph{observational threshold} and a \emph{message-passing threshold}, with large implications for recovering accurate threshold estimates. Under suitable message-passing conditions, I demonstrate that using a straightforward Tobit model provides accurate point estimates. Observational thresholds generally display some bias, and I discuss sources of bias along with potential directions for developing bias corrections.
+
+\section{Perspectives on thresholds}
+
+\subsection{Foundations}
+
+Early work by Granovetter (1978) in sociology forms the primary motivation for this study. Granovetter recognized the importance of preference and norm distributions to collective outcomes, rather than the mean view of every individual in a population. Granovetter offers several key insights that I draw on here, including the interpretetation of thresholds a cost-benefit calculus, the notion that higher threshold variance can lead to higher adoption rates, and the idea of ``crossing the chasm'' from early adopters to the masses. Additionally, Granovetter posed questions of social strucature (in a network context), framing his discussion of thresholds as seeking to investigate the effects of structure on collective outcomes.
+
+In a complementary way, Schelling (1973) was an early contributor in the broad category of binary choice with externalities. Schelling develops a multi-player prisonner's dilemma that, at times, implicilty incorporates network structure. For instance, he utilizes an example of individual needing a certain amount of light to read by (100 watts), yet everyone has only 60 watts at their personal disposal, and they gain 30 watts from each neighbor who has a light on. Schelling notes that if individuals are arranged in a line, the two people at the ends will not have enough light to read and will switch off their lights, leading to a cascade of darkness. However, if individuals are arranged in a ring-lattice, everyone having a light on is stable, and everyone may read.
+
+Both of these early efforts contain a large part of the questions social scientists are still concerned with.
+
+\subsection{Contemporary efforts}
+
+Recent work at the intersection of sociology and physics, along with work by computer scientits, have taken up threshold models as a way of modeling social structure. Watts (2002), Dodds and Watts (2004), Kempe et al. (2003, 2005) develop theoretical results using what may broadly be called threshold models. Dodds and Watts (2004) and Kempe et al. (2003, 2005) are concerned with finding similarities between epidemeological models of contagion and social threshold models. In an epidemological model, each alter has a certain probability of activating ego, and the chances are independent. Kempe et al. (2003, 2005) refer to this as the ``cascade model'', and they show that, under certain assumptions, one may equate a cascade model and a threshold model. Dodds and Watts (2004) set themselves a similar task, although approach the modeling problem differently. In contrast, Watts (2002) confines himself to showing interesting properties of a threshold model, without considering a relationship to the cascade model.
+
+For my purposes, it is useful to compare Watts (2002)'s threshold model with Kempe et al. (2003, 2005) to motivate my definition of a threshold below.
+
+In Watts (2002), individuals have fixed thresholds that I will denote $\theta_i^{Watts}$. $\theta_i^{Watts}$ are drawn from a distribution $f(\theta_i^{Watts})$ such that $\int_0^1 f(\theta_i^{Watts})d\theta_i^{Watts} = 1$, or in other words all of the density is in the unit interval. Watts demonstrates several interesting results, but that discussion is beyond the scope of this paper. The key point for this study is that thresholds have a straightforward interpretation: the fraction of neighbors that must be active before $i$ is active. The distribution, furthermore, may be arbitrary within some constraints.
+
+In contrast, Kempe et al (2003, 2005) and later scholars building on this model such as Goyal et al. (2010) and Chen et al. (2010) use what is called the ``general threshold model''. In this model, thresholds (denoted $\theta_i^{Kempe}$) are drawn from a $U(0,1)$ distribution. Each neighbor $j$ of $i$ has a probability to activate $i$ with respect to the set of previously adopting neighbors $S_j$, given as $p_i(j, S_j)$. This is the probability that $j$ has of activating $i$ after the set of $i$'s neighbors $S_j$ has tried and failed to activate $i$.
+
+The threshold function for Kempe et al. (2005) is then given for $i$ with set $S$ of adopting neighbors as: $f_i(S) = 1 - \prod_{j=1}^r (1 - p_i(j, S_j))$, where $p_i(j, S_j)$ is defined as above. Node $i$ is then said to be active when $f_i(S) \ge \theta_i^{Kempe}$, which means that $\theta_i^{Kempe}$ has neither a fractional nor probabilistic interpretation.
+
+It is straightforward to demonstrate this difficulty of interpretation. From the nature of $p_i(j,S_j)$ as a probability, it follows that $f_i(S)$ is a probability. $f_i(S)$ indicates one minus the probability of all activation attempts failing, which is a probability since for an event $E$, $P(E) = 1 - P(E^c)$, which is exactly what $f_i(S)$ describes. Yet $\theta_i^{Kempe}$ is drawn from a uniform distribution, and $i$ is activated only when $f_i(S) \ge \theta_i^{Kempe}$, which is a confusing proposition.
+
+As a short proof that $f_i(S)$ cannot be a probability given the activation rule of Kempe et al. (2005), I provide a contradiction. Suppose $\theta_i^{Kempe} = a$ has been drawn for some $i$, and $i$ sees a set $S$ of active neighbors that corresponds to an activation function value of $f_i(S) = b$, with $0 < a, b < 1$, but the relative values of $a$ and $b$ are unknown. Clearly, $b \gt a$ happens with probability $f_i(S)$. However, if $b < a$, then we proceed to wait for an additional alter to be activated. When this happens, the activation probability is $f_i(S') = b'$. For $f_i(S')$ to be a probability, the condition $f_i(S') - f_i(S) \ge U(0, 1-b) = a'$ with probability $f_i(S')$. In other words, the additional probability added with an additional neighbor must put us past the threshold with probability $f_i(S')$.
+
+This is equivalent to determining the probability that $\theta_i^{Kempe}$ falls in the interval of added probability: $f_i(S) < \theta_i^{Kempe} \le f_i(S') = \frac{f_i(S') - f_i(S)}{1 - f_i(S)}$, where the last result is given by Kempe et al. 
+
+A small manipulation shows that: $\frac{f_i(S') - f_i(S)}{1 - f_i(S)} = $
+
+It's important to note that Kempe et al. do not propose $\theta_i^{Kempe}$ or $f_i(S)$ as a probability. However, from the definition of $f_i(S)$, it is difficult to interpret it in a different way.
+
+Clearly, this approach poses substantial questions about what is meant by ``threshold'', often leading to confusion about the meaning of a threshold. In my view, $\theta_i^{Kempe}$ contributes little to our understanding of social structural effects because, even if we were to recover it, it would be difficult to ascertain the implications of this information. I contrast it with Watts (2002) to demonstrate the usefulness of coneceptual clarity in this line of work, since in general thresholds are hidden and have been implicitly conceptualized in different ways. Additionally, I hope I have illustrated the wide gulfs that emerge in interpretation even when making relatively similar assumptions. In a precise sense, a uniform distribution on the $[0,1]$ interval satisfies Watts' criteria for threshold distributions. But the surroudning assumptions of Kempe et al. (2003, 2005) pose consideriable problems for social structural analysis, even though they facilitate solutions to the influence maximization problem.
+
+\section{Defining a Threshold}
+
+\subsection{Overview}
+
+What is a threshold? Straightforwardly, it is the number or fraction of my neighbors that need to do something before I will do it. The concept, while at first uncomplicated, belies substantial complexity. Considering the interdependence of my friends' decisions on my behavior creates one type of difficulty, and considering non-network factors affecting decisions contributes another. 
+
+But, at its simplest, a threshold is simply a number or fraction. I will call thresholds indicating the number of friends \emph{integer thresholds} and those indicating the fraction of friends \emph{fractional thresholds}. As noted by Macy and Centola (2007), these two formulations are not completely equivalent, as the fractional approach implicitly weights friends who have not adopted. Different threshold modelers use both of these models frequently, often with different goals in mind. A fractional threshold appears appropriate in decisions involving direct-benefits from the relative fraction of neighbors using different products. Alternatively, an integer threshold makes sense when considering the spread of information: it isn't reasonable to assume that I pass information on only after asking every friend whether they possess it; rather, I probably pass it along after I've heard it from a few sources.
+
+The underlying assumption about thresholds is a utility-based one, as Granovetter (1978) remarks. A threshold is the minimum point where the benefits of adopting exceed the costs, and this approach may be fit into the larger literature on binary decisions with externalities (Schelling 1973). This general definition does not demand that only network factors change the cost-benefit calculation. Rather, we make an assumption as social scientists that the phenomenon under study has a reasonable chance of being spread through a social network. This claim is often controversial, and unfortunately it is difficult to account for all of the factors in an empirical situation that may also affect decisionmaking. However, recent large-scale field experiments have made promising headway, often finding evidence for the impact of netowrk factors. <<CITE>>
+
+\subsection{Formalization}
+
+Consider a graph of individuals, $G = (V, E)$, where $V$ are vertices and $E$ are edges. Each $i \in V$ faces a binary choice whether or not to adopt, with the adoption status denoted by $y_i$, where $y_i = 1$ if $i$ has adopted and 0 otherwise. Denote $S_i$ the set of $i$'s neighbors that have adopted at a given point in time, denote $|S_i|$ the size of the adopting neighborhood, and denote $d_i$ $i$'s degree. Let $X_i$ be a vector of characteristics of the situation that $i$ experiences, and denote $U_i(X_i,|S_i|/d_i), C_i(X_i,|S_i|/d_i)$ utility and cost functions of the situation, respectively.
+
+This cost-benefit formulation allows us to precisely define a threshold. Define $|S_i^*|/d_i = min(|S_i|/d_i) \text{ \emph{s.t.} } U_i(X_i,|S_i|/d_i) > C_i(X_i,|S_i|/d_i)$ for given $X_i, d_i$. Intuitively, $|S_i^*|/d_i$ is the minmum fraction of neighbors that need adopt to influence $i$ to adopt at some $X_i$.
+
+Clearly, this $|S_i^*|$ changes depending on $X_i$, even within $i$, so $|S_i^*|$ is a function of $X_i$. Define a function for $i$, $\theta_i: X_i \to |S_i^*|/d_i$. $|S_i^*|/d_i \le 0$ means that $i$ will adopt in the absence of social influence and $|S_i^*|/d_i > 1$ that $i$'s entire ego network is not enough to encourage $i$ to adopt. 
+
+We allow $\theta_i(X_i)$ to range along the real line rather than considering only the interval $[0,1]$ becasuse there is a substantial social interpretation of thresholds that do not lie in $[0,1]$. Consider a case where we could take two early adopters $i, j$ where $\theta_i(X_i) \le 0, \theta_j(X_j) \le 0$. Assume that we could increase adoption costs for both $i$ and $j$ by the same amount. Denote $\theta'$ the threshold after the cost change. We can then ask: are both $\theta_i'(X_i), \theta_j'(X_j) \le 0$ after raising costs? If $\theta_i'(X_i) > 0$ but $\theta_j'(X_j) \le 0$ after the change, then we can assert that the concept of negative thresholds is meaningful insofar as $i$ and $j$ were a different ``push'' from having a positive threshold before the cost increase. In this case, $j$ needs more of a push than $i$, since $i$'s threshold became positive.
+
+We may slightly extend this analysis by considering $|S_i^*|/d_i = \theta_i(X_i)$ and applying an operation to both sides. A simple operation is to multiply both sides by $d_i$, with the interpretation being $|S_i^*| = d_i \theta_i(X_i)$ is the number of neighbors (rather than fraction) that $i$ must observe adopting before $i$ adopts. While mathematically similar, this choice has practical implications in a regression context, since two individuals who have different absolute number of adopting neighbors may have the same fraction of adopting neighbors (for instance, 1/2 and 4/8).
+
+Note that in this scheme, $\theta_i(X_i)$ is simply a number that represents the fraction of alters. It says nothing about the strenght of influence from individual alters, environmental conditions, or innovation characteristics. The key difference in my conceptualization and that of other models is that all of these factors are moved to $X_i$. Rather than assigning each $(v_1,v_2) \in E$ an influence weight, move these to an individual level. This gives the natural interpretation of an actor $i$ facing a ``state of the world'' and responding. It also allows counterfactual questions such as ``If $i$ had three close friends adopting, would $i$ adopt?'', assuming that ``close friend'' can be reasonably defined and we have sufficient data.
+
+\subsection{Regression Context}
+
+Beyond clarifiying what we mean by ``threshold'', this formulation lends itself naturally to a regression context. Consider the integer-valued model: $|S_i^*| = d_i\theta_i(X_i)$. Given a population, we would like to estimate $E[d_i\theta_i(X_i) | y_i = 1] = E[|S_i^*| | d_i, X_i, y_i=1]$, where the latter formulation should be recognizable as a conditional expectation function that may be estimated with regression. Further, we only observe adoption events for the adopters ($y_i = 1$), which has practical implications for our ability to generalize out-of-sample. Generally speaking, if the population of adopters and non-adopters are very similar, there is no issue. However, it is unlikely that this is the case, and so selection problems arise quickly: those who have adopted probably have different characteristics than those who haven't. 
+
+In practice, we do not need to include $d_i$, we just include an integer dependent variable rather than a fractional one. Therefore, we may write: $E[|S_i^*||X_i,y_i=1]$. If $\theta_i(X_i)$ is a function that may be estimated by regression, then this conditional expectation function is appropriate. As with standard regression, the true $\theta_i(X_i)$ is unknown and the causal pathways unidentified. However, by expressing thresholds in this way we are able to take a robust theoretical tool and begin to use it to formulate and test specific theories about thresholds in empirical situations.
+
+By viewing $\theta_i(X_i)$ as an outcome variable, we open discussions about thresholds to a range of explanatory and causal questions. If the assertion is made that thresholds may be modified by modular interventions (Pearl 2000), then causal questions about thresholds would be appropriate. Specifically, if it is asserted that we may change one element of $X_i$ from $x_{iq}$ to $x_{iq}'$ without modifying the other elements of $X_i$, and if the change is assigned independent of potential outcomes, then we obtain a causal interpretation of $\theta_i(X_i')$. More formally, if $E[\theta_i^0(X_i)|x_{iq}] = E[\theta_i^0(X_i)|x_{iq}']$ and $E[\theta_i^1(X_i)|x_{iq}] = E[\theta_i^1(X_i)|x_{iq}']$, then a causal argument would be appropriate. See Morgan and Winship (2014) and Pearl (2000) for a fuller discussion of causal questions. 
+
+However, the interpretation of a causal claim must be handled with care when dealing with thresholds. If we have a binary covariate $x_{iq}$ that is randomly assigned in the population and is modular, and we find that $x_{iq} = 1$ increases thresholds by 1, the intrepretation is as follows: when $i$ has $x_{iq} = 1$, it reduces the number of alters $i$ needs to adopt by 1. This result does not say anything about whether $x_{iq} = 1$ increases benefits or reduces costs, but it does give a policy maker valuable information about how an intervention may facilitate adoption.
+
+\subsection{Observability}
+
+We can distinguish between two classes of diffusion process: \emph{targeted} and \emph{broadcast}. In targeted diffusion, activated individuals target others and ``pass'' them information, or susceptible individuals may ask specific neighbors for information. In this case $j$ may add to $i$'s count of adopting alters without a third party, $k$, knowing about it.
+
+Conversely, broadcast diffusion occurs when an activated individual's status is public knowledge. In this case, when $j$ adopts, all of $j$'s alters become aware of the adoption. The difference is important for our ability to estimate $\theta_i(X_i)$ from empirical information.
+
+Roughly speaking, targeted diffusions occurs in recruitment or targeted information-gathering scenarios. It is assumed that either the behavior needs to be actively spread (recruitment) or that information is not readily available and needs to be obtained in a costly fashion. In contrast, broadcast diffusion often occurs when information is accessible, and is the operational model of many social media sites, where everyone sees much of their alters' content.
+
+A contrast of these two patterns of diffusion can be seen in Goel et al. (2012), where the two styles are referred to as ``observed diffusion'' and ``inferred diffusion.''
+
+In targeted diffusion, if we have sufficiently granular timestamps and can accurately infer a lag on adoption $\tau_i$, we can observe $\ceil{S_i^*} = \ceil{d_i \theta_i(X_i)}$ for all individuals. We observe the ceiling function of the true threshold because we cannot observe half an alter adopting.
+
+In this case, the only data issue is left-censoring, where we may observe an abundance of $\theta_i(X_i) = 0$, since a threshold cannot be less than zero. Under conditions where we have reason to believe some indivdiuals really have ``more negative'' thresholds than others, a Tobit model is appropriate. We would be able to assert some thresholds are ``more negative'' if, theoretically, we can assert that costs would have to be increased by different amounts for different early adopters in order to prevent adoption. This seems like a reasonable statement, and therefore I believe Tobit is a theoretically justified (not simply consistent) model.
+
+In a broadcast diffusion process, we unfortunately do not observe $\ceil{S_i^*}$ for each individual adopting the behavior. This results because at times we observe two or more alters adopting in quick succession, followed by $i$ adopting. We find these problems in three cases: 1) when binning a diffusion process into discrete time steps; 2) when considering lags in $i$ observing alter behavior; 3) when allowing $i$ to take time to implement an already-made decision.
+
+One may wish to simulate a model without these concerns; however, a model with no time binning, no observation lags, and no implementation lags is not helpful. One could conceive of this kind of model in two ways. First, the diffusion process happens instantaneously, and we have no way of observing it---after all, we have modeled no friction. This is clearly unhelpful. Second, we start with a seed node and attempt to simulate adoption decisions one-by-one, without ever violating the condition above <<MAKE IT A CONDITION>>. However, we will run into \emph{collisions}, cases where more than one unactivated node's threshold has been met. We will then need a rule to figure out which node to activate first, which means the node that remains unactivated will experience a \emph{de facto} lag time, contrary to our intention. For this node with a lag time, we will fail to observe $\ceil{S_i^*}$.
+
+I conjecture that we will only fail to see collisions in stylized settings, with carefully chosen thresholds and graph structure such, as a branching process where each node has threshold 1.
+
+Consider the simple case where time steps are discrete and two alters of $i$, $j$ and $k$ adopt at time $t - 1$, followed by $i$'s adoption at time $t$. In this case, we are unsure if the set of adopting neighbors contains $j$, $k$, or both. This issue poses the largest problem for observability of thresholds in empirical data. In general, these values are omitted systematically, with individuals later in the cascade process less likely to be correctly observed. This lateness is in turn correlated with thresholds, and so there is a selection effect that tends to bias estimations of effects on $\theta_i(X_i)$, since those with higher thresholds are more likely to be omitted.
+
+This type of problem is well studied in economics, with Heckman (1979) providing a key insight that sample selection may be modeled. I discuss applications of the Heckman selection correction method below, although it is not clear a Heckman procedure fixes the problem.
+
+The main point is that, even under stringent assumptions, $\ceil{S_i^*}$ is not observable for every individual in a broadcast process. A crucial element of observability is the network structure itself, as seen in the models below.
+
+In empirical social data, we often recieve timestamps of alters' actions and timestamps of $i$'s actions. Call these an action log (term due to Goyal 2010) and assume that timestaps are unique, so that no two events take place at once. Even with this abundance of data, it is clear that we cannot assume that individuals activate as soon as their neighbors do, since we can measure a waiting time for some individuals. Further, we can not assume individuals observe others' actions immediately, creating a waiting time on each side of the adoption decision. In this time, aditional alters may adopt and bias upwards the observed $\ceil{S_i^*}$. This may be modeled with appropriate domain-specific assumptions, but the surest way to ensure estimates are unbiased is to obtain data on the information individuals have at each point in time.
+
+\subsection{Computational Models}
+
+I simulate diffusion processes on graphs with thresholds as a linear function of individual characteristics. For simplicity, I focus on networks with $N = 1000$ nodes and an average degree $\bar{d_i} = 15$. I use Python's NetworkX package to generate the following graph topologies: regular random graphs, Watts-Strogatz random graphs <<CITE>>, power law random graphs <<CITE>>, and Poisson (also called $G(n,p)$) random graphs. I use R for regressions; confidence intervals are meaningless and so are not reported. 
+
+I simulate both targeted and broadcast diffusion processes, using integer thresholds for ease of interpretation. I use the threshold generation function: 
+\[
+S_i^* = 5 + 3*x_1 + 3*x_2 - 1*x_3 + \epsilon_i
+\]
+
+Where $x_1, x_2, \epsilon_i \sim N(0,1)$ and $x_3 \sim B(1,.5)$. This allows some thresholds to be below 0 and makes the probability of any threshold being above $\bar{d_i}$ small. In heterogenous degree models (power law, Poisson), the chance remains that some individuals will not be activated because a small degree individual could be assigned a large threshold. \footnote{All source code may be found online here.}
+
+In simulating these models, I record the following information: 
+\begin{enumerate}
+\item Information on $i$ at each time step if $y_i = 0$, including the number of $i$'s adopting neighbors
+\item $i$'s number of adopting neighbors if $y_i = 1$ and $i$ was not active in the last time step. No information is recorded on $i$ after $i$ has adopted
+\end{enumerate}
+
+\subsubsection{Targeted Diffusion}
+
+
+
+\subsubsection{Broadcast Diffusion}
+
+The broadcast diffusion process creates larger problems for inference than simple left-censoring. Specifically, we require a data-cleaning process to figure out which observations corresponding to $y_i = 1$ actually represent $\ceil{|S_i^*|}$, and there is no gaurantee that the unobserved $|S_i^*|$ will be missing at random. By the collision condition above, the nubmer of neighbors observed when first adopting cannot immediately be inferred to be $\ceil{|S_i^*|}$ without additional information. Therefore, we require a method to ensure that no collision has occured. Denote $max(|S_i^0|)$ the maximum number of observed adopting alters before $i$ adopters, and $min(|S_i^1|)$ the minimum number of adopting alters observed given that $i$ has adopted. Then the condition for no collision occuring is: $min(|S_i^1|) - max(|S_i^0|) = 1$. Intuitively, we have to observe a case where adding exactly \emph{one} alter is associated with a change in adoption status from $y_i = 0$ to $y_i = 1$\footnote{If the heroic assumption is made that $E[|S_i^*|] = \frac{min(|S_i^1|) - max(|S_i^0|)}{2}$ one can potentially make use of more data, but this is a difficult assumption to support without a clear proof of its validity. Such a proof about the expectation of a threshold within an interval would greatly aid inference.}.
+
+Therefore, we employ the simple data-cleaning heuristic:
+\begin{enumerate}
+\item If $min(|S_i^1|) - max(|S_i^0|) = 1$, keep information on $i$'s first adoption
+\item If $min(|S_i^1|) = 0$, keep information on $i$'s first adoption
+\end{enumerate}
+
+The second element of the heuristic keeps early adopters in the sample. 
+
+\subsection{Empirical Validation}
+
+heckman, tobit
+
+\subsection{Empirical Extensions}
+
+ML
+
+\subsection{Limitations}
+
+The first question a reader may have is: why not just look at adoption in a probablistic or adoption rate context (Christakis and Fowler 2006; Aral et al. 2009). Both of these methods are valuable perspectives that are appropriate in certain situations. The approach presented in this paper is allied with these other approaches rather than in conflict with them. It provides another method to approach diffusion questions in a way that is closely aligned with core sociological theory. 
+
+A second concern is limited generalizability in the case where some individuals have not adopted. This limitation may be addressed with adequate covariates and enough adoption observations. In particular, examining many different behaviors diffusing on part of a network can provide insight in this case.
+
+Thirdly, one may take issue with the notion of a threshold itself, considering it as a modeling convenience that has no practical applicability. If this is the case, then it is a questionable modeling convenience and we should rethink the use of threshold models in sociological theory. However, it is also unreasonable to think that individuals go around with context-specific numbers floating in their heads---or that adoption decisions are mechanistic. On the other hand, there is certainly some truth to the notion that a few friends engaging in a behavior may change my view of it. A very close friend may be all I need to encourage me to do something, while a dozen acquaintaences may not make much of a dent. By viewing thresholds as variable based on a situation, and by allowing for a distribution of thresholds for certain covariate levels (the distribution of the conditional expectation), empirically derived thresholds can be seen as a best guess, or a summary of the behavior of many individuals in specific situations. In other words, I believe this approach allows us to model social situations in a way that stays close to social theory, which has substantial falsification power for our theories. 
+
+This method is most appropriate for rich sources of data such as those found online, and appropriate for considering questions about adoption behavior under various circumstances. In cases where there is not adequate information, or the underlying diffusion process is not facilitated by social factors, estimates from observational data will be wrong. However, these concerns apply to any observational study, and I repeat them here for completeness.
+
+
+
+\section{Implications}
+
+This paper provides several tools to approach measuring thresholds in an empirical context. 
+
+
+
+
+
+\section{Empirical analysis}
+
+We clearly do not observe $S_i^*$ for all situations for each individual. In fact, we do not observe any $S_i^*$, instead observing $
+
+
+
+Many threshold models have assumed that $\theta_i(X_i)$ is fixed and exogenously assigned. For instance, consider the threshold model of Watts (2002), which also uses fractional thresholds, arbitrary graph structure, continuous time, and instantaneous adoption. Watts 
+
+
+, and  function $\theta_i$
+
+
+Generally, 
+
+it is the number of neighbors $S_i$ that $i$ needs to see perform an action before $i$ deems the action beneficial and undertakes it. This intuition is formalized (Granovetter, Kempe, Kempe, Schelling, Goyal) as a number of neighbors or fraction of neighbors that are need to push $i$ from nonadoption ($y_i = 0$) to adoption ($y_i = 1$). 
+
+While intuitive, simply saying that there is some number, call it $\theta_i$, that is $i$'s line between adoption and nonadoption poses serious theoretical questions. What generates $\theta_i$? Qualities of $i$, or the environment, or $i$'s neighbors, or the thing being adopted? 
+
+Unfortunatley, the general answer is: all of these things matter to some extent. Further, theoretical models often simply assume $\theta_i \sim U(0,1)$, where $U(0,1)$ here indicates the uniform distribution. In abstract cases, such assumptions can be justified on the ground of retaining tractability while imposing heterogenaiety. However, in empirical cases, the goal is the discovery of $\theta_i$. Surprisingly, this has been seldom remarked on in the literature. Often, thresholds are treated as exogenously assigned, regardless of individual (or other relavant) characteristics.
+
+\subsection{Notation}
+
+Notation varies widely across fields drawn on in this paper, even when discussing identical topics. This is a consequence of the multidisciplinary nature of research on social networks, where an ensemble of tools are needed to deal with the substantial challenges and opportunities. In general, I will try to use notation developed in the fields I am drawing on. 
+
+
+
+\subsection{Costs and benefits}
+
+\section{Traditional models}
+
+\subsection{The difficulty of interpreting \theta_i}
+
+\subsection{Short proof that that $p_v(S)$ is not a probability}
+
+\section{Derivation}
+
+In a general sense, then, it is productive to write:
+
+\[
+y_i =
+    \begin{cases}
+       1 & \text{if } S_i > \theta_i(X_i) \\
+       0 & \text{else}
+      \end{cases}
+\]
+
+Recall that $S_i$ is the degree of the adopter neighborhood. $X_i$ are an arbitrary set of indiviual-specific covariates that pertain to the adoption decision. As a simple motivation, consider a single binary covariate, rain, with the adoption decision being whether to participate in a riot. Even if $i$ is an ardent rioter, she may need more social reinforcement when rain is present. This is intutive, considering we have increased $C_{ia}$. Whether it increases the cost enough to raise $\theta_i(X_i)$ to require additional alters is an empirical question. More intuitively, someone on the line between rioting or not may certainly be scared away by the rain, as even a small increase in $C_{ia}$ will dissuade them.
+
+This simple example shows the importance of thinking of $\theta_i$ as a function of $X_i$. Also note the flexibility of this formulation: at this point, we have put no constraints on the threshold function. We have, however, made a severe assumption about the outcome of $\theta_i(X_i)$: it represents only the degree of the adopting neighborhood.
+
+We can relax this slightly by considering an invertible function of the degree of the adopting neighborhood, $f_i(S_i)$:
+\[
+f_i(S_i) > \theta_i(X_i) \implies S_i > f_i^{-1}(\theta_i(X_i))
+\]
+
+
+
+\section{Degree, not set}
+
+The question still remains: why focus on the degree of the adopting neighborhood, $S_i$? After all, other threshold modelers often treat $S_i$ as the set of all adopting neighbors and allow for individual specific influence probabilities. In this case, $j$ has a chance of activating $i$, $p_{i}(S_i, j)$, where $S_i$ is the set of neighbors active before $j$ activated. 
+
+I see two theoretical reasons for modeling $S_i$ as the count and not the set of neighbors. First, the interpretation of $\theta_i$ becomes extremely difficult when a model assigns a random $\theta_i \in [0,1]$ and each alter is allowed to differentially contribute to exceeding this cutoff. To see evidence of this confusion, consider the first paragraph of section 4 of Goyal et al. (2010):
+
+``To predict whether $u$ will activate, we need to determine $p_u(S)$, the joint influence probability of $S$ on $u$. If $p_u(S) \ge \theta_u$, where $\theta_u$ is the activation threshold of user $u$, we can conclude that $u$ activates.''
+
+In this paper, Goyal et al. do an admirable job of attempting to empirically determine dyadic influence probabilities. However, we see in this passage the difficult interpretation proposed by their model: clearly $p_u(S)$ cannot be an activation probability, because the probability that $u$ is activated given $p_u(S) \ge \theta_u$ is 1. To reprphrase, suppose that $p_u(S) = .9$, indicating that the set of activated neighbors $S$ has a $90\%$ chance of inducing $u$ to adopt. Further, assume $\theta_u = .8$. Therefore, $.9 \ge .8$, which means that $p_u(S) = 1 = .9$, a clear contradiction.
+
+The $\theta_u$ of Goyal et al. is not a probability: it is just a real number. However, it causes them confusion because it is a real number between 0 and 1, while another part of their model calls for working with adoption probabilities, and yet another employs a function that maps a bunch of probabilities to a real number between 0 and 1 that is NOT a probability.
+
+The second issue concerns the implications of discovering $\theta_i$. In the generalized Granovetter model advanced by Kempe et al., one could know $\theta_i$, yet have a poor understanding of how this should affect policy. Consider the scenario where we discover that $\theta_i = .8$. Even in this case, we do not know how many, or which types, of alters would be needed to activate $i$, precisely because $p_{ji}, \forall j$ are still hidden.
+
+This problem has wide ranging practical implications in several fields, including sociology, economics, computer science, and marketing. An important problem in viral marketing and computer science is finding the minimal set $A$ that causes a complete cascade on a network. In sociology, we are often concerned similarly with innovations taking off at breakneck speeds. Unfortunately, discovering the true threshold does not help us if $\theta_i$ does not have a sensible interpretation.
+
+Further, this scheme makes it difficult to determine contributors to crossing the threshold from empirical data. If we would like to compare alternative ``treatments'' of adopting neighbors for a given $i$, we run into trouble. Because, formally, $\theta_i$ is fixed and a function $f_i(S_i)$ maps the set of adopting neighbors to a value in the threshold-space, we only ever observe $f_i(S_i) > \theta_i$ for a single set $S_i$ for each innovation. Additionally, each neighbor has a different unobserved influence probability $p_{j,i}$ that must be estimated from: $p_{j,i} = (f_i(S_i \union {w}) - f_i(S_i))/(1-p_u(S_i)$. This is extremely difficult with data, and asking the simple question ``is $w$ adopting likely to cause $i$ to adopt'' requires massive quantities of data and an elaborate specification. This specificaiton is at least in part accomplishable, but it further precludes explicit modeling of non-network factors that affect adoption. Specifically, factors exogenous to the networked diffusion process will be captured in $p_{j,i}$.
+
+In contrast to these difficulties, treating $S_i$ simply as the size of the set of adopters yields easy interpretations and policy implications. In doing so, we shift substantive parts of analyzing the adoption process from $f_i(S_i)$ to $\theta_i(X_i)$. For instance, close friends aren't given a higher $p_{j,i}$, rather we indicate them (either uniquely if they are superstars or categorically) as close friends. We then obtain an easily interpretable estimate of $\theta_i(X_i)$, when $i$ has a close friend as an alter. The method of inquiry becomes extremely familiar to those with experience in regression. Crucially, we gain the option of trading the specificity of $p_{j,i}$ for the ability to cateogrize both $i$ and the relationship between $i$ and $j$ and ask questions based on those categorizations. If we would like to estimate the effects of each $p_{j,i}$ using a submodular function, we can actually interact dummy variables for alter presence to the desired level of specificity, but such a specificatoin provides little explanatory power.
+
+While it may seem strange to indicate the presence of a close friend in $X_i$ and analyze the new $S_i$ that emerges, note that Granovetter took this liberty with his original model (friends were given the power of 2 ``normal'' people). Further, detecting how much a friend ``reduces'' a threshold by over a ``normal'' person is exactly the kind of question that dozens of studies have addressed.
+
+\section{Recoverability of $\theta_i(X_i)$}
+
+Using this formulation, we can recover $\theta_i(X_i)$ for a subset of the population, potentially extending to the entire population. Formally, denote $A$ the set of adopters when a cascade stops on graph $G$. If $A = G$, then we can recover the thresholds for everyone, subject to some conditions detailed below. If $A \subset G$, denote $F$ the set of nodes on the fringe of $A$, defined as nodes that have a neighbor in $A$ but are not in $A$ themselves. Clearly, for a node $j \in F, S_i < \theta_j(X_j)$, so we cannot directly estimate the threshold for $j$ or for any other non-adopter. However, loosely speaking we can estimate $\theta_i(X_i)$ for nodes in $\setminus A$ if $X_{\setminus A}$ and $X_A$ have common support, the function chosen for $\theta_i(X_i)$ is correct, and there aren't omitted variables on which $A$ and $\setminus A$ systematically differ. 
+
+\section{Collisions}
+
+CAN I PROVE SOMETHING ABOUT COLLISIONS?
+
+for example: do they occur randomly? are they more likely to occur either at different thresholds OR at certain parts of the cascade?
+
+Assume discrete time, alters become activated. show that the probabililty of two activating on the same step is done independent of ego's threshold. Would then have to make an argument that an influential node adopting doesn't matter. 
+
+\section{Validating}
+
+OMG CHECK AGAINST THE FRINGE
+
+COMMON SUPPORT?
+
+\section{Potential for Causal Inference}
+
+\section{Potential for Machine Learning}
+
+
+The second issue with considering $\theta_i$ as an arbitrary real number rather than $S_i$ 
+
+The second issue with attempting to assign the set of neighbors $S_i$ an arbitrary number that exceeds another, hidden, arbitrary number becomes clear when considering pratical implications of this line of research. The goal of adapting thresholds for empirical work is clear: discover the thresholds people have.
+
+
+
+
+
+
+
+To motivate this difficulty, consider the simple formulation, posed in Granovetter (1978) among other places: <<A threshold is the point at which benefits outweigh costs>>. Writing this down somewhat more formally yields $U_{ia} > C_{ia}$, where $U$ indiciates utility, $C$ indicates cost, $i$ is an individual, and $a$ is an action that $i$ faces a choice about. The choice is simple: either adopt or don't. The issue with the simple $U_{ia} > C_{ia}$ (or equivalently $U_{ia} > U_{i\not a}$) formulation is one of observability. Individuals do not keep detailed logs of their cost-benefit accounting when making decisions; decisions are often heuristic and subject to wide variability based on small differences in framing, situation, or individual mood. Because of the wide variance of perceived costs and benefits contingent on many factors, the process of reverse-engineering decision making is extremely complicated.
+
+Granovetter's simple statement that a threshold exists at which point $U_i > C_i$ offers a simplification of the cost-benefit problem. Rather than attempting to infer two quantities, $U_i$ and $C_i$, we focus on only one, $\theta_i$, which indicates the minimum point at which the utility of an action outweighs its costs. While we may not observe the internal process that goes into determining $U_i > C_i$, we can observe individual decisions to undertake actions and reason about $\theta_i$ on those grounds.
+
+Generally, studies of thresholds focus on the number of neigbhors, $S_i$, that an individual $i$ needs before being willing to undertake an action. However, it is unreasonable to argue (as Granovetter and many others have pointed out) that the degree of the adoption neighborhood $S_i$ is the only factor that affects decisionmaking.
+
+For some products, norms, and behaviors, benefit comes largely from coordination with others. Examples include using similar computing platforms, speaking a common language, and sharing similar beliefs about the norms that should govern traffic (keep right except to pass, etc.). However, other decisions may be affected far less by social pressure than by personal preferences or needs. A tech-minded person may be convinced of the superiority of their own judgement over their friends'; a true religious believer is unlikely to be driven to apostacy by encountering people of other faiths.
+
+This range of possibilities calls into question when traditional threshold models are appropriate. By ``traditional'', I mean situations where the driving assumption of the model is that $i$ adopts when some constant number or proportional fraction of neighbors adopt. Modelers have made much progress in this area, but such models have difficulty accounting for other factors contributing to adoption.
+
+\section{Approaches to Thresholds}
+
+Briefly, literatures in both sociology and computer science have dealt with threshold behaviors in empirical settings. Much theoreitcal work has been done in physics and economics as well, although I am less familiar with the empirical applications in those domains.
+
+I focus
+
+
+However, many other behaviors do not confer a direct benefit for having many friends performing the same behavior, or are unlikely to spread 
+
+
+
 
 \section{Theoretically Defining a Threshold}
 
@@ -58,5 +360,17 @@ How much does this matter for estimation?
 Homophily of thresholds: does a clique having high thresholds imply that each person in that clique should be able to convert more high threshold friends? Intuition is no.
 
 A really restrictive/rigorous treatment would exclude everyone with estimated $\theta = 1$ to avoid the knowing-about-the-thing confound.
+
+process of assigning thresholds has been exogenous
+want to make it endogenous
+
+$\theta_v$ is basically uninterpretable in Goyal 2010
+if $\theta_v = .8$ and $p_v(S) = .8$, then $p_v(S)$, the probability of activateion, is 1. This is a contradiction.
+
+We can model Goyal's $p_u(S \union \{w\})$ in a regression sense as $
+
+Can link up with watts (2002) if I can prove that the distribution of $\theta_i(X_i)$, when interpreted as a fraction of friends, is a probability distribution. This should be doable.
+
+changing graph structure should be fine in the fractional case
 
 \end{document}

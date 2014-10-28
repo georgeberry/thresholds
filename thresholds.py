@@ -3,10 +3,11 @@ import statsmodels.api as sm
 import pandas as pd
 import numpy as np
 import numpy.linalg as la
-from random import random, gauss, randint, uniform, shuffle
+from random import random, gauss, randint, uniform, shuffle, choice
 from copy import deepcopy
 from time import time
 from functools import wraps
+from scipy.stats import norm
 
 
 def timer(f):
@@ -37,10 +38,12 @@ class ThresholdGraph(object):
             So taking thresholds[0] and covariates[0] gives the threshold and covariates for individual 1
 
     '''
-    def __init__(self, thresholds, covariates=None, rand_graph_type='regular', threshold_type='integer', neighbors=15, num_nodes=1000, seed_fraction = 0.03):
+    def __init__(self, thresholds, covariates=None, rand_graph_type='regular', threshold_type='integer', neighbors=10, num_nodes=1000): #, seed_fraction = 0.01):
 
         if covariates:
             self.covariate_names = sorted(covariates[0].keys())
+        self.pruned_df = None
+        self.pruned_exists = False
 
         #add covariate names and make pandas df
         df_colnames = ['ego','activated','activated alters', 'timestep', 'true threshold']
@@ -54,13 +57,15 @@ class ThresholdGraph(object):
         self.set_thresholds(thresholds, covariates)
 
         #flip seed nodes on
-        self.seed_nodes(seed_fraction)
+        #self.seed_nodes(seed_fraction)
 
 
     def create_random_graph(self, rand_graph_type, neighbors, num_nodes):
         assert rand_graph_type in {'regular', 'watts-strogatz', 'power law', 'poisson'}, 'OMG I DONT RECOGNIZE THAT GRAPH TYPE'
         if rand_graph_type == 'regular':
             self.g = nx.random_regular_graph(neighbors, num_nodes)
+        if rand_graph_type == 'watts-strogatz':
+            self.g = nx.watts_strogatz_graph(num_nodes, neighbors, .05)
 
         #set time to 0
         self.g.graph['timestep'] = 0
@@ -100,9 +105,9 @@ class ThresholdGraph(object):
 
 
     @timer
-    def update(self):
+    def broadcast_update(self):
         '''
-        Update rule for the graph
+        broadcast_update rule for the graph
         Call once to perform one discrete-timestep iteration
         '''
         new_graph = deepcopy(self.g)
@@ -113,10 +118,12 @@ class ThresholdGraph(object):
 
         for ego in self.g.nodes_iter():
             #print new_graph.node[ego]
-            if self.g.node[ego]['activated'] == 1:
+            #if new_graph.graph['timestep'] == 1 and self.g.node[ego]['activated'] == 1:
+            #    pass
                 #print self.g.node[ego]
                 #print 'passing'
                 #no need to evaluate if already activated
+            if self.g.node[ego]['activated'] == 1:
                 continue
             activated_alters = 0
             for alter in new_graph[ego]:
@@ -130,6 +137,68 @@ class ThresholdGraph(object):
         self.g = new_graph
 
 
+    @timer
+    def targeted_update(self):
+        '''
+        message passing model
+
+        pick a random activated ego to RECIEVE a message
+
+        really simple: pick an unactivated node, pick an activated alter, increment count by 1, store who sent message on node
+        '''
+        #early adopters have threshold < 0
+        activated_set = set()
+        all_nodes = set(self.g.nodes())
+
+        for ego in self.g.nodes_iter():
+            if self.g.node[ego]['threshold'] < 0:
+                self.g.node[ego]['activated'] = 1
+                activated_set.add(ego)
+                if self.g.node[ego]['covariates'] != None:
+                    self.add_node_to_df(ego, self.g.node[ego]['activated'], 0, None, self.g.node[ego]['threshold'], self.g.node[ego]['covariates'])
+                else:
+                    self.add_node_to_df(ego, self.g.node[ego]['activated'], 0, None, self.g.node[ego]['threshold'])
+
+        #assumes we'll stop eventually
+        rounds_with_no_progress = 0
+
+        while len(activated_set) < self.g.number_of_nodes():
+            unactivated = all_nodes - activated_set
+            #randomly choose an ego
+            ego = choice(tuple(unactivated))
+            alter_set = set(self.g[ego].keys())
+            prev_messengers = self.g.node[ego].get('prev messengers', set())
+            activated_alters = (activated_set & alter_set) - prev_messengers
+            if len(activated_alters) == 0:
+                rounds_with_no_progress += 1
+                if rounds_with_no_progress == 1000:
+                    print 'break!'
+                    break
+                else:
+                    continue
+
+            #random messenger
+            messenger = choice(tuple(activated_alters))
+            if 'prev messengers' not in self.g.node[ego]:
+                self.g.node[ego]['prev messengers'] = set()
+            if 'activated alters' not in self.g.node[ego]:
+                self.g.node[ego]['activated alters'] = 0
+
+            self.g.node[ego]['prev messengers'].add(messenger)
+            self.g.node[ego]['activated alters'] += 1
+
+            if self.g.node[ego]['activated alters'] >= self.g.node[ego]['threshold']:
+                activated_set.add(ego)
+                self.g.node[ego]['activated'] = 1
+                if self.g.node[ego]['covariates'] != None:
+                    self.add_node_to_df(ego, self.g.node[ego]['activated'], len(self.g.node[ego]['prev messengers']), None, self.g.node[ego]['threshold'], self.g.node[ego]['covariates'])
+                else:
+                    self.add_node_to_df(ego, self.g.node[ego]['activated'], len(self.g.node[ego]['prev messengers']), None, self.g.node[ego]['threshold'])
+            if len(activated_set) % 100 == 0:
+                print 'there are {} activated nodes'.format(len(activated_set))
+        print len(activated_set)
+
+
     def add_node_to_df(self, ego, activated, activated_alters, timestep, true_threshold, covariates=None):
         rows, cols = self.df.shape
         to_add = [ego, activated, activated_alters, timestep, true_threshold]
@@ -139,13 +208,12 @@ class ThresholdGraph(object):
         self.df.loc[rows + 1] = to_add
 
 
-    def __call__(self, num_iter=10):
-        for _ in xrange(num_iter):
-            self.update()
-
-
-    def number_activated(self):
-        pass
+    def __call__(self, num_iter=10, broadcast=True):
+        if broadcast:
+            for _ in xrange(num_iter):
+                self.broadcast_update()
+        else:
+            self.targeted_update()
 
 
     @timer
@@ -162,85 +230,75 @@ class ThresholdGraph(object):
         we can approx it by giving (after - before / 2), where n is the jump
         '''
         df = self.df
-        pruned_df = pd.DataFrame(columns=tuple(df.columns))
+        pruned_df = pd.DataFrame(columns=tuple(list(df.columns) + ['observed']))
         indexes = df['ego']
+
+        seeds = 0
+        adopters = 0
+
         for ego in set(indexes):
             unactivated_df = df.loc[(df['ego'] == ego) & (df['activated'] == 0)]
             activated_df = df.loc[(df['ego'] == ego) & (df['activated'] == 1)]
 
             #for seeds, skip
-            if unactivated_df.shape[0] == 0 or activated_df.shape[0] == 0:
-                continue
-
-            max_time_unactivated = max(unactivated_df['timestep'])
-            min_time_activated = min(activated_df['timestep'])
-
-            max_unactivated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 0) & (df['timestep'] == max_time_unactivated)]
-            min_activated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 1) & (df['timestep'] == min_time_activated)]
-
-            #if max_unactivated_row['covariates'].iloc[0] == 2:
-            #    print '-'*50
-            #    print max_unactivated_row
-            #    print min_activated_row
-
-            #we need to assure that we're getting the actual adoption exposure
-            if min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] == 2:
-                continue
-                #try averaging past two
-                #diff = (min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0])/float(2)
-                #row_as_matrix = min_activated_row.as_matrix()
-                #col_num = list(min_activated_row.columns).index('activated alters')
-                #row_as_matrix[0][col_num] = diff
-            elif min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] == 1:
-                row_as_matrix = min_activated_row.as_matrix()
-            else:
-                continue
-            rows, cols = pruned_df.shape
-            pruned_df.loc[rows + 1] = row_as_matrix
-        return pruned_df
-
-
-    @timer
-    def incorrectly_prune_df(self):
-        #just first time individuals adopt
-        #counterexample for pruning wrong
-
-        df = self.df.loc[self.df['activated'] == 1]
-        cleaned_df = pd.DataFrame(columns=(df.columns))
-
-        for ego in set(df['ego']):
-            unactivated_df = df.loc[(df['ego'] == ego) & (df['activated'] == 0)]
-            activated_df = df.loc[(df['ego'] == ego) & (df['activated'] == 1)]
-
-            #for seeds
             #if unactivated_df.shape[0] == 0 or activated_df.shape[0] == 0:
             #    continue
 
-            #max_time_unactivated = max(unactivated_df['timestep'])
-            min_time_activated = min(activated_df['timestep'])
+            #don't skip seeds! need for correction
+            #don't think we can say anything about non-adopters though?
+            if activated_df.shape[0] == 0:
+                #print unactivated_df
+                continue
+            elif unactivated_df.shape[0] == 0:
+                #for early adopters
+                min_time_activated = min(activated_df['timestep'])
+                min_activated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 1) & (df['timestep'] == min_time_activated)]
+                row_as_matrix = min_activated_row.as_matrix()
+                row_as_matrix = np.append(row_as_matrix[0], 0)
+                #print row_as_matrix
+                seeds += 1
+            else:
+                max_time_unactivated = max(unactivated_df['timestep'])
+                min_time_activated = min(activated_df['timestep'])
 
-            #max_unactivated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 0) & (df['timestep'] == max_time_unactivated)]
-            min_activated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 1) & (df['timestep'] == min_time_activated)]
+                max_unactivated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 0) & (df['timestep'] == max_time_unactivated)]
+                min_activated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 1) & (df['timestep'] == min_time_activated)]
 
-            #if max_unactivated_row['covariates'].iloc[0] == 2:
-            #    print '-'*50
-            #    print max_unactivated_row
-            #    print min_activated_row
+                #if max_unactivated_row['covariates'].iloc[0] == 2:
+                #    print '-'*50
+                #    print max_unactivated_row
+                #    print min_activated_row
 
-            #we need to assure that we're getting the actual adoption exposure
-            #if min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] != 1:
-            #    continue
+                #we need to assure that we're getting the actual adoption exposure
+                if min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] != 1:
+                    row_as_matrix = min_activated_row.as_matrix()
+                    row_as_matrix = np.append(row_as_matrix[0], 0)
 
-            rows, cols = cleaned_df.shape
-            cleaned_df.loc[rows + 1] = min_activated_row.as_matrix() 
-        return cleaned_df
+                    #try averaging past two
+                    #diff = (min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0])/float(2)
+                    #row_as_matrix = min_activated_row.as_matrix()
+                    #col_num = list(min_activated_row.columns).index('activated alters')
+                    #row_as_matrix[0][col_num] = diff
+                    adopters += 1
+                elif min_activated_row['activated alters'].iloc[0] - max_unactivated_row['activated alters'].iloc[0] == 1:
+                    #observed is 1
+                    row_as_matrix = min_activated_row.as_matrix()
+                    row_as_matrix = np.append(row_as_matrix[0], 1)
+                    adopters += 1
+            rows, cols = pruned_df.shape
+            pruned_df.loc[rows + 1] = row_as_matrix
+        self.pruned_exists = True
+        self.pruned_df = pruned_df
 
 
     def OLS(self, correct=True):
         if correct:
-            df = self.correctly_prune_df()
+            if self.pruned_exists == False:
+                self.correctly_prune_df()
         else:
             df = self.incorrectly_prune_df()
+
+        df = self.pruned_df.loc[(self.pruned_df['observed'] == 1)]
         y = df['activated alters']
         covariates = df[self.covariate_names]
         constant = pd.DataFrame([1]*covariates.shape[0], index=covariates.index)
@@ -254,9 +312,92 @@ class ThresholdGraph(object):
         beta = np.dot(np.dot(la.inv(np.dot(X.T, X)), X.T),y)
         return beta
 
+    def heckman(self):
+        #probit part
+        if self.pruned_exists == False:
+            self.correctly_prune_df()
+
+        pruned = self.pruned_df.convert_objects(convert_numeric=True)
+
+        data_endog = pruned[['observed']]
+        data_exog = sm.add_constant(pruned[self.covariate_names + ['timestep']])
+        probit = sm.Probit(data_endog, data_exog)
+        fitted = probit.fit()
+        self.fitted = fitted
+        fv = fitted.fittedvalues
+        #res_dev = np.sqrt(np.var(fitted.resid))
+        #z = np.array([-x/res_dev for x in fv])
+        #fv_var = np.array([norm.pdf(x)/norm.cdf(-x) for x in z])
+        inv_mills = np.array([norm.pdf(x)/norm.cdf(-x) for x in fv])
+        inv_mills = np.matrix(inv_mills).T
+        pruned['inv mills'] = inv_mills
+
+        #ols part
+        observed = pruned.loc[(pruned['observed'] == 1)]
+
+        y = observed['activated alters']
+        covariates = observed[self.covariate_names + ['inv mills']]
+        constant = pd.DataFrame([1]*covariates.shape[0], index=covariates.index)
+        X = constant.join(covariates)
+        inv_mills_ratio = 0
+        y = y.as_matrix()
+        X = X.as_matrix()
+
+        #print type(y)
+        #print X
+        #h = X * la.inv(X.T * X) * X.T
+        beta = np.dot(np.dot(la.inv(np.dot(X.T, X)), X.T),y)
+        return beta
+
 
     @staticmethod
-    def gen_thresholds(num_nodes=1000, default=1, **kwargs):
+    def gen_integer_thresholds(num_nodes=1000, default=1, **kwargs):
+        '''
+        can be called without instantiating the class
+        should be called before making an instance, you can then pass the resulting thresholds and covariates to the instance
+
+        default is the 'baseline', or constant value in the regression
+
+        kwargs should be of the form ('covariate name': (beta value, distribution type))
+            distribution type should be 'uniform', 'gauss', or 'binary'
+
+        actual individual-level variables are pulled from a gauss(0,1), a uniform(0,1), or a binary 0 or 1
+
+        need to add the fractional threshold case
+        '''
+        thresholds = []
+        covariates = []
+
+        print kwargs
+
+        for i in xrange(num_nodes):
+            individual_covariates = {}
+            individual_threshold = default
+
+            for k,v in kwargs.items():
+                name = k
+                beta = v[0]
+                distribution = v[1]
+                if distribution == 'gauss':
+                    individual_covariates[name] = gauss(0,1)
+                elif distribution == 'uniform':
+                    individual_covariates[name] = random()
+                elif distribution == 'binary':
+                    individual_covariates[name] = randint(0,1)
+            
+                #add the effect of manipulation here
+                individual_threshold += beta * individual_covariates[name]
+            error = gauss(0,1)
+            individual_threshold += error
+
+            thresholds.append(individual_threshold) 
+            covariates.append(individual_covariates)
+
+        return thresholds, covariates
+
+
+    @staticmethod
+    def gen_fractional_thresholds(num_nodes=1000, default=1, **kwargs):
         '''
         can be called without instantiating the class
         should be called before making an instance, you can then pass the resulting thresholds and covariates to the instance
@@ -302,13 +443,47 @@ class ThresholdGraph(object):
 
 
 #if __name__ == '__main__':
-thresholds, covariates = ThresholdGraph.gen_thresholds(num_nodes=1000, default=2.5, height=(1, 'binary')) #technophile=(-1, 'binary')) #, height=(1, 'gauss'), weight=(.5, 'gauss'))
+thresholds, covariates = ThresholdGraph.gen_integer_thresholds(num_nodes=1000, default=5, height=(3, 'gauss'), weight=(3, 'gauss'), technophile=(-1,'binary'))
 
-for _ in range(1):
-    tg = ThresholdGraph(num_nodes=1000, thresholds=thresholds, covariates=covariates)
-    tg(10)
-    print tg.covariate_names
-    print tg.OLS(correct=True)
+tg = ThresholdGraph(num_nodes=1000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='regular')
+tg(broadcast=False)
+
+for node in tg.g.nodes_iter():
+    if 'activated' not in tg.g.node[node]:
+        print tg.g.node[node]
+
+'''
+tg(10)
+print tg.heckman()
+print tg.OLS()
+
+
+
+#we have an LDV
+tg.pruned_df.loc[(tg.pruned_df['true threshold'] < 0), 'true threshold'] = 0
+pruned_df = tg.pruned_df
+y = pruned_df['activated alters']
+covariates = pruned_df[tg.covariate_names]
+constant = pd.DataFrame([1]*covariates.shape[0], index=covariates.index)
+X = constant.join(covariates)
+y = y.as_matrix()
+X = X.as_matrix()
+print np.dot(np.dot(la.inv(np.dot(X.T, X)), X.T),y)
+
+pruned_df.to_csv('/Users/g/Desktop/output.csv')
+
+obs = pruned_df.loc[(pruned_df['observed'] == 1)]
+y = obs['activated alters']
+covariates = obs[tg.covariate_names]
+constant = pd.DataFrame([1]*covariates.shape[0], index=covariates.index)
+X = constant.join(covariates)
+y = y.as_matrix()
+X = X.as_matrix()
+print np.dot(np.dot(la.inv(np.dot(X.T, X)), X.T),y)
+
+    #print tg.covariate_names
+    #print tg.OLS(correct=True)
 
 #print tg.OLS()
-print tg.OLS(correct=False) #wrong coefficients
+#print tg.OLS(correct=False) #wrong coefficients
+'''
