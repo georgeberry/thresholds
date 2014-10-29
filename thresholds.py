@@ -65,8 +65,14 @@ class ThresholdGraph(object):
         if rand_graph_type == 'regular':
             self.g = nx.random_regular_graph(neighbors, num_nodes)
         if rand_graph_type == 'watts-strogatz':
-            self.g = nx.watts_strogatz_graph(num_nodes, neighbors, .05)
-
+            self.g = nx.watts_strogatz_graph(num_nodes, neighbors, .01)
+        if rand_graph_type == 'poisson':
+            pass
+        if rand_graph_type == 'power law':
+            self.g = nx.powerlaw_cluster_graph(num_nodes, 4, .2)
+            print self.g.number_of_nodes()
+            print self.g.number_of_edges()
+            print nx.number_connected_components(self.g)
         #set time to 0
         self.g.graph['timestep'] = 0
 
@@ -78,6 +84,7 @@ class ThresholdGraph(object):
             for node in self.g.nodes_iter():
                 self.g.node[node]['threshold'] = thresholds
                 self.g.node[node]['covariates'] = None
+                self.g.node[node]['activated'] = 0
         
         #heterogenous thresholds but no covariates
         elif hasattr(thresholds, '__iter__') and covariates == None: 
@@ -85,6 +92,7 @@ class ThresholdGraph(object):
             for idx, node in enumerate(self.g.nodes_iter()):
                 self.g.node[node]['threshold'] = thresholds[idx]
                 self.g.node[node]['covariates'] = None
+                self.g.node[node]['activated'] = 0
 
         #heterogenous thresholds with covariates
         #most common use case
@@ -92,7 +100,8 @@ class ThresholdGraph(object):
             assert len(thresholds) == self.g.order(), 'OMG WRONG NUMBER OF THRESHOLDS OR COVARIATES'
             for idx, node in enumerate(self.g.nodes_iter()):
                 self.g.node[node]['threshold'] = thresholds[idx]
-                self.g.node[node]['covariates'] = covariates[idx] #holds a dict
+                self.g.node[node]['covariates'] = covariates[idx]
+                self.g.node[node]['activated'] = 0
 
 
     def seed_nodes(self, seed_fraction):
@@ -254,7 +263,7 @@ class ThresholdGraph(object):
                 min_time_activated = min(activated_df['timestep'])
                 min_activated_row = df.loc[(df['ego'] == ego) & (df['activated'] == 1) & (df['timestep'] == min_time_activated)]
                 row_as_matrix = min_activated_row.as_matrix()
-                row_as_matrix = np.append(row_as_matrix[0], 0)
+                row_as_matrix = np.append(row_as_matrix[0], 1)
                 #print row_as_matrix
                 seeds += 1
             else:
@@ -445,45 +454,22 @@ class ThresholdGraph(object):
 #if __name__ == '__main__':
 thresholds, covariates = ThresholdGraph.gen_integer_thresholds(num_nodes=1000, default=5, height=(3, 'gauss'), weight=(3, 'gauss'), technophile=(-1,'binary'))
 
-tg = ThresholdGraph(num_nodes=1000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='regular')
+tg = ThresholdGraph(num_nodes=1000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='power law')
+
+
+tg(20)
+tg.correctly_prune_df()
+pruned_df = tg.pruned_df
+pruned_df.to_csv('/Users/g/Desktop/power_law_output.csv')
+
+'''
 tg(broadcast=False)
 
 for node in tg.g.nodes_iter():
     if 'activated' not in tg.g.node[node]:
         print tg.g.node[node]
 
-'''
-tg(10)
-print tg.heckman()
-print tg.OLS()
 
-
-
-#we have an LDV
-tg.pruned_df.loc[(tg.pruned_df['true threshold'] < 0), 'true threshold'] = 0
-pruned_df = tg.pruned_df
-y = pruned_df['activated alters']
-covariates = pruned_df[tg.covariate_names]
-constant = pd.DataFrame([1]*covariates.shape[0], index=covariates.index)
-X = constant.join(covariates)
-y = y.as_matrix()
-X = X.as_matrix()
-print np.dot(np.dot(la.inv(np.dot(X.T, X)), X.T),y)
-
+pruned_df = tg.df
 pruned_df.to_csv('/Users/g/Desktop/output.csv')
-
-obs = pruned_df.loc[(pruned_df['observed'] == 1)]
-y = obs['activated alters']
-covariates = obs[tg.covariate_names]
-constant = pd.DataFrame([1]*covariates.shape[0], index=covariates.index)
-X = constant.join(covariates)
-y = y.as_matrix()
-X = X.as_matrix()
-print np.dot(np.dot(la.inv(np.dot(X.T, X)), X.T),y)
-
-    #print tg.covariate_names
-    #print tg.OLS(correct=True)
-
-#print tg.OLS()
-#print tg.OLS(correct=False) #wrong coefficients
 '''

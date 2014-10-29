@@ -28,13 +28,13 @@ In this paper, I address this threshold detection question by: 1) Redefining a t
 
 Early work by Granovetter (1978) in sociology forms the primary motivation for this study. Granovetter recognized the importance of preference and norm distributions to collective outcomes, rather than the mean view of every individual in a population. Granovetter offers several key insights that I draw on here, including the interpretetation of thresholds a cost-benefit calculus, the notion that higher threshold variance can lead to higher adoption rates, and the idea of ``crossing the chasm'' from early adopters to the masses. Additionally, Granovetter posed questions of social strucature (in a network context), framing his discussion of thresholds as seeking to investigate the effects of structure on collective outcomes.
 
-In a complementary way, Schelling (1973) was an early contributor in the broad category of binary choice with externalities. Schelling develops a multi-player prisonner's dilemma that, at times, implicilty incorporates network structure. For instance, he utilizes an example of individual needing a certain amount of light to read by (100 watts), yet everyone has only 60 watts at their personal disposal, and they gain 30 watts from each neighbor who has a light on. Schelling notes that if individuals are arranged in a line, the two people at the ends will not have enough light to read and will switch off their lights, leading to a cascade of darkness. However, if individuals are arranged in a ring-lattice, everyone having a light on is stable, and everyone may read.
+In a complementary way, Schelling (1973) was an early contributor in the broad category of binary choice with externalities, of which threshold models are a subcategory. Schelling develops a multi-player prisonner's dilemma that, at times, implicilty incorporates network structure. For instance, he utilizes an example of individual needing a certain amount of light to read by (100 watts), yet everyone has only 60 watts at their personal disposal, and they gain 30 watts from each neighbor who has a light on. Schelling notes that if individuals are arranged in a line, the two people at the ends will not have enough light to read and will switch off their lights, leading to a cascade of darkness. However, if individuals are arranged in a ring-lattice, everyone having a light on is stable, and everyone may read.
 
-Both of these early efforts contain a large part of the questions social scientists are still concerned with.
+Both of these early efforts contain a large number of questions social scientists are still concerned with, such as the social structures that facilitate diffusion, the aggregate welfare of collective outcomes, and how to facilitate the adoption of prosocial innovations.
 
 \subsection{Contemporary efforts}
 
-Recent work at the intersection of sociology and physics, along with work by computer scientits, have taken up threshold models as a way of modeling social structure. Watts (2002), Dodds and Watts (2004), Kempe et al. (2003, 2005) develop theoretical results using what may broadly be called threshold models. Dodds and Watts (2004) and Kempe et al. (2003, 2005) are concerned with finding similarities between epidemeological models of contagion and social threshold models. In an epidemological model, each alter has a certain probability of activating ego, and the chances are independent. Kempe et al. (2003, 2005) refer to this as the ``cascade model'', and they show that, under certain assumptions, one may equate a cascade model and a threshold model. Dodds and Watts (2004) set themselves a similar task, although approach the modeling problem differently. In contrast, Watts (2002) confines himself to showing interesting properties of a threshold model, without considering a relationship to the cascade model.
+Recent work at the intersection of sociology and physics, along with work by computer scientits, have taken up threshold models as a way of modeling social structure and its effects. Watts (2002), Dodds and Watts (2004), Kempe et al. (2003, 2005) develop theoretical results using what may broadly be called threshold models. Dodds and Watts (2004) and Kempe et al. (2003, 2005) are concerned with finding similarities between epidemeological models of contagion and social threshold models. In an epidemological model, each alter has a certain probability of activating ego, and the chances are independent. Kempe et al. (2003, 2005) refer to this as the ``cascade model'', and they show that, under certain assumptions, one may equate a cascade model and a threshold model. Dodds and Watts (2004) set themselves a similar task, although approach the modeling problem differently. In contrast, Watts (2002) confines himself to showing interesting properties of a threshold model, without considering a relationship to the cascade model.
 
 For my purposes, it is useful to compare Watts (2002)'s threshold model with Kempe et al. (2003, 2005) to motivate my definition of a threshold below.
 
@@ -120,14 +120,14 @@ In empirical social data, we often recieve timestamps of alters' actions and tim
 
 \subsection{Computational Models}
 
-I simulate diffusion processes on graphs with thresholds as a linear function of individual characteristics. For simplicity, I focus on networks with $N = 1000$ nodes and an average degree $\bar{d_i} = 15$. I use Python's NetworkX package to generate the following graph topologies: regular random graphs, Watts-Strogatz random graphs <<CITE>>, power law random graphs <<CITE>>, and Poisson (also called $G(n,p)$) random graphs. I use R for regressions; confidence intervals are meaningless and so are not reported. 
+I simulate diffusion processes on graphs with thresholds as a linear function of individual characteristics. For simplicity, I focus on networks with $N = 1000$ nodes and an average degree $\bar{d_i} = 15$. I use Python's NetworkX package to generate the following graph topologies: regular random graphs, Watts-Strogatz random graphs <<CITE>>, power law random graphs <<CITE>>, and Poisson (also called $G(n,p)$) random graphs. I use R for regressions; confidence intervals are meaningless because standard errors do not account for the correlated nature of observations in a network\footnote{Even robust ones---I include no heteroskedasticity in my model.}. Further, determining accurate standard errors is beyond the scope of this paper.
 
 I simulate both targeted and broadcast diffusion processes, using integer thresholds for ease of interpretation. I use the threshold generation function: 
 \[
 S_i^* = 5 + 3*x_1 + 3*x_2 - 1*x_3 + \epsilon_i
 \]
 
-Where $x_1, x_2, \epsilon_i \sim N(0,1)$ and $x_3 \sim B(1,.5)$. This allows some thresholds to be below 0 and makes the probability of any threshold being above $\bar{d_i}$ small. In heterogenous degree models (power law, Poisson), the chance remains that some individuals will not be activated because a small degree individual could be assigned a large threshold. \footnote{All source code may be found online here.}
+Where $x_1, x_2, \epsilon_i \sim N(0,1)$ and $x_3 \sim Bin(1,.5)$. This allows some thresholds to be below 0 and makes the probability of any threshold being above $\bar{d_i}$ small. In heterogenous degree models (power law, Poisson), the chance remains that some individuals will not be activated because a small degree individual could be assigned a large threshold. \footnote{All source code may be found on the author's GitHub page and may be freely used and modified with attribution.}
 
 In simulating these models, I record the following information: 
 \begin{enumerate}
@@ -137,7 +137,21 @@ In simulating these models, I record the following information:
 
 \subsubsection{Targeted Diffusion}
 
+The targeted diffusion process is straightforward to simulate. In real life, we find individuals sending messages or gathering information on their own schedules. However, for the purposes of this simple simulation we only care that individuals recieve messages from alters who have adopted. When the number of received messages exceeds $i$'s threshold, $i$ adopts immediately. In empirical data, there is likely to be some lag, but that is not important in principle if a researcher can model the length of time before adoption.
 
+I therefore assume that there is no lag of observtion or activation, but rather assume that random unactivated individuals recieve messages in random order from activated neighbors. Each neighbor may send only one message, a constraint that may be easily relaxed for empirical data.
+
+The modeling process looks like this:
+\begin{enumerate}
+\item Activate early adopters who have $\theta_i(X_i) < 0$
+\item While not everyone has adopted:
+\item Choose a random individual with $y_i = 0$
+\item Choose a random neighbor who has adopted and has not been chosen before
+\item Alter passes $i$ a message, incrementing $|S_i|$ by 1
+\item If $|S_i| > \theta_i(X_i)$, $i$ adopts and we record the information
+\end{enumerate}
+
+Here are model results from running this process with the threshold function given above and using a simple Tobit model, since we observe $\ceil{|S_i^*|} = 0$ if $\theta_i(X_i) < 0$. 
 
 \subsubsection{Broadcast Diffusion}
 
@@ -149,7 +163,9 @@ Therefore, we employ the simple data-cleaning heuristic:
 \item If $min(|S_i^1|) = 0$, keep information on $i$'s first adoption
 \end{enumerate}
 
-The second element of the heuristic keeps early adopters in the sample. 
+The second element of the heuristic keeps early adopters in the sample.
+
+
 
 \subsection{Empirical Validation}
 
@@ -161,13 +177,13 @@ ML
 
 \subsection{Limitations}
 
-The first question a reader may have is: why not just look at adoption in a probablistic or adoption rate context (Christakis and Fowler 2006; Aral et al. 2009). Both of these methods are valuable perspectives that are appropriate in certain situations. The approach presented in this paper is allied with these other approaches rather than in conflict with them. It provides another method to approach diffusion questions in a way that is closely aligned with core sociological theory. 
+The first question a reader may have is: why not just look at adoption in a probablistic or adoption rate context (Christakis and Fowler 2006; Aral et al. 2009). Both of these methods are valuable perspectives that are appropriate in certain situations. The approach presented in this paper is allied with these other approaches rather than in conflict with them. It provides another method to approach diffusion questions in a way that is closely aligned with core sociological theory. Other methods do not offer the same straightforward interpretation or close alignment with theory. Further, it is likely that some real-world processes actually do follow a rough threshold pattern, and probabalistic or rate models will not provide as accurate a model of the diffusion process. Conversely, some real-world processes are likely quite close to probabalistic adoption models, and this threshold model will be inappropriate in these situations. While it is somewhat unsatisfying, only thorough knowledge of the diffusion process itself may allow a researcher to accurately make these decisions.
 
-A second concern is limited generalizability in the case where some individuals have not adopted. This limitation may be addressed with adequate covariates and enough adoption observations. In particular, examining many different behaviors diffusing on part of a network can provide insight in this case.
+A second concern is limited generalizability in the case where some individuals have not adopted. This limitation may be addressed with adequate covariates and enough adoption observations. In particular, examining many different behaviors diffusing on part of a network can provide insight in this case: each behavior will have its own specific difference-in-means, but enough coverage should allow inference. 
 
-Thirdly, one may take issue with the notion of a threshold itself, considering it as a modeling convenience that has no practical applicability. If this is the case, then it is a questionable modeling convenience and we should rethink the use of threshold models in sociological theory. However, it is also unreasonable to think that individuals go around with context-specific numbers floating in their heads---or that adoption decisions are mechanistic. On the other hand, there is certainly some truth to the notion that a few friends engaging in a behavior may change my view of it. A very close friend may be all I need to encourage me to do something, while a dozen acquaintaences may not make much of a dent. By viewing thresholds as variable based on a situation, and by allowing for a distribution of thresholds for certain covariate levels (the distribution of the conditional expectation), empirically derived thresholds can be seen as a best guess, or a summary of the behavior of many individuals in specific situations. In other words, I believe this approach allows us to model social situations in a way that stays close to social theory, which has substantial falsification power for our theories. 
+Thirdly, one may take issue with the notion of a threshold itself, considering it as a modeling convenience that has no practical applicability. If this is the case, then it is a questionable modeling convenience and we should rethink the use of threshold models in sociological theory. Conversely, however, it is also unreasonable to think that individuals go around with hard-and-fast context-specific numbers floating in their heads. On the other hand, there is certainly some truth to the notion that a few friends engaging in a behavior may change my view of it. A very close friend may be all I need to encourage me to do something, while a dozen acquaintaences may not make much of a dent. By viewing thresholds as variable based on a situation, and by allowing for a distribution of thresholds for certain covariate levels (the distribution of the conditional expectation), empirically derived thresholds can be seen as a best guess, or a summary of the behavior of many individuals in specific situations. In other words, I believe this approach allows us to model social situations in a way that stays close to social theory, which has substantial falsification power for our theories. 
 
-This method is most appropriate for rich sources of data such as those found online, and appropriate for considering questions about adoption behavior under various circumstances. In cases where there is not adequate information, or the underlying diffusion process is not facilitated by social factors, estimates from observational data will be wrong. However, these concerns apply to any observational study, and I repeat them here for completeness.
+This method is most appropriate for rich sources of data such as those found online, and appropriate for considering questions about adoption behavior under various circumstances. In cases where there is not adequate information, or the underlying diffusion process is not facilitated by social factors, estimates from observational data will be wrong. However, these concerns apply to any observational study, and I repeat them here for completeness. As a final caveat, generalizing out of sample must be undertaken with great care, as systematic differences between populations are often the reason for the failure of a behavior to diffuse from one population to another. However, in a fast-moving online world, the age of the behavior may be more relevant to the end of a cascade than personal-level attributes. In this case, this age effect may be modeled, and out of sample inference may be quite reasonable.
 
 
 
