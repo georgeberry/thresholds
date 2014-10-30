@@ -67,7 +67,7 @@ class ThresholdGraph(object):
         if rand_graph_type == 'watts-strogatz':
             self.g = nx.watts_strogatz_graph(num_nodes, neighbors, .01)
         if rand_graph_type == 'poisson':
-            pass
+            self.g = nx.gnp_random_graph(num_nodes, float(neighbors)/num_nodes)
         if rand_graph_type == 'power law':
             self.g = nx.powerlaw_cluster_graph(num_nodes, 4, .2)
             print self.g.number_of_nodes()
@@ -119,31 +119,38 @@ class ThresholdGraph(object):
         broadcast_update rule for the graph
         Call once to perform one discrete-timestep iteration
         '''
-        new_graph = deepcopy(self.g)
-        new_graph.graph['timestep'] += 1
 
-        #print new_graph.size()
-        #print new_graph.order()
+        nodes_last_round = None
 
-        for ego in self.g.nodes_iter():
-            #print new_graph.node[ego]
-            #if new_graph.graph['timestep'] == 1 and self.g.node[ego]['activated'] == 1:
-            #    pass
-                #print self.g.node[ego]
-                #print 'passing'
-                #no need to evaluate if already activated
-            if self.g.node[ego]['activated'] == 1:
-                continue
-            activated_alters = 0
-            for alter in new_graph[ego]:
-                activated_alters += self.g.node[alter]['activated']
-            if activated_alters >= self.g.node[ego]['threshold']:
-                new_graph.node[ego]['activated'] = 1
-            if new_graph.node[ego]['covariates'] != None:
-                self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'], new_graph.node[ego]['threshold'], new_graph.node[ego]['covariates'])
-            else:
-                self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'], new_graph.node[ego]['threshold'])
-        self.g = new_graph
+        while nodes_last_round != 0:
+            nodes_last_round = 0
+            new_graph = deepcopy(self.g)
+            new_graph.graph['timestep'] += 1
+
+            #print new_graph.size()
+            #print new_graph.order()
+
+            for ego in self.g.nodes_iter():
+                #print new_graph.node[ego]
+                #if new_graph.graph['timestep'] == 1 and self.g.node[ego]['activated'] == 1:
+                #    pass
+                    #print self.g.node[ego]
+                    #print 'passing'
+                    #no need to evaluate if already activated
+                if self.g.node[ego]['activated'] == 1:
+                    continue
+                activated_alters = 0
+                for alter in new_graph[ego]:
+                    activated_alters += self.g.node[alter]['activated']
+                if activated_alters >= self.g.node[ego]['threshold']:
+                    nodes_last_round += 1
+                    new_graph.node[ego]['activated'] = 1
+                if new_graph.node[ego]['covariates'] != None:
+                    self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'], new_graph.node[ego]['threshold'], new_graph.node[ego]['covariates'])
+                else:
+                    self.add_node_to_df(ego, new_graph.node[ego]['activated'], activated_alters, new_graph.graph['timestep'], new_graph.node[ego]['threshold'])
+            self.g = new_graph
+            print 'finished iteration; {} activations'.format(nodes_last_round)
 
 
     @timer
@@ -180,7 +187,7 @@ class ThresholdGraph(object):
             activated_alters = (activated_set & alter_set) - prev_messengers
             if len(activated_alters) == 0:
                 rounds_with_no_progress += 1
-                if rounds_with_no_progress == 1000:
+                if rounds_with_no_progress == 10000:
                     print 'break!'
                     break
                 else:
@@ -198,13 +205,14 @@ class ThresholdGraph(object):
 
             if self.g.node[ego]['activated alters'] >= self.g.node[ego]['threshold']:
                 activated_set.add(ego)
+                rounds_with_no_progress = 0
                 self.g.node[ego]['activated'] = 1
                 if self.g.node[ego]['covariates'] != None:
                     self.add_node_to_df(ego, self.g.node[ego]['activated'], len(self.g.node[ego]['prev messengers']), None, self.g.node[ego]['threshold'], self.g.node[ego]['covariates'])
                 else:
                     self.add_node_to_df(ego, self.g.node[ego]['activated'], len(self.g.node[ego]['prev messengers']), None, self.g.node[ego]['threshold'])
-            if len(activated_set) % 100 == 0:
-                print 'there are {} activated nodes'.format(len(activated_set))
+            #if len(activated_set) % 100 == 0:
+            #    print 'there are {} activated nodes'.format(len(activated_set))
         print len(activated_set)
 
 
@@ -219,8 +227,7 @@ class ThresholdGraph(object):
 
     def __call__(self, num_iter=10, broadcast=True):
         if broadcast:
-            for _ in xrange(num_iter):
-                self.broadcast_update()
+            self.broadcast_update()
         else:
             self.targeted_update()
 
@@ -451,25 +458,61 @@ class ThresholdGraph(object):
         return thresholds, covariates
 
 
-#if __name__ == '__main__':
-thresholds, covariates = ThresholdGraph.gen_integer_thresholds(num_nodes=1000, default=5, height=(3, 'gauss'), weight=(3, 'gauss'), technophile=(-1,'binary'))
+if __name__ == '__main__':
+    basepath = '/Users/g/Google Drive/Fall 2014/diffusion/thresholds/data/'
 
-tg = ThresholdGraph(num_nodes=1000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='power law')
+    thresholds, covariates = ThresholdGraph.gen_integer_thresholds(num_nodes=10000, default=5, var1=(3, 'gauss'), var2=(3, 'gauss'), bin_var1=(-1,'binary'))
 
+    '''
+    #broadcast regular
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='regular')
+    tg(40)
+    tg.correctly_prune_df()
+    pruned_df = tg.pruned_df
+    pruned_df.to_csv(basepath + 'broadcast_regular_output.csv')
 
-tg(20)
-tg.correctly_prune_df()
-pruned_df = tg.pruned_df
-pruned_df.to_csv('/Users/g/Desktop/power_law_output.csv')
+    #broadcast poisson
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='poisson')
+    tg(40)
+    tg.correctly_prune_df()
+    pruned_df = tg.pruned_df
+    pruned_df.to_csv(basepath + 'broadcast_poisson_output.csv')
 
-'''
-tg(broadcast=False)
+    #broadcast watts strogatz
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='watts-strogatz')
+    tg(40)
+    tg.correctly_prune_df()
+    pruned_df = tg.pruned_df
+    pruned_df.to_csv(basepath + 'broadcast_watts_strogatz_output.csv')
 
-for node in tg.g.nodes_iter():
-    if 'activated' not in tg.g.node[node]:
-        print tg.g.node[node]
+    #broadcast power law
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='power law')
+    tg(40)
+    tg.correctly_prune_df()
+    pruned_df = tg.pruned_df
+    pruned_df.to_csv(basepath + 'broadcast_power_law_output.csv')
 
+    '''
+    #targeted regular
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='regular')
+    tg(broadcast=False)
+    pruned_df = tg.df
+    pruned_df.to_csv(basepath + 'targeted_regular_output.csv')
 
-pruned_df = tg.df
-pruned_df.to_csv('/Users/g/Desktop/output.csv')
-'''
+    #targeted poisson
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='poisson')
+    tg(broadcast=False)
+    pruned_df = tg.df
+    pruned_df.to_csv(basepath + 'targeted_poisson_output.csv')
+
+    #targeted regular
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='watts-strogatz')
+    tg(broadcast=False)
+    pruned_df = tg.df
+    pruned_df.to_csv(basepath + 'targeted_watts_strogatz_output.csv')
+
+    #targeted regular
+    tg = ThresholdGraph(num_nodes=10000, neighbors=15, thresholds=thresholds, covariates=covariates, rand_graph_type='power law')
+    tg(broadcast=False)
+    pruned_df = tg.df
+    pruned_df.to_csv(basepath + 'targeted_power_law_output.csv')
