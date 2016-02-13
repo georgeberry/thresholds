@@ -1,3 +1,5 @@
-Simple simulations of threshold models. You may use code with the permission of the author.
+# Threshold project
 
-Contact at: geb97@cornell.edu
+Simple simulations of threshold models. Code is property of the author.
+
+Contact geb97@cornell.edu with questions
