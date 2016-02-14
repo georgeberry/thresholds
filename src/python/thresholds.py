@@ -49,7 +49,6 @@ Use R syntax:
     y ~ 3 * age + 2 * gender - 1 * motivation + epsilon
 '''
 
-@timer
 def create_thresholds(n, equation, distribution_dict):
     '''
     n: Number of samples to draw
@@ -109,7 +108,6 @@ def parse_equation(eq_str):
         tuple(re.split(star_pattern, x)) for x in iv_list
     ]
     iv_tuples.append((constant, 'constant'))
-    print(iv_tuples)
     return iv_tuples
 
 def random_draw_from_correct_distribution(distribution_str):
@@ -120,7 +118,6 @@ def random_draw_from_correct_distribution(distribution_str):
 
 ## Simulation functions ##
 
-@timer
 def label_graph_with_thresholds(graph, thresh_and_cov):
     '''
     Assigns thresholds to nodes in graph
@@ -147,7 +144,6 @@ def label_graph_with_thresholds(graph, thresh_and_cov):
             graph.node[ego][cov_name] = cov_val
     return graph
 
-@timer
 def async_simulation(graph_with_thresholds):
     '''
     Give this the graph with thresholds
@@ -174,8 +170,10 @@ def async_simulation(graph_with_thresholds):
     unactivated_node_set = all_node_set - activated_node_set
 
     steps_without_activation = 0
+    num_steps = 0
 
     while len(unactivated_node_set) > 0:
+        num_steps += 1
         ego = random.sample(unactivated_node_set, 1)[0]
         alter_set = set(g[ego].keys())
         activated_alters_num = len(alter_set & activated_node_set)
@@ -187,11 +185,13 @@ def async_simulation(graph_with_thresholds):
             g.node[ego]['activated'] = True
             activated_node_set.add(ego)
             unactivated_node_set.remove(ego)
+            steps_without_activation = 0
         else:
             g.node[ego]['before_activation_alters'] = activated_alters_num
             steps_without_activation += 1
             if steps_without_activation > num_nodes:
                 break
+    print('num steps: {}, num unactivated: {}'.format(num_steps, len(unactivated_node_set)))
     return g
 
 def get_activated_node_set(node_dicts):
@@ -236,7 +236,6 @@ def make_dataframe_from_simulation(graph_after_simulation):
     df = df.set_index('name')
     df.activated = df.activated.astype(int)
     new_df_colnames = get_column_ordering(df.columns.tolist())
-    print(new_df_colnames)
     df = df.reindex_axis(new_df_colnames, axis=1)
 
     return df
@@ -266,7 +265,7 @@ def get_column_ordering(df_colnames):
     new_df_colnames.extend(covariate_list)
     return new_df_colnames
 
-
+@timer
 def run_sim(
     graph,
     threshold_eqation,
@@ -313,13 +312,13 @@ if __name__ == '__main__':
     rg_df = run_sim(rg_graph, threshold_eq, distribution_dict, rg_output_path)
 
     # power law graph
-    m = int(math.floor(d / 4.))
+    m = 4
     pl_output_path = output_folder + 'pl_output.csv'
     pl_graph = nx.barabasi_albert_graph(n, m)
     pl_df = run_sim(pl_graph, threshold_eq, distribution_dict, pl_output_path)
 
     # power law clustered graph
-    p = 0.01
+    p = 0.02
     pg_output_path = output_folder + 'pg_output.csv'
     pg_graph = nx.powerlaw_cluster_graph(n, m, p)
     pg_df = run_sim(pg_graph, threshold_eq, distribution_dict, pg_output_path)
