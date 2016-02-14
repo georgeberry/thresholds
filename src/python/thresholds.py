@@ -23,8 +23,10 @@ We use networkx and store relevant node-attributes on the graph.node dict
             'threshold': float,
             'activated': bool,
             'covariates': {'cov name': cov_val}
-
         }
+
+TODO:
+    Do we record 0 threshold people correctly?
 """
 
 def timer(f):
@@ -230,6 +232,12 @@ def make_dataframe_from_simulation(graph_after_simulation):
 
     for node, data in g.nodes_iter(data=True):
         data['name'] = node
+        after_activation_alters = data['after_activation_alters']
+        before_activation_alters = data['before_activation_alters']
+        if after_activation_alters - before_activation_alters == 1:
+            data['observed'] = 1
+        else:
+            data['observed'] = 0
         data_list_of_dicts.append(data)
 
     df = pd.DataFrame(data_list_of_dicts)
@@ -253,6 +261,7 @@ def get_column_ordering(df_colnames):
         before_activation_alters
         after_activation_alters
         degree
+        observed
     '''
     new_df_colnames = [
         'activated',
@@ -260,6 +269,7 @@ def get_column_ordering(df_colnames):
         'before_activation_alters',
         'after_activation_alters',
         'degree',
+        'observed',
     ]
     covariate_list = list(set(df_colnames) - set(new_df_colnames))
     new_df_colnames.extend(covariate_list)
