@@ -280,7 +280,7 @@ def get_column_ordering(df_colnames):
 @timer
 def run_sim(
     graph,
-    threshold_eqation,
+    threshold_equation,
     distribution_dict,
     output_path,
     ):
@@ -288,7 +288,7 @@ def run_sim(
     n = graph.number_of_nodes()
     thresh_and_cov = create_thresholds(
         n,
-        threshold_eq,
+        threshold_equation,
         distribution_dict
     )
     labeled_graph = label_graph_with_thresholds(
