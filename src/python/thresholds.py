@@ -234,7 +234,9 @@ def make_dataframe_from_simulation(graph_after_simulation):
         data['name'] = node
         after_activation_alters = data['after_activation_alters']
         before_activation_alters = data['before_activation_alters']
-        if after_activation_alters - before_activation_alters == 1:
+        if after_activation_alters == 0:
+            data['observed'] = 1
+        elif after_activation_alters - before_activation_alters == 1:
             data['observed'] = 1
         else:
             data['observed'] = 0
@@ -301,11 +303,9 @@ def run_sim(
 if __name__ == '__main__':
     # some relatively constant definitions
     output_folder = '/Users/g/Google Drive/project-thresholds/thresholds/data/'
-    threshold_eq = 'y ~ 1 + 2 * age - 1 * race + 2 * gender'
+    threshold_eq = 'y ~ 3 + 1 * age'
     distribution_dict = {
         'age': 'normal',
-        'race': 'binomial',
-        'gender': 'binomial',
     }
     d = 10
     n = 10000
@@ -316,6 +316,7 @@ if __name__ == '__main__':
     ws_graph = nx.watts_strogatz_graph(n, d, p)
     ws_df = run_sim(ws_graph, threshold_eq, distribution_dict, ws_output_path)
 
+    '''
     # regular random graph
     rg_output_path = output_folder + 'rg_output.csv'
     rg_graph = nx.random_regular_graph(d, n)
@@ -338,3 +339,4 @@ if __name__ == '__main__':
     ps_output_path = output_folder + 'ps_output.csv'
     ps_graph = nx.gnp_random_graph(n, p)
     ps_df = run_sim(ps_graph, threshold_eq, distribution_dict, ps_output_path)
+    '''
