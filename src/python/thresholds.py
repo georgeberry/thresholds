@@ -27,12 +27,17 @@ We use networkx and store relevant node-attributes on the graph.node dict
 
 TODO:
     Do we record 0 threshold people correctly?
+    What about using skewness to adjust for normality
+        i.e. we can guess which way the error is biased based on 3rd moment
+    Make point that this affects probabalistic models as well
+    Can we find a signature in the network for those not subject to selection?
 """
 
 def timer(f):
     @wraps(f)
     def wrapper(*args,**kwargs):
         tic = time()
+        print("Starting " + f.__name__)
         result = f(*args, **kwargs)
         print(f.__name__ + " took " + str(time() - tic) + " seconds")
         return result
@@ -47,12 +52,26 @@ The two important distributions for our purposes are the N(0,1) and the Binomial
 
 We want to be able to easily describe a threshold equation in terms of arbitrary linear combinations of the normal and binomial
 
-Use R syntax:
-    y ~ 3 * age + 2 * gender - 1 * motivation + epsilon
+NEW FANCY SYNTAX:
+equation = {
+    'var_1_name': {
+        'distribution': 'normal',
+        'mean': mean,
+        'variance': variance,
+        'coefficient': coefficient
+    },
+    'var_2_name': {
+        ...
+    },
+    ...
+}
 '''
 
-def create_thresholds(n, equation, distribution_dict):
+def create_thresholds(n, equation):
     '''
+    equation looks like:
+    {'var 1': {info}}
+
     n: Number of samples to draw
     equation: R style regression equation
     distribution_dict: dict of form {'var_name': 'normal'}
@@ -62,64 +81,32 @@ def create_thresholds(n, equation, distribution_dict):
         {'threshold': y, 'age': val, 'gender': val, ...}
     '''
     output_list_of_dicts = []
-    iv_tuples = parse_equation(equation)
 
     for node in range(n):
-        node_dict = {}
-        epsilon = np.random.normal(0, 1)
-        threshold_calc_list = [epsilon]
-        for iv_info in iv_tuples:
-            coefficient, var_name = float(iv_info[0]), iv_info[1]
+        node_variable_dict = {}
+        threshold_total = 0.0
+        for var_name, var_info in equation.items():
+            mean = var_info.get('mean')
+            variance = var_info.get('variance')
+            coefficient = var_info.get('coefficient')
             if var_name == 'constant':
-                threshold_calc_list.append(coefficient)
+                threshold_total += mean
+                node_variable_dict[var_name] = mean
+            elif var_name == 'epsilon':
+                draw = np.random.normal(mean, variance)
+                node_variable_dict[var_name] = draw
+                threshold_total += draw
             else:
-                distribution_str = distribution_dict[var_name]
-                draw = random_draw_from_correct_distribution(distribution_str)
-                node_dict[var_name] = draw
-                threshold_calc_list.append(coefficient * draw)
-        threshold = sum(threshold_calc_list)
-        node_dict['threshold'] = threshold
-        output_list_of_dicts.append(node_dict)
+                draw = np.random.normal(mean, variance)
+                node_variable_dict[var_name] = draw
+                threshold_total += coefficient * draw
+        node_variable_dict['threshold'] = threshold_total
+        output_list_of_dicts.append(node_variable_dict)
     return output_list_of_dicts
-
-def parse_equation(eq_str):
-    '''
-    String parse this:
-    1) split on tilde
-    2) split on +/-
-    3) look for epsilon, and assign it N(0, 1)
-    4) split on *
-    5) match variable names to dictionary of either 'normal' or 'binomial'
-    6) create {'threshold': y, 'age': val, 'gender': val, ...}
-    '''
-    tilde_pattern = r' *~ *'
-    plus_minus_pattern = r' *[\+|\-] *'
-    star_pattern = r' *\* *'
-
-    # input: 'y ~ 5 + 3 * age + 2 * gender - 1 * motivation
-
-    # iv_str: '5 + 3 * age + 2 * gender - 1 * motivation'
-    dv_str, iv_str = re.split(tilde_pattern, eq_str)
-
-    # iv_list: ['5', '3 * age', '2 * gender', '1 * motivation']
-    iv_list = re.split(plus_minus_pattern, iv_str)
-    constant = iv_list.pop(0)
-
-    # iv_tuples: [('3', 'age'), ('2', 'gender'), ('1', 'motivation')]
-    iv_tuples = [
-        tuple(re.split(star_pattern, x)) for x in iv_list
-    ]
-    iv_tuples.append((constant, 'constant'))
-    return iv_tuples
-
-def random_draw_from_correct_distribution(distribution_str):
-    if distribution_str.lower() == 'normal':
-        return np.random.normal(0, 1)
-    if distribution_str.lower() == 'binomial':
-        return np.random.binomial(1, .5)
 
 ## Simulation functions ##
 
+@timer
 def label_graph_with_thresholds(graph, thresh_and_cov):
     '''
     Assigns thresholds to nodes in graph
@@ -130,22 +117,35 @@ def label_graph_with_thresholds(graph, thresh_and_cov):
     If there are no covariates, we'll just have an empty dict as covariates
 
     Don't be stupid and make covariate names "threshold"
-    '''
 
-    assert len(graph.node) == len(thresh_and_cov)
-    for idx, ego in enumerate(graph.nodes_iter()):
+    Also, we label nodes here with network-level information
+        evcent
+        closeness
+        betweenness
+        pagerank
+    '''
+    degree = nx.degree_centrality(graph)
+    closeness = nx.closeness_centrality(graph)
+    betweenness = nx.betweenness_centrality(graph)
+    pagerank = nx.pagerank_scipy(graph)
+    evcent = nx.eigenvector_centrality(graph)
+
+    assert graph.number_of_nodes() == len(thresh_and_cov)
+    for idx, node_attrs in graph.nodes_iter(data=True):
         node_thresh_cov = thresh_and_cov[idx]
-        threshold = node_thresh_cov.pop('threshold')
-        covariates = node_thresh_cov
-        graph.node[ego]['threshold'] = threshold
-        graph.node[ego]['activated'] = False
-        graph.node[ego]['before_activation_alters'] = 0
-        graph.node[ego]['after_activation_alters'] = 0
-        graph.node[ego]['degree'] = graph.degree(idx)
-        for cov_name, cov_val in covariates.items():
-            graph.node[ego][cov_name] = cov_val
+        node_attrs['activated'] = False
+        node_attrs['before_activation_alters'] = 0
+        node_attrs['after_activation_alters'] = 0
+        for name, val in node_thresh_cov.items():
+            node_attrs[name] = val
+        node_attrs['degree'] = degree[idx]
+        node_attrs['closeness'] = closeness[idx]
+        node_attrs['betweenness'] = betweenness[idx]
+        node_attrs['pagerank'] = pagerank[idx]
+        node_attrs['evcent'] = evcent[idx]
     return graph
 
+@timer
 def async_simulation(graph_with_thresholds):
     '''
     Give this the graph with thresholds
@@ -234,9 +234,9 @@ def make_dataframe_from_simulation(graph_after_simulation):
         data['name'] = node
         after_activation_alters = data['after_activation_alters']
         before_activation_alters = data['before_activation_alters']
-        if after_activation_alters == 0:
+        if after_activation_alters == 0.:
             data['observed'] = 1
-        elif after_activation_alters - before_activation_alters == 1:
+        elif after_activation_alters - before_activation_alters == 1.:
             data['observed'] = 1
         else:
             data['observed'] = 0
@@ -264,6 +264,10 @@ def get_column_ordering(df_colnames):
         after_activation_alters
         degree
         observed
+        evcent
+        closeness
+        betweenness
+        pagerank
     '''
     new_df_colnames = [
         'activated',
@@ -272,6 +276,10 @@ def get_column_ordering(df_colnames):
         'after_activation_alters',
         'degree',
         'observed',
+        'evcent',
+        'closeness',
+        'betweenness',
+        'pagerank',
     ]
     covariate_list = list(set(df_colnames) - set(new_df_colnames))
     new_df_colnames.extend(covariate_list)
@@ -281,15 +289,13 @@ def get_column_ordering(df_colnames):
 def run_sim(
     graph,
     threshold_equation,
-    distribution_dict,
     output_path,
     ):
 
     n = graph.number_of_nodes()
     thresh_and_cov = create_thresholds(
         n,
-        threshold_equation,
-        distribution_dict
+        threshold_equation
     )
     labeled_graph = label_graph_with_thresholds(
         graph,
@@ -303,40 +309,52 @@ def run_sim(
 if __name__ == '__main__':
     # some relatively constant definitions
     output_folder = '/Users/g/Google Drive/project-thresholds/thresholds/data/'
-    threshold_eq = 'y ~ 3 + 1 * age'
-    distribution_dict = {
-        'age': 'normal',
+    threshold_eq = {
+        'constant': {
+            'distribution': 'constant',
+            'mean': 3.0,
+        },
+        'var1': {
+            'distribution': 'normal',
+            'mean': 0.0,
+            'variance': 1.0,
+            'coefficient': 1.0,
+        },
+        'epsilon': {
+            'distribution': 'normal',
+            'mean': 0.0,
+            'variance': 0.5,
+        },
     }
     d = 10
-    n = 10000
+    n = 1000
 
     # watts strogatz graph
     p = 0.2
     ws_output_path = output_folder + 'ws_output.csv'
     ws_graph = nx.watts_strogatz_graph(n, d, p)
-    ws_df = run_sim(ws_graph, threshold_eq, distribution_dict, ws_output_path)
+    ws_df = run_sim(ws_graph, threshold_eq, ws_output_path)
 
-    '''
+
     # regular random graph
     rg_output_path = output_folder + 'rg_output.csv'
     rg_graph = nx.random_regular_graph(d, n)
-    rg_df = run_sim(rg_graph, threshold_eq, distribution_dict, rg_output_path)
+    rg_df = run_sim(rg_graph, threshold_eq, rg_output_path)
 
     # power law graph
     m = 4
     pl_output_path = output_folder + 'pl_output.csv'
     pl_graph = nx.barabasi_albert_graph(n, m)
-    pl_df = run_sim(pl_graph, threshold_eq, distribution_dict, pl_output_path)
+    pl_df = run_sim(pl_graph, threshold_eq, pl_output_path)
 
     # power law clustered graph
     p = 0.02
     pg_output_path = output_folder + 'pg_output.csv'
     pg_graph = nx.powerlaw_cluster_graph(n, m, p)
-    pg_df = run_sim(pg_graph, threshold_eq, distribution_dict, pg_output_path)
+    pg_df = run_sim(pg_graph, threshold_eq, pg_output_path)
 
     # poisson random graph
     p = 0.05
     ps_output_path = output_folder + 'ps_output.csv'
     ps_graph = nx.gnp_random_graph(n, p)
-    ps_df = run_sim(ps_graph, threshold_eq, distribution_dict, ps_output_path)
-    '''
+    ps_df = run_sim(ps_graph, threshold_eq, ps_output_path)
