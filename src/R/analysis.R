@@ -17,157 +17,148 @@
 # TODO:
 #   1. Make sure we're only analyzing the adopters
 
+
+# OKAY: the problem is that the error distributions aren't the same
+# to fix this, we need to impose some kind of parametric solution
+# that accounts for the fact that we have downwardly-biased errors
+# 
+# the way to think about this is simple:
+# the network excludes higher-threshold nodes at a higher rate
+# if an individual has a higher epsilon, they have a higher chance of being excluded
+#
+# can we fix this with just a normality assumption for the error?
+#
+# Information we need: Either:
+# A way to take threshold intervals and assign a value to them
+# A way to infer the bias in the error term
+# 
+# Information we have:
+# 1) true thresholds for observed individuals
+# 2) threshold interval for unobserved individuals
+# 3) covariates for all individuals
+# 4) node degree
+#
+# In expectation:
+# b_1 x_1 + e_1 - y_1 = b_2 x_2 + e_2 - y_2
+#
+# we observe x_1, x_2, y_1
+# we can assume b_1 = b_2 = b
+# we don't observe e_1, e_2, y_2
+# 
+# b x_1 + e_1 - y_1 = b x_2 + e_2 - y_2
+# b ( x_1 - x_2 ) = e_2 - e_1 + y_1 - y_2
+#
+# e_2 - e_1 != 0
+#
+# among the observed, we'd expect x = 2 to have some nice distribution of values
+# we can correct based on this informatino
 library(ggplot2)
 library(sampleSelection)
 library(stargazer)
 library(AER)
 library(censReg)
+library(pscl)
+library(ipw)
+library(dplyr)
 
 base_path = "/Users/g/Google Drive/project-thresholds/thresholds/data/"
-
-ws_data_file = "ws_output.csv"
+ws_data_file = "pl_output.csv"
 ws_path = paste0(base_path, ws_data_file)
 
-ws_df = read.csv(ws_path)
-ws_df = ws_df[which(ws_df$activated == 1), ]
-ws_df$activation_difference = ws_df$after_activation_alters - ws_df$before_activation_alters
+df = read.csv(ws_path)
+df$threshold_ceil = ceiling(df$threshold)
 
-# for testing
-df = ws_df
+observed_df = df[df$observed == 1, ]
+#observed_df$after_activation_alters = observed_df$after_activation_alters - .5
 
-## Functions ##
+sample_df = df
+sample_df$sample = 0
+observed_df$sample = 1
+sample_df = rbind(sample_df, observed_df)
 
-# compares distributions of observed with true
-# generates a nice plot
-true_threshold_comparison_plot = function(df) {
-  # take df, make a new one with a new column. we want to compare ALL to just OBSERVED
-  # if we do not re-append the observed, we compare OBSERVED to UNOBSERVED
-  # we do this with the sample column
-  new_df = df
-  new_df$sample = 0
-  observed_df = new_df[which(new_df$observed == 1),]
-  observed_df$sample = 1
-  new_df = rbind(new_df, observed_df)
-  g = ggplot(new_df, aes(x = threshold, fill=factor(sample)))
-  g = g + geom_histogram(binwidth=.5, alpha=.5, position="identity")
-  return(g)
+comparison_df = df[,c('var1', 'epsilon', 'threshold_ceil')]
+comparison_df$sample = 0
+observed_comparison_df = observed_df[,c('var1','epsilon','after_activation_alters')]
+observed_comparison_df$sample = 1
+observed_comparison_df$threshold_ceil = observed_comparison_df$after_activation_alters
+observed_comparison_df$after_activation_alters = NULL
+comparison_df = rbind(comparison_df, observed_comparison_df)
+
+# plots for paper
+
+ggplot(df, aes(x=threshold)) + geom_histogram(data=df[df$observed==1,], fill='blue', alpha=.2) +geom_histogram(data=df, fill='red', alpha=.2) + theme(text=element_text(size=20)) + theme(text=element_text(size=20)) + xlab("Threshold") + ylab("Count")
+
+ggplot(comparison_df, aes(y=threshold_ceil, x=var1, color=factor(sample))) + geom_point() + geom_smooth(method=lm) + theme(text=element_text(size=20)) + scale_colour_discrete(name="", breaks=c(0, 1), labels=c("All Data", "Observed")) + ylab("Threshold") + xlab("Covariate Value")
+
+output0 = lm(threshold ~ var1, data=df)
+output1 = lm(threshold_ceil ~ var1, data=df)
+output2 = lm(after_activation_alters ~ var1, data=observed_df)
+output3 = tobit(after_activation_alters ~ var1,
+                left = 0,
+                right = Inf,
+                dist = "gaussian",
+                data=observed_df)
+stargazer(output1, output2, output3)
+
+ggplot(df[df$activated == 1,], aes(y=after_activation_alters, x=threshold)) + geom_point() + theme(text=element_text(size=20)) + xlab("True Threshold") + ylab("Naive Threshold Observation")
+
+ggplot(observed_df, aes(y=after_activation_alters, x=threshold)) + geom_point() + theme(text=element_text(size=20)) + xlab("True Threshold") + ylab("Correct Observed Thresholds")
+
+ggplot(sample_df[sample_df$activated == 1,], aes(y=after_activation_alters, x=threshold, color=factor(sample))) + geom_point(alpha=.5) + scale_colour_discrete(name="", breaks=c(0, 1), labels=c("All Data", "Observed")) + ylab("Observed Threshold") + xlab("True Threshold") + theme(text=element_text(size=20))
+# prediction test 1
+
+unobserved_df = df[df$observed == 0,]
+
+predicted = predict(output3, unobserved_df)
+predicted2 = predict(output2, unobserved_df)
+predicted3 = predict(output0, df)
+
+rmse_correct = sqrt(mean((unobserved_df$threshold - predicted)^2))
+rmse_correct2 = sqrt(mean((unobserved_df$threshold - predicted2)^2))
+rmse_wrong = sqrt(mean((unobserved_df$threshold - unobserved_df$after_activation_alters)^2))
+rmse_ideal = sqrt(mean((df$threshold - predicted3)^2))
+
+# prediction test 2
+# rmse as we "train" on number of nodes
+
+predict_with_k_first = function(df, k) {
+  u_df = df[df$observed == 0,]
+  o_df = df[df$observed == 1,] %>% arrange(activation_order)
+  k_df = head(o_df, k)
+  mod = lm(after_activation_alters ~ var1, data=k_df)
+  predicted_vals = predict(mod, u_df)
+  rmse = sqrt(mean((u_df$threshold - predicted_vals)^2))
+  return(rmse)
 }
 
-observed_threshold_comparison_plot = function(df) {
-  new_df = df
-  new_df$sample = 0
-  observed_df = new_df[which(new_df$observed == 1),]
-  observed_df$sample = 1
-  new_df = rbind(new_df, observed_df)
-  g = ggplot(new_df, aes(x = after_activation_alters, fill=factor(sample)))
-  g = g + geom_histogram(binwidth=.5, alpha=.5, position="identity")
-  return(g)
+pred_result_df = data.frame(k = numeric(), rmse = numeric())
+
+for (i in 10:nrow(observed_df)) {
+  rmse = predict_with_k_first(df, i)
+  newrow = data.frame(k = i, rmse = rmse)
+  pred_result_df = rbind(pred_result_df, newrow)
 }
 
-# uses k-s test to compare distributions
-ks_distribution_comparison = function(df) {
-  measured = df[which(df$observed == 1), ]
-  unmeasured = df[which(df$observed == 0), ]
-  print(ks.test(measured$threshold, unmeasured$threshold))
-  print(ks.test(measured$threshold, df$threshold))
-  
-  print(ks.test(measured$after_activation_alters, unmeasured$after_activation_alters))
-  print(ks.test(measured$after_activation_alters, df$after_activation_alters))
+ggplot(pred_result_df, aes(x=k, y=rmse)) + geom_smooth(se=F) + geom_hline(aes(yintercept=rmse_wrong)) + ylab("RMSE") + xlab("Number of Training Observations") + theme(text=element_text(size=20))
+
+# prediction test 3
+
+predict_all_with_k_first = function(df, k) {
+  u_df = df[df$observed == 0,]
+  o_df = df[df$observed == 1,] %>% arrange(activation_order)
+  k_df = head(o_df, k)
+  mod = lm(after_activation_alters ~ var1, data=k_df)
+  predicted_vals = predict(mod, df)
+  rmse = sqrt(mean((df$threshold - predicted_vals)^2))
+  return(rmse)
 }
 
-# creates "pk" style curves like in Chris' dissertation
-create_pk_comparison_plot = function(df) {
-  # compare, p(k), observed, true
-  # for each integer k = 0, 1, 2, etc
-  # p(k): number after-activation = k / number after-activation >= k
-  # true distribution: number threshold = k / number threshold >= k
-  # observed sample: number obs = k / number obs >= k
-  max_threshold = ceiling(max(df$threshold))
-  for (k in 1:max_threshold) {
-    if (k == 0) {
-      
-    }
-  }
+pred_result_df = data.frame(k = numeric(), rmse = numeric())
+
+for (i in 10:nrow(observed_df)) {
+  rmse = predict_all_with_k_first(df, i)
+  newrow = data.frame(k = i, rmse = rmse)
+  pred_result_df = rbind(pred_result_df, newrow)
 }
 
-# uses OLS and Tobit to compare with true values
-# outputs a nice Stargazer model
-model_comparison = function(df) {
-  # the tobit procedure is appropriate for cases where we have censored data (e.g. left censored at 0)
-  # tobit:
-  # m = censReg(after_activation_alters ~ gender + age + race, data=ws_df[which(df$observed ==1), ])
-  #
-  # the heckit procedure is acceptable when we have systematic ways of selecting the observed sample
-  #
-  # heckit:
-  # m = selection(observed ~ gender + age + race + degree, after_activation_alters ~ gender + age + race, data=ws_df)
-  prob_regression = glm(observed ~ age + degree, family=binomial(link=probit), data=df)
-  df$fitted = fitted(prob_regression)
-  df$weights = 1/df$fitted
-
-  observed_df = df[which(df$observed == 1),]
-  
-  # true thing
-  print(summary(lm(threshold ~ age, data=df)))
-  
-  # true on observed
-  print(summary(lm(threshold ~ age, data=observed_df)))
-  
-  # naive ols
-  print(summary(lm(after_activation_alters ~ age, data=observed_df)))
-  
-  # tobit with weights on all data
-  print(summary(tobit(
-    after_activation_alters ~ age,
-    left = 0,
-    right = Inf,
-    dist = "gaussian",
-    data=df,
-    weights=weights)))
-  
-  # tobit with weights on observed data
-  m = tobit(
-    after_activation_alters ~ age,
-    left = 0,
-    right = Inf,
-    dist = "gaussian",
-    data=observed_df,
-    weights=weights)
-  print(summary(m))
-}
-
-## Run This Shit ##
-
-true_threshold_comparison_plot(ws_df)
-ks_distribution_comparison(ws_df)
-
-
-p = fitted(m)
-observed_df$predicted = f
-
-# using weights for correction
-g = ggplot(observed_df, aes(x = predicted))
-g + geom_histogram(binwidth=.5, alpha=.5, position="identity", aes(weights=observed_df$weights))
-
-# scatter to see selection visually
-g = ggplot(df, aes(x = age, y = threshold, color=factor(observed)))
-g = g + geom_smooth(method=lm)
-g + geom_point(shape=1)
-
-summary(lm(threshold ~ age, df[df$observed==0,]))
-summary(lm(threshold ~ age, df[df$observed==1,]))
-
-g = ggplot(df, aes(x = age, y = after_activation_alters, color=factor(observed)))
-g = g + geom_smooth(method=lm)
-g + geom_point(shape=1)
-
-summary(lm(after_activation_alters ~ age, df[df$observed==0,]))
-summary(lm(after_activation_alters ~ age, df[df$observed==1,]))
-
-# 
-
-s = selection(observed ~ age, after_activation_alters ~ age, data=df)
-summary(s)
-
-df$inv_mills = invMillsRatio(glm(observed ~ age, family=binomial(link=probit), data=df))$IMR1
-summary(lm(after_activation_alters ~ inv_mills, data=df[df$observed == 1,]))
+ggplot(pred_result_df, aes(x=k, y=rmse)) + geom_smooth(se=F) + geom_hline(aes(yintercept=rmse_wrong)) + ylab("RMSE") + xlab("Number of Training Observations") + theme(text=element_text(size=20)) + geom_hline(aes(yintercept=rmse_ideal)) + expand_limits(x = 0, y = 0)

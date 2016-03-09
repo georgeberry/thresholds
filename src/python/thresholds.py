@@ -26,11 +26,12 @@ We use networkx and store relevant node-attributes on the graph.node dict
         }
 
 TODO:
-    Do we record 0 threshold people correctly?
-    What about using skewness to adjust for normality
+    - What about using skewness to adjust for normality
         i.e. we can guess which way the error is biased based on 3rd moment
-    Make point that this affects probabalistic models as well
-    Can we find a signature in the network for those not subject to selection?
+    - Make point that this affects probabalistic models as well
+    - Use network-level measures as proxies for selection
+    - Select nodes that have absence of collisions only!
+    - Quantify bias in distribution
 """
 
 def timer(f):
@@ -48,7 +49,7 @@ def timer(f):
 '''
 We want to systematically and easily be able to generate thresholds drawn from various combinations of independent distributions
 
-The two important distributions for our purposes are the N(0,1) and the Binomial(1, .5), or the normal with mean 0 and variance 1, and the binomial with 1 flip and .5 chance of heads.
+The two important distributions for our purposes are the N(0,1) and the Binomial(1, .5), or the normal with mean 0 and sd 1, and the binomial with 1 flip and .5 chance of heads.
 
 We want to be able to easily describe a threshold equation in terms of arbitrary linear combinations of the normal and binomial
 
@@ -57,7 +58,7 @@ equation = {
     'var_1_name': {
         'distribution': 'normal',
         'mean': mean,
-        'variance': variance,
+        'sd': sd,
         'coefficient': coefficient
     },
     'var_2_name': {
@@ -87,17 +88,17 @@ def create_thresholds(n, equation):
         threshold_total = 0.0
         for var_name, var_info in equation.items():
             mean = var_info.get('mean')
-            variance = var_info.get('variance')
+            sd = var_info.get('sd')
             coefficient = var_info.get('coefficient')
             if var_name == 'constant':
                 threshold_total += mean
                 node_variable_dict[var_name] = mean
             elif var_name == 'epsilon':
-                draw = np.random.normal(mean, variance)
+                draw = np.random.normal(mean, sd)
                 node_variable_dict[var_name] = draw
                 threshold_total += draw
             else:
-                draw = np.random.normal(mean, variance)
+                draw = np.random.normal(mean, sd)
                 node_variable_dict[var_name] = draw
                 threshold_total += coefficient * draw
         node_variable_dict['threshold'] = threshold_total
@@ -125,24 +126,27 @@ def label_graph_with_thresholds(graph, thresh_and_cov):
         pagerank
     '''
     degree = nx.degree_centrality(graph)
-    closeness = nx.closeness_centrality(graph)
-    betweenness = nx.betweenness_centrality(graph)
-    pagerank = nx.pagerank_scipy(graph)
-    evcent = nx.eigenvector_centrality(graph)
+    # closeness = nx.closeness_centrality(graph)
+    # betweenness = nx.betweenness_centrality(graph)
+    # pagerank = nx.pagerank_scipy(graph)
+    # evcent = nx.eigenvector_centrality(graph)
+
+    idx = 0
 
     assert graph.number_of_nodes() == len(thresh_and_cov)
-    for idx, node_attrs in graph.nodes_iter(data=True):
+    for name, node_attrs in graph.nodes_iter(data=True):
         node_thresh_cov = thresh_and_cov[idx]
+        idx += 1
         node_attrs['activated'] = False
-        node_attrs['before_activation_alters'] = 0
-        node_attrs['after_activation_alters'] = 0
-        for name, val in node_thresh_cov.items():
-            node_attrs[name] = val
-        node_attrs['degree'] = degree[idx]
-        node_attrs['closeness'] = closeness[idx]
-        node_attrs['betweenness'] = betweenness[idx]
-        node_attrs['pagerank'] = pagerank[idx]
-        node_attrs['evcent'] = evcent[idx]
+        node_attrs['before_activation_alters'] = None
+        node_attrs['after_activation_alters'] = None
+        for cov_name, val in node_thresh_cov.items():
+            node_attrs[cov_name] = val
+        node_attrs['degree'] = degree[name]
+        # node_attrs['closeness'] = closeness[idx]
+        # node_attrs['betweenness'] = betweenness[idx]
+        # node_attrs['pagerank'] = pagerank[idx]
+        # node_attrs['evcent'] = evcent[idx]
     return graph
 
 @timer
@@ -173,6 +177,7 @@ def async_simulation(graph_with_thresholds):
 
     steps_without_activation = 0
     num_steps = 0
+    activation_order = 1
 
     while len(unactivated_node_set) > 0:
         num_steps += 1
@@ -183,6 +188,8 @@ def async_simulation(graph_with_thresholds):
         if activated_alters_num >= threshold:
             # record empirical number of neighbors at activation time
             g.node[ego]['after_activation_alters'] = activated_alters_num
+            g.node[ego]['activation_order'] = activation_order
+            activation_order += 1
             # record activation status on graph
             g.node[ego]['activated'] = True
             activated_node_set.add(ego)
@@ -226,19 +233,33 @@ def make_dataframe_from_simulation(graph_after_simulation):
         covs can be 0, 1, 2, etc cols
 
     '''
+    def subtract_or_none(x, y):
+        if x != None and y != None:
+            return x - y
+        else:
+            return None
+
     g = graph_after_simulation
 
     data_list_of_dicts = []
 
     for node, data in g.nodes_iter(data=True):
         data['name'] = node
+        activated = data['activated']
         after_activation_alters = data['after_activation_alters']
         before_activation_alters = data['before_activation_alters']
-        if after_activation_alters == 0.:
+        difference = subtract_or_none(
+            after_activation_alters,
+            before_activation_alters,
+        )
+        if after_activation_alters == 0:
+            print('observed 1', after_activation_alters, before_activation_alters)
             data['observed'] = 1
-        elif after_activation_alters - before_activation_alters == 1.:
+        elif difference == 1:
+            print('observed 2', after_activation_alters, before_activation_alters)
             data['observed'] = 1
         else:
+            print('unobserved', after_activation_alters, before_activation_alters)
             data['observed'] = 0
         data_list_of_dicts.append(data)
 
@@ -276,10 +297,6 @@ def get_column_ordering(df_colnames):
         'after_activation_alters',
         'degree',
         'observed',
-        'evcent',
-        'closeness',
-        'betweenness',
-        'pagerank',
     ]
     covariate_list = list(set(df_colnames) - set(new_df_colnames))
     new_df_colnames.extend(covariate_list)
@@ -317,13 +334,13 @@ if __name__ == '__main__':
         'var1': {
             'distribution': 'normal',
             'mean': 0.0,
-            'variance': 1.0,
+            'sd': 1.5,
             'coefficient': 1.0,
         },
         'epsilon': {
             'distribution': 'normal',
             'mean': 0.0,
-            'variance': 0.5,
+            'sd': 0.5,
         },
     }
     d = 10
@@ -335,17 +352,52 @@ if __name__ == '__main__':
     ws_graph = nx.watts_strogatz_graph(n, d, p)
     ws_df = run_sim(ws_graph, threshold_eq, ws_output_path)
 
+    gexf_ws_output = output_folder + 'ws_output.gexf'
+    #nx.write_gexf(ws_graph, gexf_ws_output)
 
     # regular random graph
     rg_output_path = output_folder + 'rg_output.csv'
     rg_graph = nx.random_regular_graph(d, n)
     rg_df = run_sim(rg_graph, threshold_eq, rg_output_path)
+    gexf_rg_output = output_folder + 'rg_output.gexf'
+    #nx.write_gexf(rg_graph, gexf_rg_output)
 
     # power law graph
     m = 4
     pl_output_path = output_folder + 'pl_output.csv'
     pl_graph = nx.barabasi_albert_graph(n, m)
     pl_df = run_sim(pl_graph, threshold_eq, pl_output_path)
+    gexf_pl_output = output_folder + 'pl_output.gexf'
+    #nx.write_gexf(pl_graph, gexf_pl_output)
+
+    """
+    threshold_eq = {
+        'constant': {
+            'distribution': 'constant',
+            'mean': 5.0,
+        },
+        'var1': {
+            'distribution': 'normal',
+            'mean': 0.0,
+            'sd': 1.5,
+            'coefficient': 2.0,
+        },
+        'epsilon': {
+            'distribution': 'normal',
+            'mean': 0.0,
+            'sd': 0.5,
+        },
+    }
+    # real life graph
+    real_graph_output = output_folder + 'real_output.csv'
+    real_graph = nx.read_edgelist(
+        output_folder + 'UCSC68_gc.ncol',
+        nodetype=int,
+    )
+    real_df = run_sim(real_graph, threshold_eq, real_graph_output)
+    gexf_real_output = output_folder + 'real_output.gexf'
+    #nx.write_gexf(real_graph, gexf_real_output)
+
 
     # power law clustered graph
     p = 0.02
@@ -358,3 +410,4 @@ if __name__ == '__main__':
     ps_output_path = output_folder + 'ps_output.csv'
     ps_graph = nx.gnp_random_graph(n, p)
     ps_df = run_sim(ps_graph, threshold_eq, ps_output_path)
+    """
