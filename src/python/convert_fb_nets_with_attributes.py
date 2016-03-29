@@ -34,7 +34,7 @@ outDir = '/Volumes/Neptune/semi_public_datasets/facebook100/graphml_gc'
 files = ( os.listdir(taskDir) )
 tasks = (f for f in files if os.path.splitext(f)[1] in ['.mat'])  
 completed_tasks = set( f.split('_')[0]+'.mat' for f in os.listdir(outDir) )
-
+completed_tasks.add('schools.mat')
 
 # 0 student/faculty status flag
 # 1 gender,
