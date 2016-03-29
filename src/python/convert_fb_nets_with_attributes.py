@@ -33,6 +33,7 @@ outDir = '/Volumes/Neptune/semi_public_datasets/facebook100/graphml_gc'
 
 files = ( os.listdir(taskDir) )
 tasks = (f for f in files if os.path.splitext(f)[1] in ['.mat'])  
+completed_tasks = set( f.split('_')[0]+'.mat' for f in os.listdir(outDir) )
 
 
 # 0 student/faculty status flag
@@ -51,22 +52,32 @@ names = [
 
 name_idx_pairs = [ (name,idx) for idx, name in enumerate(names) ]
 
-for infile in tasks:    
-    mat_contents = sio.loadmat(os.path.join(taskDir,infile))
-    
-    G_mat = ig.Graph(edges=zip(*mat_contents['A'].nonzero()), directed=False) 
-    G_mat.vs['name'] = range(len(G_mat.vs))
-    
-    for name, idx in name_idx_pairs:
-        G_mat.vs[name] = mat_contents['local_info'][:,idx]
-    
-    G_mat_g =G_mat.components().giant().simplify()
-    
 
-    print(infile, G_mat.vcount(), G_mat_g.vcount())
-    outfile_name = os.path.join(outDir,os.path.splitext(infile)[0]+'_gc.graphml' )
-    with open(outfile_name, 'w') as outfile:    
-        G_mat_g.write_graphml( outfile )
+for infile in tasks: 
+    
+    if infile in completed_tasks:
+        continue
+    
+    try:    
+        mat_contents = sio.loadmat(os.path.join(taskDir,infile))
+        
+        G_mat = ig.Graph(edges=zip(*mat_contents['A'].nonzero()), directed=False) 
+        G_mat.vs['name'] = range(len(G_mat.vs))
+        
+        for name, idx in name_idx_pairs:
+            G_mat.vs[name] = mat_contents['local_info'][:,idx]
+        
+        G_mat_g =G_mat.components().giant().simplify()
+        
+        # print(infile, G_mat.vcount(), G_mat_g.vcount())
+        outfile_name = os.path.join(outDir,os.path.splitext(infile)[0]+'_gc.graphml' )
+        with open(outfile_name, 'w') as outfile:    
+            G_mat_g.write_graphml( outfile )
+            
+    except KeyError:
+        print("Error reading file '{}'".format(infile))
+        
+
 
 
 #%%
