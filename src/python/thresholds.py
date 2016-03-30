@@ -6,6 +6,7 @@ from functools import wraps
 import re
 import numpy as np
 import math
+import json
 """
 This file allows us to:
     1. Create random graphs with certain properties using NetworkX
@@ -238,11 +239,8 @@ def make_dataframe_from_simulation(graph_after_simulation):
             return x - y
         else:
             return None
-
     g = graph_after_simulation
-
     data_list_of_dicts = []
-
     for node, data in g.nodes_iter(data=True):
         data['name'] = node
         activated = data['activated']
@@ -262,13 +260,11 @@ def make_dataframe_from_simulation(graph_after_simulation):
             print('unobserved', after_activation_alters, before_activation_alters)
             data['observed'] = 0
         data_list_of_dicts.append(data)
-
     df = pd.DataFrame(data_list_of_dicts)
     df = df.set_index('name')
     df.activated = df.activated.astype(int)
     new_df_colnames = get_column_ordering(df.columns.tolist())
     df = df.reindex_axis(new_df_colnames, axis=1)
-
     return df
 
 def get_column_ordering(df_colnames):
@@ -304,11 +300,13 @@ def get_column_ordering(df_colnames):
 
 @timer
 def run_sim(
+    output_path,
     graph,
     threshold_equation,
-    output_path,
     ):
-
+    """
+    One run of the sim
+    """
     n = graph.number_of_nodes()
     thresh_and_cov = create_thresholds(
         n,
@@ -322,29 +320,26 @@ def run_sim(
     df = make_dataframe_from_simulation(simulated_graph)
     df.to_csv(output_path)
 
+def sim_reps(
+    n_rep,
+    output_hash,
+    *sim_params,
+    ):
+    for sim_num in range(n_rep):
+        output_path = 'sim_' + output_hash + '_' + str(sim_num)
+        run_sim(output_folder, *sim_params)
 
 if __name__ == '__main__':
     # some relatively constant definitions
     output_folder = '/Users/g/Google Drive/project-thresholds/thresholds/data/'
-    threshold_eq = {
-        'constant': {
-            'distribution': 'constant',
-            'mean': 3.0,
-        },
-        'var1': {
-            'distribution': 'normal',
-            'mean': 0.0,
-            'sd': 1.5,
-            'coefficient': 1.0,
-        },
-        'epsilon': {
-            'distribution': 'normal',
-            'mean': 0.0,
-            'sd': 0.5,
-        },
-    }
-    d = 10
-    n = 1000
+    threshold_eq_param_space_file = '../../data/made_up_param_space.json'
+    threshold_eq_param_space = []
+    with open(threshold_eq_param_space_file, 'rb') as f:
+        for line in f:
+            j = json.loads(line)
+            threshold_eq_param_space.append(j)
+    mean_degrees = [5, 10, 15, 20, 25]
+    graph_sizes = [1000, 5000, 10000]
 
     # watts strogatz graph
     p = 0.2

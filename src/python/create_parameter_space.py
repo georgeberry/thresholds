@@ -30,10 +30,10 @@ for the sim graphs:
 import json
 from itertools import combinations, combinations_with_replacement
 
-empirical_file = '../data/empirical_param_space.json' # for empirical graphs
-made_up_file = '../data/made_up_param_space.json' # for sim graphs
+EMPIRICAL_OUTPUT_FILE = '../../data/empirical_param_space.json'
+SIM_OUTPUT_FILE = '../../data/made_up_param_space.json'
 
-empirical_vars = set([
+EMPIRICAL_VAR_NAMES = set([
     'student',
     'gender',
     'major',
@@ -43,19 +43,11 @@ empirical_vars = set([
     'high_school',
 ])
 
-made_up_vars = set([
+SIM_VAR_NAMES = set([
     'var1',
     'var2',
     'var3',
 ])
-
-normal_means = [
-    0,
-]
-
-error_means = [
-    0
-]
 
 ERROR_SDS = [
     .5,
@@ -85,34 +77,45 @@ VAR_TYPES = [
     'binomial',
 ]
 
-all_vars = empirical_vars | made_up_vars
+all_vars = EMPIRICAL_VAR_NAMES | SIM_VAR_NAMES
 
 MAX_VARS = 2
 
 ## functions ##
 
-def all_indicies(v, l):
+def choose_empirical_vars(n_vars):
+    for vnames in combinations(EMPIRICAL_VAR_NAMES, n_vars):
+        yield ['constant'] + list(vnames) + ['epsilon']
+
+def all_indicies(val, iterable):
     indicies = []
     counter = 0
-    for i in l:
-        if i == v:
+    for i in iterable:
+        if i == val:
             indicies.append(counter)
         counter += 1
     return indicies
 
 def create_dists(n_vars):
+    """
+    add constant to beginning and epsilon to end
+    """
     for dists in combinations_with_replacement(VAR_TYPES, n_vars):
-        yield ['constant'] + dists + ['epsilon']
+        yield ['constant'] + list(dists) + ['epsilon']
 
 def create_coefs(dists):
+    """
+    Cycle through coefficient combinations
+    """
     n_vars = len(dists)
     for coefs in combinations_with_replacement(COEFFICIENTS, n_vars):
+        coefs = list(coefs)
         coefs[-1] = None
         yield coefs
 
 def create_means(dists):
     """
-    means for all non-binary variables are 0, except constant which is None
+    Means for all non-binary variables are 0, except constant which is None
     """
     means = [None] + [0] * (len(dists) - 1)
     num_bin = dists.count('binomial')
@@ -125,26 +128,33 @@ def create_means(dists):
     else:
         yield means
 
+def create_empirical_means(dists):
+    means = [None] * len(dists)
+    means[-1] = 0
+    return means
+
 def create_sds(dists):
     sds = [None for _ in dists]
     num_norm = dists.count('normal')
     if num_norm > 0:
-        for sds in combinations_with_replacement(NORMAL_SDS, num_norm):
+        for sds_comb in combinations_with_replacement(NORMAL_SDS, num_norm):
+            sds_comb = list(sds_comb)
             norm_idx = all_indicies('normal', dists)
-            for val in range(num_norm):
-                sds[norm_idx[val]] = sds[val]
+            idx_counter = 0
+            for idx in norm_idx:
+                sds[idx] = sds_comb[idx_counter]
+                idx_counter += 1
             for error_sd in ERROR_SDS:
                 sds[-1] = error_sd
                 yield sds
     else:
-        yield sds
+        for error_sd in ERROR_SDS:
+            sds[-1] = error_sd
+            yield sds
 
-def merge(dists, coefs, means, sds):
-    pass
 
-def create_distribution_dict(max_vars):
+def create_sim_dist_dicts(max_vars):
     """
-    names: var names
     dists: normal or binomial
     means: var means (0 for normal)
     sds: var sds (none for binomial)
@@ -155,6 +165,65 @@ def create_distribution_dict(max_vars):
             for coefs in create_coefs(dists):
                 for means in create_means(dists):
                     for sds in create_sds(dists):
-                        dist_dict = merge(dists, coefs, means, sds)
+                        yield merge(dists, coefs, means, sds)
+
+def create_empirical_dist_dicts(max_vars):
+    """
+    """
+    for n_vars in range(1, max_vars + 1):
+        for vnames in choose_empirical_vars(n_vars):
+            for coefs in create_coefs(vnames):
+                means = create_empirical_means(vnames)
+                for sds in create_sds(vnames):
+                    yield merge_empirical(vnames, coefs, means, sds)
+
+def merge(dists, coefs, means, sds):
+    dist_dict = {}
+    for idx in range(len(dists)):
+        dist = dists[idx]
+        coef = coefs[idx]
+        mean = means[idx]
+        sd = sds[idx]
+        if dist in {'constant', 'epsilon'}:
+            dist_dict[dist] = {
+                'distribution': dist,
+                'mean': mean,
+                'sd': sd,
+                'coefficient': coef,
+            }
+        else:
+            name = 'var' + str(idx)
+            dist_dict[name] = {
+                'distribution': dist,
+                'mean': mean,
+                'sd': sd,
+                'coefficient': coef,
+            }
+    return dist_dict
+
+def merge_empirical(vnames, coefs, means, sds):
+    dist_dict = {}
+    for idx in range(len(vnames)):
+        name = vnames[idx]
+        coef = coefs[idx]
+        mean = means[idx]
+        sd = sds[idx]
+        dist_dict[name] = {
+            'distribution': name,
+            'mean': mean,
+            'sd': sd,
+            'coefficient': coef,
+        }
+    return dist_dict
 
 ## run program ##
+
+if __name__ == '__main__':
+    with open(SIM_OUTPUT_FILE, 'wb') as f:
+        for dist_dict in create_sim_dist_dicts(MAX_VARS):
+            j = json.dumps(dist_dict) + '\n'
+            f.write(j)
+    with open(EMPIRICAL_OUTPUT_FILE, 'wb') as f:
+        for dist_dict in create_empirical_dist_dicts(MAX_VARS):
+            j = json.dumps(dist_dict) + '\n'
+            f.write(j)
