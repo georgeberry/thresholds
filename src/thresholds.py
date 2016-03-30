@@ -61,7 +61,7 @@ TODO:
 ## Constants ##
 
 N_REPS = 100
-OUTPUT_FOLDER = '/Users/g/Google Drive/project-thresholds/thresholds/data/'
+OUTPUT_FOLDER = '../data/'
 THRESHOLD_PARAM_FILE = '../data/made_up_param_space.json'
 
 ## Functions ##
