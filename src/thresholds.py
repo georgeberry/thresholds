@@ -26,6 +26,28 @@ We use networkx and store relevant node-attributes on the graph.node dict
             'covariates': {'cov name': cov_val}
         }
 
+How to use lots of sim runs:
+    We get a CSV file for each run that lets us do nice things
+    We'd like to assess two things:
+        1) Within-param variance (i.e. for graph with X nodes and Y threshold function, how much variance is there?)
+        2) Across-param variance (i.e. are there some threshold distributions that are particularly problematic?)
+    The problem is that we have a veritable fuck-ton of parameters
+    What are the most important input params?
+        Graph topology
+        Size of error variance
+    What are the most important output measures?
+        RMSE curve
+
+    OKAY, here are some instructive plots:
+        Naive thresholds vs correct
+        RMSE curve for graph X with cov dist Y as we vary error variance
+            We can even avg within param vals
+            The within-params analysis is necessary to assess differences
+
+    Can we do half-half on only the observed thresholds to determine the best RMSE point?
+
+    To do this analysis, we do NOT need an enormous parameter space
+
 TODO:
     - What about using skewness to adjust for normality
         i.e. we can guess which way the error is biased based on 3rd moment
@@ -47,33 +69,21 @@ def timer(f):
 
 ## Threshold creation functions ##
 
-'''
-We want to systematically and easily be able to generate thresholds drawn from various combinations of independent distributions
-
-The two important distributions for our purposes are the N(0,1) and the Binomial(1, .5), or the normal with mean 0 and sd 1, and the binomial with 1 flip and .5 chance of heads.
-
-We want to be able to easily describe a threshold equation in terms of arbitrary linear combinations of the normal and binomial
-
-NEW FANCY SYNTAX:
-equation = {
-    'var_1_name': {
-        'distribution': 'normal',
-        'mean': mean,
-        'sd': sd,
-        'coefficient': coefficient
-    },
-    'var_2_name': {
-        ...
-    },
-    ...
-}
-'''
-
 def create_thresholds(n, equation):
     '''
-    equation looks like:
-    {'var 1': {info}}
-
+    intput looks like:
+    equation = {
+        'var_1_name': {
+            'distribution': 'normal',
+            'mean': mean,
+            'sd': sd,
+            'coefficient': coefficient
+        },
+        'var_2_name': {
+            ...
+        },
+        ...
+    }
     n: Number of samples to draw
     equation: R style regression equation
     distribution_dict: dict of form {'var_name': 'normal'}
@@ -322,15 +332,17 @@ def run_sim(
 
 def sim_reps(
     n_rep,
-    output_hash,
+    output_dir,
+    output_salt,
     *sim_params,
     ):
     for sim_num in range(n_rep):
-        output_path = 'sim_' + output_hash + '_' + str(sim_num)
-        run_sim(output_folder, *sim_params)
+        output_path = output_dir + output_salt + '_' + str(sim_num)
+        run_sim(output_path, *sim_params)
 
 if __name__ == '__main__':
     # some relatively constant definitions
+    N_REPS = 100
     output_folder = '/Users/g/Google Drive/project-thresholds/thresholds/data/'
     threshold_eq_param_space_file = '../../data/made_up_param_space.json'
     threshold_eq_param_space = []
@@ -340,49 +352,27 @@ if __name__ == '__main__':
             threshold_eq_param_space.append(j)
     mean_degrees = [5, 10, 15, 20, 25]
     graph_sizes = [1000, 5000, 10000]
+    ws_rewire_probs = [.2, .4]
+    pl_cluster_probs = [.1, .2]
 
-    # watts strogatz graph
-    p = 0.2
-    ws_output_path = output_folder + 'ws_output.csv'
-    ws_graph = nx.watts_strogatz_graph(n, d, p)
-    ws_df = run_sim(ws_graph, threshold_eq, ws_output_path)
+    # this is for purely sim graphs
+    for eq in threshold_eq_param_space:
+        for md in mean_degrees:
+            for gs in graph_sizes:
+            # ws
+            for p in ws_rewire_probs:
+                ws_graph = nx.watts_strogatz_graph(gs, md, p)
+                sim_reps(N_REPS, output_dir, output_salt, ws_graph, eq)
+            # pl
+            pl_graph = nx.barabasi_albert_graph(gs, md)
+            sim_reps(N_REPS, output_dir, output_salt, pl_graph, eq)
+            # pl w/ clustering
+            for c in pl_cluster_probs:
+                plc_graph = nx.powerlaw_cluster_graph(gs, md, c)
+                sim_reps(N_REPS, output_dir, output_salt, plc_graph, eq)
 
-    gexf_ws_output = output_folder + 'ws_output.gexf'
-    #nx.write_gexf(ws_graph, gexf_ws_output)
-
-    # regular random graph
-    rg_output_path = output_folder + 'rg_output.csv'
-    rg_graph = nx.random_regular_graph(d, n)
-    rg_df = run_sim(rg_graph, threshold_eq, rg_output_path)
-    gexf_rg_output = output_folder + 'rg_output.gexf'
-    #nx.write_gexf(rg_graph, gexf_rg_output)
-
-    # power law graph
-    m = 4
-    pl_output_path = output_folder + 'pl_output.csv'
-    pl_graph = nx.barabasi_albert_graph(n, m)
-    pl_df = run_sim(pl_graph, threshold_eq, pl_output_path)
-    gexf_pl_output = output_folder + 'pl_output.gexf'
-    #nx.write_gexf(pl_graph, gexf_pl_output)
 
     """
-    threshold_eq = {
-        'constant': {
-            'distribution': 'constant',
-            'mean': 5.0,
-        },
-        'var1': {
-            'distribution': 'normal',
-            'mean': 0.0,
-            'sd': 1.5,
-            'coefficient': 2.0,
-        },
-        'epsilon': {
-            'distribution': 'normal',
-            'mean': 0.0,
-            'sd': 0.5,
-        },
-    }
     # real life graph
     real_graph_output = output_folder + 'real_output.csv'
     real_graph = nx.read_edgelist(

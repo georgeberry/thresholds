@@ -21,7 +21,7 @@
 # OKAY: the problem is that the error distributions aren't the same
 # to fix this, we need to impose some kind of parametric solution
 # that accounts for the fact that we have downwardly-biased errors
-# 
+#
 # the way to think about this is simple:
 # the network excludes higher-threshold nodes at a higher rate
 # if an individual has a higher epsilon, they have a higher chance of being excluded
@@ -31,7 +31,7 @@
 # Information we need: Either:
 # A way to take threshold intervals and assign a value to them
 # A way to infer the bias in the error term
-# 
+#
 # Information we have:
 # 1) true thresholds for observed individuals
 # 2) threshold interval for unobserved individuals
@@ -44,7 +44,7 @@
 # we observe x_1, x_2, y_1
 # we can assume b_1 = b_2 = b
 # we don't observe e_1, e_2, y_2
-# 
+#
 # b x_1 + e_1 - y_1 = b x_2 + e_2 - y_2
 # b ( x_1 - x_2 ) = e_2 - e_1 + y_1 - y_2
 #

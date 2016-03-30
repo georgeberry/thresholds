@@ -50,31 +50,28 @@ SIM_VAR_NAMES = set([
 ])
 
 ERROR_SDS = [
-    .5,
-    .75,
-    1,
+    0.5,
+    0.8,
+    1.0,
     1.5,
 ]
 
 NORMAL_SDS = [
-    1,
-    2,
+    1.0,
 ]
 
 BINOMIAL_MEANS = [
-    .5,
+    0.5,
 ]
 
 COEFFICIENTS = [
-    1,
-    3,
-    5,
+    3.0,
+    5.0,
 ]
 
-
+# can also be 'binomial'
 VAR_TYPES = [
     'normal',
-    'binomial',
 ]
 
 all_vars = EMPIRICAL_VAR_NAMES | SIM_VAR_NAMES
