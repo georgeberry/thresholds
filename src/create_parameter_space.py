@@ -30,8 +30,8 @@ for the sim graphs:
 import json
 from itertools import combinations, combinations_with_replacement
 
-EMPIRICAL_OUTPUT_FILE = '../../data/empirical_param_space.json'
-SIM_OUTPUT_FILE = '../../data/made_up_param_space.json'
+EMPIRICAL_OUTPUT_FILE = '../data/empirical_param_space.json'
+SIM_OUTPUT_FILE = '../data/made_up_param_space.json'
 
 EMPIRICAL_VAR_NAMES = set([
     'student',

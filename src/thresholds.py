@@ -7,6 +7,7 @@ import re
 import numpy as np
 import math
 import json
+import os
 """
 This file allows us to:
     1. Create random graphs with certain properties using NetworkX
@@ -57,6 +58,14 @@ TODO:
     - Quantify bias in distribution
 """
 
+## Constants ##
+
+N_REPS = 100
+OUTPUT_FOLDER = '/Users/g/Google Drive/project-thresholds/thresholds/data/'
+THRESHOLD_PARAM_FILE = '../data/made_up_param_space.json'
+
+## Functions ##
+
 def timer(f):
     @wraps(f)
     def wrapper(*args,**kwargs):
@@ -98,18 +107,18 @@ def create_thresholds(n, equation):
         node_variable_dict = {}
         threshold_total = 0.0
         for var_name, var_info in equation.items():
-            mean = var_info.get('mean')
-            sd = var_info.get('sd')
-            coefficient = var_info.get('coefficient')
+            mean = var_info['mean']
+            sd = var_info['sd']
+            coefficient = var_info['coefficient']
             if var_name == 'constant':
-                threshold_total += mean
-                node_variable_dict[var_name] = mean
+                threshold_total += coefficient
+                node_variable_dict[var_name] = coefficient
             elif var_name == 'epsilon':
-                draw = np.random.normal(mean, sd)
+                draw = np.random.normal(0, sd)
                 node_variable_dict[var_name] = draw
                 threshold_total += draw
             else:
-                draw = np.random.normal(mean, sd)
+                draw = np.random.normal(0, sd)
                 node_variable_dict[var_name] = draw
                 threshold_total += coefficient * draw
         node_variable_dict['threshold'] = threshold_total
@@ -118,7 +127,6 @@ def create_thresholds(n, equation):
 
 ## Simulation functions ##
 
-@timer
 def label_graph_with_thresholds(graph, thresh_and_cov):
     '''
     Assigns thresholds to nodes in graph
@@ -160,7 +168,6 @@ def label_graph_with_thresholds(graph, thresh_and_cov):
         # node_attrs['evcent'] = evcent[idx]
     return graph
 
-@timer
 def async_simulation(graph_with_thresholds):
     '''
     Give this the graph with thresholds
@@ -211,7 +218,6 @@ def async_simulation(graph_with_thresholds):
             steps_without_activation += 1
             if steps_without_activation > num_nodes:
                 break
-    print('num steps: {}, num unactivated: {}'.format(num_steps, len(unactivated_node_set)))
     return g
 
 def get_activated_node_set(node_dicts):
@@ -261,13 +267,10 @@ def make_dataframe_from_simulation(graph_after_simulation):
             before_activation_alters,
         )
         if after_activation_alters == 0:
-            print('observed 1', after_activation_alters, before_activation_alters)
             data['observed'] = 1
         elif difference == 1:
-            print('observed 2', after_activation_alters, before_activation_alters)
             data['observed'] = 1
         else:
-            print('unobserved', after_activation_alters, before_activation_alters)
             data['observed'] = 0
         data_list_of_dicts.append(data)
     df = pd.DataFrame(data_list_of_dicts)
@@ -308,7 +311,6 @@ def get_column_ordering(df_colnames):
     new_df_colnames.extend(covariate_list)
     return new_df_colnames
 
-@timer
 def run_sim(
     output_path,
     graph,
@@ -330,23 +332,61 @@ def run_sim(
     df = make_dataframe_from_simulation(simulated_graph)
     df.to_csv(output_path)
 
+@timer
 def sim_reps(
     n_rep,
-    output_dir,
-    output_salt,
-    *sim_params,
+    output_id,
+    *sim_params
     ):
     for sim_num in range(n_rep):
-        output_path = output_dir + output_salt + '_' + str(sim_num)
+        output_path = OUTPUT_FOLDER + output_id + '_' + str(sim_num)
         run_sim(output_path, *sim_params)
+
+def eq_to_str(eq_dict):
+    """
+    get leaves and turn them into params
+    """
+    var_order = ['distribution', 'coefficient', 'mean', 'sd']
+    eq_list = []
+    for vname, val_dict in eq_dict.items():
+        for var in var_order:
+            val = val_dict[var]
+            if val == None:
+                eq_list.append('N')
+            elif val == 'constant':
+                eq_list.append('c')
+            elif val == 'epsilon':
+                eq_list.append('e')
+            elif type(val) == str and 'var' in val:
+                short_varname = val.replace('var', 'v')
+                eq_list.append(short_varname)
+            elif val == 'normal':
+                eq_list.append('n')
+            else:
+                eq_list.append(str(val))
+    return '__' + ''.join(eq_list) + '__'
+
+def create_output_identifier(
+    *params
+    ):
+    id_list = []
+    for param in params:
+        if type(param) == dict:
+            eq_str = eq_to_str(param)
+            id_list.append(eq_str)
+        else:
+            if param == None:
+                id_list.append('N')
+            else:
+                id_list.append(str(param))
+    id_str = ''.join(id_list)
+    id_str = id_str.replace('.', '-')
+    return id_str
 
 if __name__ == '__main__':
     # some relatively constant definitions
-    N_REPS = 100
-    output_folder = '/Users/g/Google Drive/project-thresholds/thresholds/data/'
-    threshold_eq_param_space_file = '../../data/made_up_param_space.json'
     threshold_eq_param_space = []
-    with open(threshold_eq_param_space_file, 'rb') as f:
+    with open(THRESHOLD_PARAM_FILE, 'rb') as f:
         for line in f:
             j = json.loads(line)
             threshold_eq_param_space.append(j)
@@ -359,17 +399,37 @@ if __name__ == '__main__':
     for eq in threshold_eq_param_space:
         for md in mean_degrees:
             for gs in graph_sizes:
-            # ws
-            for p in ws_rewire_probs:
-                ws_graph = nx.watts_strogatz_graph(gs, md, p)
-                sim_reps(N_REPS, output_dir, output_salt, ws_graph, eq)
-            # pl
-            pl_graph = nx.barabasi_albert_graph(gs, md)
-            sim_reps(N_REPS, output_dir, output_salt, pl_graph, eq)
-            # pl w/ clustering
-            for c in pl_cluster_probs:
-                plc_graph = nx.powerlaw_cluster_graph(gs, md, c)
-                sim_reps(N_REPS, output_dir, output_salt, plc_graph, eq)
+                # ws
+                for p in ws_rewire_probs:
+                    output_id = create_output_identifier(
+                        eq,
+                        md,
+                        gs,
+                        'ws',
+                        p,
+                    )
+                    ws_graph = nx.watts_strogatz_graph(gs, md, p)
+                    sim_reps(N_REPS, output_id, ws_graph, eq)
+                # pl
+                pl_graph = nx.barabasi_albert_graph(gs, md)
+                output_id = create_output_identifier(
+                    eq,
+                    md,
+                    gs,
+                    'pl',
+                )
+                sim_reps(N_REPS, output_id, pl_graph, eq)
+                # pl w/ clustering
+                for c in pl_cluster_probs:
+                    plc_graph = nx.powerlaw_cluster_graph(gs, md, c)
+                    create_output_identifier(
+                        eq,
+                        md,
+                        gs,
+                        'plc',
+                        c
+                    )
+                    sim_reps(N_REPS, output_id, plc_graph, eq)
 
 
     """
