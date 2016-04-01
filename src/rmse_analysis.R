@@ -12,6 +12,8 @@
 
 # we want to get all the filenames, and strip
 library(stringr)
+library(dplyr)
+
 
 # strips the number of the run
 SimpleFilename = function(filename){
@@ -103,19 +105,17 @@ CalcRmse = function(true_y, pred_y){
 }
 
 # gives imporant params + RMSE for one batch
-RmseOLS = function(formula, f){
-    data = read.csv(f)
-    observed_df = data[data$observed == 1,]
+RmseOLS = function(formula, df, y){
+    observed_df = df[df$observed == 1,]
     mod = lm(formula, data=observed_df)
-    rmse = CalcRmse(data$threshold_ceil, predict(mod, data))
+    rmse = CalcRmse(y, predict(mod, df))
     return(rmse)
 }
 
-RmseTobit = function(formula, f){
-    data = read.csv(f)
-    observed_df = data[data$observed == 1,]
+RmseTobit = function(formula, df, y){
+    observed_df = df[df$observed == 1,]
     mod = tobit(formula, left=0, right=Inf, dist="gaussian", data=observed_df)
-    rmse = CalcRmse(data$threshold_ceil, predict(mod, data))
+    rmse = CalcRmse(y, predict(mod, df))
     return(rmse)
 }
 
@@ -123,40 +123,81 @@ RmseTobit = function(formula, f){
 BatchRmse = function(all_batch_files, formula){
     rmse_df = data.frame(rmse_ols = numeric(0), rmse_tobit = numeric(0))
     for (f in all_batch_files){
-        rmse_ols = RmseOLS(formula, f)
-        rmse_tobit = RmseTobit(formula, f)
+        df = read.csv(f)
+        rmse_ols = RmseOLS(formula, df, df$threshold)
+        rmse_tobit = 1
+        #rmse_tobit = RmseTobit(formula, df, df$threshold)
         rmse_df = rbind(rmse_df, data.frame(rmse_ols = rmse_ols, rmse_tobit = rmse_tobit))
     }
-    # mean and standard error here
+    means = apply(rmse_df, 2, mean)
+    names(means) = c("Mean_RMSE_OLS", "Mean_RMSE_Tobit")
+    means = data.frame(as.list(means))
+    print(means)
+    ses = apply(rmse_df, 2, sd) / sqrt(nrow(rmse_df))
+    names(ses) = c("SE_RMSE_OLS", "SE_RMSE_Tobit")
+    ses = data.frame(as.list(ses))
+    print(ses)
+    return(cbind(means, ses))
 }
 
-# want to summarize the 100 runs at k obs in a df
-# can do my own sd at each k val
-BatchRmseAtK = function(batch_name){
-    rmse_at_k_df =
-    for (f in all_batch_files){
-        rmse_at_k_obs = RmseAtKObs(f)
+# gives RMSE at number obs (maybe every 10?)
+RmseAtKObs = function(formula, df, y){
+    rmse_at_k_df = data.frame(k=numeric(0), rmse_OLS=numeric(0))
+    o_df = df[df$observed == 1,] %>% arrange(activation_order)
+    k_seq = seq(10, nrow(o_df), 10)
+    for (k in k_seq){
+        k_df = head(o_df, k)
+        mod = lm(formula, data=k_df)
+        rmse_at_k = CalcRmse(y, predict(mod, df))
+        rmse_at_k_df = rbind(rmse_at_k_df, data.frame(k=k, rmse_OLS=rmse_at_k))
     }
     return(rmse_at_k_df)
 }
 
-# gives RMSE at number obs (maybe every 10?)
-RmseAtKObs = function(f){
-
+# want to summarize the 100 runs at k obs in a df
+# can do my own sd at each k val
+# output: df where cols are mean/SE
+#           rows are vals of k
+BatchRmseAtK = function(all_batch_files, formula){
+    rmse_at_k_df = data.frame(k=numeric(0), rmse_OLS=numeric(0))
+    for (f in all_batch_files){
+        df = read.csv(f)
+        rmse_at_k = RmseAtKObs(formula, df, df$threshold)
+        rmse_at_k_df = rbind(rmse_at_k_df, rmse_at_k)
+    }
+    summary_df = rmse_at_k_df %>%
+        group_by(k) %>%
+        summarize(mean_rmse=mean(rmse_OLS), sd_rmse=sd(rmse_OLS), n=n()) %>%
+        mutate(se_rmse = sd_rmse / sqrt(n))
+    return(summary_df)
 }
 
 ProcessBatch = function(batch_name){
     param_df = ParseParams(batch_name)
     all_batch_files = GetAllRuns(batch_name)
-    rmse_df = BatchRmse(all_batch_files)
-    rmse_at_k_df = BatchRmseAtK(all_batch_files)
+    rmse_df = BatchRmse(all_batch_files, threshold~var1)
+    rmse_at_k_df = BatchRmseAtK(all_batch_files, threshold~var1)
+    rmse_at_k_df$graph_type = param_df$graph_type
+    rmse_at_k_df$graph_size = param_df$graph_size
+    rmse_at_k_df$error_sd = param_df$error_sd
+    return_list = list(params = param_df, rmse_df = rmse_df, rmse_at_k_df = rmse_at_k_df)
+    return(return_list)
+}
+
+ProcessAllBatches = function(all_batches){
+    
+    for (b in all_batches){
+        r = ProcessBatch(b)
+    }
 }
 
 
 ## Prep Files ##
 DATA_PATH = "../data/"
 all_files = list.files(DATA_PATH)
-print(all_files)
-file_batches = SimplifyFiles(all_files)
-print(file_batches)
+#print(all_files)
+one_batch = SimplifyFiles(all_files)[1]
+print(one_batch)
+#all_batch_files = GetAllRuns(one_batch)
 ## Analyze ##
+ProcessBatch(one_batch)
