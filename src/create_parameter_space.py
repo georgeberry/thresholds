@@ -64,9 +64,10 @@ BINOMIAL_MEANS = [
     0.5,
 ]
 
+CONSTANT = 5
+
 COEFFICIENTS = [
-    3.0,
-    5.0,
+    2.0,
 ]
 
 # can also be 'binomial'
@@ -76,7 +77,7 @@ VAR_TYPES = [
 
 all_vars = EMPIRICAL_VAR_NAMES | SIM_VAR_NAMES
 
-MAX_VARS = 2
+MAX_VARS = 1
 
 ## functions ##
 
@@ -108,6 +109,7 @@ def create_coefs(dists):
     for coefs in combinations_with_replacement(COEFFICIENTS, n_vars):
         coefs = list(coefs)
         coefs[-1] = None
+        coefs[0] = CONSTANT
         yield coefs
 
 def create_means(dists):

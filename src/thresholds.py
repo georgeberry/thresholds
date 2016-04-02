@@ -390,10 +390,10 @@ if __name__ == '__main__':
         for line in f:
             j = json.loads(line)
             threshold_eq_param_space.append(j)
-    mean_degrees = [5, 10, 15, 20, 25]
-    graph_sizes = [1000, 5000, 10000]
-    ws_rewire_probs = [.2, .4]
-    pl_cluster_probs = [.1, .2]
+    mean_degrees = [10, 20, 30]
+    graph_sizes = [2500]
+    ws_rewire_probs = [.2]
+    pl_cluster_probs = [.2]
 
     # this is for purely sim graphs
     for eq in threshold_eq_param_space:

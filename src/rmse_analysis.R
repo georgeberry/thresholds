@@ -13,7 +13,8 @@
 # we want to get all the filenames, and strip
 library(stringr)
 library(dplyr)
-
+library(AER)
+library(ggplot2)
 
 # strips the number of the run
 SimpleFilename = function(filename){
@@ -24,6 +25,7 @@ SimpleFilename = function(filename){
     return(s)
 }
 
+# simplifies all files
 SimplifyFiles = function(file_vector){
     simplified_files = c()
     for (f in file_vector){
@@ -33,6 +35,7 @@ SimplifyFiles = function(file_vector){
     return(simplified_files)
 }
 
+# all reps in a batch
 GetAllRuns = function(batch_name){
     f_template = paste("../data/", batch_name, "*", sep="")
     return(Sys.glob(f_template))
@@ -114,7 +117,7 @@ RmseOLS = function(formula, df, y){
 
 RmseTobit = function(formula, df, y){
     observed_df = df[df$observed == 1,]
-    mod = tobit(formula, left=0, right=Inf, dist="gaussian", data=observed_df)
+    mod = tobit(formula=formula, left=0, right=Inf, data=observed_df)
     rmse = CalcRmse(y, predict(mod, df))
     return(rmse)
 }
@@ -124,6 +127,11 @@ BatchRmse = function(all_batch_files, formula){
     rmse_df = data.frame(rmse_ols = numeric(0), rmse_tobit = numeric(0))
     for (f in all_batch_files){
         df = read.csv(f)
+        if (sum(df$observed) < 10){
+            next
+        }
+        df$after_activation_alters = df$after_activation_alters - .5
+        df$threshold = ceiling(df$threshold)
         rmse_ols = RmseOLS(formula, df, df$threshold)
         rmse_tobit = 1
         #rmse_tobit = RmseTobit(formula, df, df$threshold)
@@ -132,11 +140,9 @@ BatchRmse = function(all_batch_files, formula){
     means = apply(rmse_df, 2, mean)
     names(means) = c("Mean_RMSE_OLS", "Mean_RMSE_Tobit")
     means = data.frame(as.list(means))
-    print(means)
     ses = apply(rmse_df, 2, sd) / sqrt(nrow(rmse_df))
     names(ses) = c("SE_RMSE_OLS", "SE_RMSE_Tobit")
     ses = data.frame(as.list(ses))
-    print(ses)
     return(cbind(means, ses))
 }
 
@@ -162,6 +168,11 @@ BatchRmseAtK = function(all_batch_files, formula){
     rmse_at_k_df = data.frame(k=numeric(0), rmse_OLS=numeric(0))
     for (f in all_batch_files){
         df = read.csv(f)
+        if (sum(df$observed) < 10){
+            next
+        }
+        df$after_activation_alters = df$after_activation_alters - .5
+        df$threshold = ceiling(df$threshold)
         rmse_at_k = RmseAtKObs(formula, df, df$threshold)
         rmse_at_k_df = rbind(rmse_at_k_df, rmse_at_k)
     }
@@ -172,32 +183,58 @@ BatchRmseAtK = function(all_batch_files, formula){
     return(summary_df)
 }
 
+# attach all params to the other two output dfs
 ProcessBatch = function(batch_name){
     param_df = ParseParams(batch_name)
     all_batch_files = GetAllRuns(batch_name)
-    rmse_df = BatchRmse(all_batch_files, threshold~var1)
-    rmse_at_k_df = BatchRmseAtK(all_batch_files, threshold~var1)
+    rmse_df = BatchRmse(all_batch_files, after_activation_alters~var1)
+    rmse_at_k_df = BatchRmseAtK(all_batch_files, after_activation_alters~var1)
+    # add params
+    rmse_df$graph_type = param_df$graph_type
+    rmse_df$graph_size = param_df$graph_size
+    rmse_df$error_sd = param_df$error_sd
     rmse_at_k_df$graph_type = param_df$graph_type
     rmse_at_k_df$graph_size = param_df$graph_size
     rmse_at_k_df$error_sd = param_df$error_sd
-    return_list = list(params = param_df, rmse_df = rmse_df, rmse_at_k_df = rmse_at_k_df)
+    return_list = list(rmse_df = rmse_df, rmse_at_k_df = rmse_at_k_df)
     return(return_list)
 }
 
 ProcessAllBatches = function(all_batches){
-    
+    param_df = NULL
+    rmse_df = NULL
+    k_df = NULL
     for (b in all_batches){
-        r = ProcessBatch(b)
+        if (nchar(b) > 20){
+            r = ProcessBatch(b)
+            batch_rmse_df = r$rmse_df
+            batch_k_df = r$rmse_at_k_df
+            batch_params = r$params
+            if (is.null(rmse_df)){
+                rmse_df = batch_rmse_df
+            } else {
+                rmse_df = rbind(rmse_df, batch_rmse_df)
+            }
+            if (is.null(k_df)){
+                k_df = batch_k_df
+            } else {
+                k_df = rbind(k_df, batch_k_df)
+            }
+        }
     }
+    return(list(k_df=k_df, rmse_df=rmse_df))
 }
 
-
+# plot fns #
+setwd('/Users/g/Google Drive/project-thresholds/thresholds/src/')
 ## Prep Files ##
 DATA_PATH = "../data/"
 all_files = list.files(DATA_PATH)
-#print(all_files)
-one_batch = SimplifyFiles(all_files)[1]
-print(one_batch)
-#all_batch_files = GetAllRuns(one_batch)
+all_batches = SimplifyFiles(all_files)
+
 ## Analyze ##
-ProcessBatch(one_batch)
+r = ProcessAllBatches(all_batches)
+k_df = r$k_df
+rmse_df = r$rmse_df
+
+#ggplot(k_df, aes(x=k, y=mean_rmse)) + geom_smooth()
