@@ -15,6 +15,7 @@ library(stringr)
 library(dplyr)
 library(AER)
 library(ggplot2)
+library(reshape2)
 
 # strips the number of the run
 SimpleFilename = function(filename){
@@ -193,9 +194,16 @@ ProcessBatch = function(batch_name){
     rmse_df$graph_type = param_df$graph_type
     rmse_df$graph_size = param_df$graph_size
     rmse_df$error_sd = param_df$error_sd
+    rmse_df$mean_deg = param_df$mean_deg
+    rmse_df$graph_param = param_df$graph_param
+    rmse_df$id_col = paste(rmse_df$graph_type, rmse_df$graph_size, rmse_df$error_sd, rmse_df$mean_deg, rmse_df$graph_param)
+
     rmse_at_k_df$graph_type = param_df$graph_type
     rmse_at_k_df$graph_size = param_df$graph_size
     rmse_at_k_df$error_sd = param_df$error_sd
+    rmse_at_k_df$mean_deg = param_df$mean_deg
+    rmse_at_k_df$graph_param = param_df$graph_param
+    rmse_at_k_df$id_col = paste(rmse_at_k_df$graph_type, rmse_at_k_df$graph_size, rmse_at_k_df$error_sd, rmse_at_k_df$mean_deg, rmse_at_k_df$graph_param)
     return_list = list(rmse_df = rmse_df, rmse_at_k_df = rmse_at_k_df)
     return(return_list)
 }
@@ -237,4 +245,24 @@ r = ProcessAllBatches(all_batches)
 k_df = r$k_df
 rmse_df = r$rmse_df
 
-#ggplot(k_df, aes(x=k, y=mean_rmse)) + geom_smooth()
+# we'd like slides grouping these results by
+
+ggplot(k_df, aes(x=k, y=mean_rmse, color=id_col)) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse))
+
+ggplot(rmse_df, aes(Mean_RMSE_OLS, id_col)) + geom_tile(aes(fill=))
+
+# can aggregate across various graph types
+# by graph type / error var
+ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(error_sd))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse))
+
+k_df$error_sd_graph_type_id = paste(k_df$error_sd, k_df$graph_type)
+ggplot(k_df, aes(x=k, y=mean_rmse, color=error_sd_graph_type_id)) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse))
+
+# mean degree
+
+
+# by graph type
+
+
+
+# heatmap of RMSE
