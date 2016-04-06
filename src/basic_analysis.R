@@ -86,8 +86,10 @@ comparison_df = rbind(comparison_df, observed_comparison_df)
 
 # plots for paper
 
-ggplot(df, aes(x=threshold)) + geom_histogram(data=df[df$observed==1,], fill='blue', alpha=.2) +geom_histogram(data=df, fill='red', alpha=.2) + theme(text=element_text(size=20)) + theme(text=element_text(size=20)) + xlab("Threshold") + ylab("Count")
+# stacked distributions
+ggplot(df, aes(x=threshold)) + geom_histogram(data=df[df$observed==1,], fill='blue', alpha=.2) + geom_histogram(data=df, fill='red', alpha=.2) + theme(text=element_text(size=20)) + theme(text=element_text(size=20)) + xlab("Threshold") + ylab("Count")
 
+# true vs observed, regression
 ggplot(comparison_df, aes(y=threshold_ceil, x=var1, color=factor(sample))) + geom_point() + geom_smooth(method=lm) + theme(text=element_text(size=20)) + scale_colour_discrete(name="", breaks=c(0, 1), labels=c("All Data", "Observed")) + ylab("Threshold") + xlab("Covariate Value")
 
 output0 = lm(threshold ~ var1, data=df)
@@ -100,10 +102,13 @@ output3 = tobit(after_activation_alters ~ var1,
                 data=observed_df)
 stargazer(output1, output2, output3)
 
+# naive thresholds only
 ggplot(df[df$activated == 1,], aes(y=after_activation_alters, x=threshold)) + geom_point() + theme(text=element_text(size=20)) + xlab("True Threshold") + ylab("Naive Threshold Observation")
 
+# true thresholds only
 ggplot(observed_df, aes(y=after_activation_alters, x=threshold)) + geom_point() + theme(text=element_text(size=20)) + xlab("True Threshold") + ylab("Correct Observed Thresholds")
 
+# All vs observed
 ggplot(sample_df[sample_df$activated == 1,], aes(y=after_activation_alters, x=threshold, color=factor(sample))) + geom_point(alpha=.5) + scale_colour_discrete(name="", breaks=c(0, 1), labels=c("All Data", "Observed")) + ylab("Observed Threshold") + xlab("True Threshold") + theme(text=element_text(size=20))
 # prediction test 1
 
@@ -139,6 +144,7 @@ for (i in 10:nrow(observed_df)) {
   pred_result_df = rbind(pred_result_df, newrow)
 }
 
+# prediction at k
 ggplot(pred_result_df, aes(x=k, y=rmse)) + geom_smooth(se=F) + geom_hline(aes(yintercept=rmse_wrong)) + ylab("RMSE") + xlab("Number of Training Observations") + theme(text=element_text(size=20))
 
 # prediction test 3

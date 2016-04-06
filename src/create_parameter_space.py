@@ -54,6 +54,7 @@ ERROR_SDS = [
     0.8,
     1.0,
     1.5,
+    2.0,
 ]
 
 NORMAL_SDS = [
@@ -67,7 +68,7 @@ BINOMIAL_MEANS = [
 CONSTANT = 5
 
 COEFFICIENTS = [
-    2.0,
+    3.0,
 ]
 
 # can also be 'binomial'

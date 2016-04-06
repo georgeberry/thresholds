@@ -61,7 +61,7 @@ TODO:
 ## Constants ##
 
 N_REPS = 100
-OUTPUT_FOLDER = '../data/'
+OUTPUT_FOLDER = '../data/replicants/'
 THRESHOLD_PARAM_FILE = '../data/made_up_param_space.json'
 
 ## Functions ##
@@ -330,6 +330,10 @@ def run_sim(
     )
     simulated_graph = async_simulation(labeled_graph)
     df = make_dataframe_from_simulation(simulated_graph)
+    print('Num activated {}; Num observed {}'.format(
+        sum(df.activated),
+        sum(df.observed)
+    ))
     df.to_csv(output_path)
 
 @timer
@@ -390,15 +394,16 @@ if __name__ == '__main__':
         for line in f:
             j = json.loads(line)
             threshold_eq_param_space.append(j)
-    mean_degrees = [10, 20, 30]
-    graph_sizes = [2500]
-    ws_rewire_probs = [.2]
+    mean_degrees = [8, 12, 16, 20]
+    graph_sizes = [1000]
+    ws_rewire_probs = [.1]
     pl_cluster_probs = [.2]
 
     # this is for purely sim graphs
     for eq in threshold_eq_param_space:
         for md in mean_degrees:
             for gs in graph_sizes:
+                print("{} {} {}".format(eq, md, gs))
                 # ws
                 for p in ws_rewire_probs:
                     output_id = create_output_identifier(
@@ -411,24 +416,27 @@ if __name__ == '__main__':
                     ws_graph = nx.watts_strogatz_graph(gs, md, p)
                     sim_reps(N_REPS, output_id, ws_graph, eq)
                 # pl
-                pl_graph = nx.barabasi_albert_graph(gs, md)
+                """
+                pl_graph = nx.barabasi_albert_graph(gs, int(md/2.))
                 output_id = create_output_identifier(
                     eq,
                     md,
                     gs,
                     'pl',
                 )
+
                 sim_reps(N_REPS, output_id, pl_graph, eq)
+                """
                 # pl w/ clustering
                 for c in pl_cluster_probs:
-                    plc_graph = nx.powerlaw_cluster_graph(gs, md, c)
-                    create_output_identifier(
+                    output_id = create_output_identifier(
                         eq,
                         md,
                         gs,
                         'plc',
                         c
                     )
+                    plc_graph = nx.powerlaw_cluster_graph(gs, int(md/2.), c)
                     sim_reps(N_REPS, output_id, plc_graph, eq)
 
 

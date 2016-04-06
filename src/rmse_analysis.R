@@ -38,7 +38,7 @@ SimplifyFiles = function(file_vector){
 
 # all reps in a batch
 GetAllRuns = function(batch_name){
-    f_template = paste("../data/", batch_name, "*", sep="")
+    f_template = paste("../data/replicants/", batch_name, "*", sep="")
     return(Sys.glob(f_template))
 }
 
@@ -89,10 +89,10 @@ ParseGraphString = function(g_str){
     g_spl = str_split(g_str, "[:alpha:]+")[[1]]
     size = g_spl[1]
     param = as.numeric(str_replace(g_spl[2], "-", "."))
-    if (substr(size, 2, 2) == "0") {
+    if (nchar(size) == 6) {
         md = as.numeric(substr(size, 1, 2))
         gs = as.numeric(substr(size, 3, nchar(size)))
-    } else {
+    } else if (nchar(size) == 5) {
         md = as.numeric(substr(size, 1, 1))
         gs = as.numeric(substr(size, 2, nchar(size)))
     }
@@ -116,19 +116,19 @@ RmseOLS = function(formula, df, y){
     return(rmse)
 }
 
-RmseTobit = function(formula, df, y){
-    observed_df = df[df$observed == 1,]
-    mod = tobit(formula=formula, left=0, right=Inf, data=observed_df)
-    rmse = CalcRmse(y, predict(mod, df))
-    return(rmse)
-}
+#RmseTobit = function(formula, df, y){
+#    observed_df <<- df[df$observed == 1,]
+#    mod = tobit(formula=formula, left=0, right=Inf, data=observed_df)
+#    rmse = CalcRmse(y, predict(mod, df))
+#    return(rmse)
+#}
 
 # can create a param + rmse line here, with rmse variance
 BatchRmse = function(all_batch_files, formula){
     rmse_df = data.frame(rmse_ols = numeric(0), rmse_tobit = numeric(0))
     for (f in all_batch_files){
         df = read.csv(f)
-        if (sum(df$observed) < 10){
+        if (sum(df$observed) < 20){
             next
         }
         df$after_activation_alters = df$after_activation_alters - .5
@@ -136,10 +136,10 @@ BatchRmse = function(all_batch_files, formula){
         rmse_ols = RmseOLS(formula, df, df$threshold)
         rmse_tobit = 1
         #rmse_tobit = RmseTobit(formula, df, df$threshold)
-        rmse_df = rbind(rmse_df, data.frame(rmse_ols = rmse_ols, rmse_tobit = rmse_tobit))
+        rmse_df = rbind(rmse_df, data.frame(rmse_ols = rmse_ols, rmse_tobit = rmse_tobit, observed = sum(df$observed)))
     }
     means = apply(rmse_df, 2, mean)
-    names(means) = c("Mean_RMSE_OLS", "Mean_RMSE_Tobit")
+    names(means) = c("Mean_RMSE_OLS", "Mean_RMSE_Tobit", "Mean_Observed")
     means = data.frame(as.list(means))
     ses = apply(rmse_df, 2, sd) / sqrt(nrow(rmse_df))
     names(ses) = c("SE_RMSE_OLS", "SE_RMSE_Tobit")
@@ -236,7 +236,7 @@ ProcessAllBatches = function(all_batches){
 # plot fns #
 setwd('/Users/g/Google Drive/project-thresholds/thresholds/src/')
 ## Prep Files ##
-DATA_PATH = "../data/"
+DATA_PATH = "../data/replicants/"
 all_files = list.files(DATA_PATH)
 all_batches = SimplifyFiles(all_files)
 
@@ -245,24 +245,5 @@ r = ProcessAllBatches(all_batches)
 k_df = r$k_df
 rmse_df = r$rmse_df
 
-# we'd like slides grouping these results by
-
-ggplot(k_df, aes(x=k, y=mean_rmse, color=id_col)) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse))
-
-ggplot(rmse_df, aes(Mean_RMSE_OLS, id_col)) + geom_tile(aes(fill=))
-
-# can aggregate across various graph types
-# by graph type / error var
-ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(error_sd))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse))
-
-k_df$error_sd_graph_type_id = paste(k_df$error_sd, k_df$graph_type)
-ggplot(k_df, aes(x=k, y=mean_rmse, color=error_sd_graph_type_id)) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse))
-
-# mean degree
-
-
-# by graph type
-
-
-
-# heatmap of RMSE
+write.csv(k_df, "../data/k_df.csv")
+write.csv(rmse_df, "../data/rmse_df.csv")
