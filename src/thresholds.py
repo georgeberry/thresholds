@@ -353,39 +353,40 @@ def eq_to_str(eq_dict):
     var_order = ['distribution', 'coefficient', 'mean', 'sd']
     eq_list = []
     for vname, val_dict in eq_dict.items():
+        var_list = []
         for var in var_order:
             val = val_dict[var]
             if val == None:
-                eq_list.append('N')
+                var_list.append('N')
             elif val == 'constant':
-                eq_list.append('c')
+                var_list.append('c')
             elif val == 'epsilon':
-                eq_list.append('e')
-            elif type(val) == str and 'var' in val:
-                short_varname = val.replace('var', 'v')
-                eq_list.append(short_varname)
+                var_list.append('e')
             elif val == 'normal':
-                eq_list.append('n')
+                var_list.append('n')
             else:
-                eq_list.append(str(val))
-    return '__' + ''.join(eq_list) + '__'
+                var_list.append(str(val))
+        eq_list.append('_'.join(var_list))
+    return '__'.join(eq_list)
 
 def create_output_identifier(
-    *params
+    eq_dict,
+    graph_params,
     ):
     id_list = []
-    for param in params:
-        if type(param) == dict:
-            eq_str = eq_to_str(param)
-            id_list.append(eq_str)
+    eq_str = eq_to_str(eq_dict)
+    id_list.append(eq_str)
+
+    param_list = []
+    for param in graph_params:
+        if param == None:
+            param_list.append('N')
         else:
-            if param == None:
-                id_list.append('N')
-            else:
-                id_list.append(str(param))
-    id_str = ''.join(id_list)
-    id_str = id_str.replace('.', '-')
-    return id_str
+            param_list.append(str(param))
+    param_str = '_'.join(param_list)
+    id_list.append(param_str)
+    id_str = '___'.join(id_list)
+    return id_str.replace('.', '-')
 
 if __name__ == '__main__':
     # some relatively constant definitions
@@ -408,10 +409,7 @@ if __name__ == '__main__':
                 for p in ws_rewire_probs:
                     output_id = create_output_identifier(
                         eq,
-                        md,
-                        gs,
-                        'ws',
-                        p,
+                        [md, gs, 'ws', p],
                     )
                     ws_graph = nx.watts_strogatz_graph(gs, md, p)
                     sim_reps(N_REPS, output_id, ws_graph, eq)
@@ -431,36 +429,7 @@ if __name__ == '__main__':
                 for c in pl_cluster_probs:
                     output_id = create_output_identifier(
                         eq,
-                        md,
-                        gs,
-                        'plc',
-                        c
+                        [md, gs, 'ws', p],
                     )
                     plc_graph = nx.powerlaw_cluster_graph(gs, int(md/2.), c)
                     sim_reps(N_REPS, output_id, plc_graph, eq)
-
-
-    """
-    # real life graph
-    real_graph_output = output_folder + 'real_output.csv'
-    real_graph = nx.read_edgelist(
-        output_folder + 'UCSC68_gc.ncol',
-        nodetype=int,
-    )
-    real_df = run_sim(real_graph, threshold_eq, real_graph_output)
-    gexf_real_output = output_folder + 'real_output.gexf'
-    #nx.write_gexf(real_graph, gexf_real_output)
-
-
-    # power law clustered graph
-    p = 0.02
-    pg_output_path = output_folder + 'pg_output.csv'
-    pg_graph = nx.powerlaw_cluster_graph(n, m, p)
-    pg_df = run_sim(pg_graph, threshold_eq, pg_output_path)
-
-    # poisson random graph
-    p = 0.05
-    ps_output_path = output_folder + 'ps_output.csv'
-    ps_graph = nx.gnp_random_graph(n, p)
-    ps_df = run_sim(ps_graph, threshold_eq, ps_output_path)
-    """

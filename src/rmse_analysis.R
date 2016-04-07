@@ -17,15 +17,6 @@ library(AER)
 library(ggplot2)
 library(reshape2)
 
-# strips the number of the run
-SimpleFilename = function(filename){
-    s = str_replace_all(filename, "__", "~")
-    s = str_split(s, "_")
-    s = s[[1]][1]
-    s = str_replace_all(s, "~", "__")
-    return(s)
-}
-
 # simplifies all files
 SimplifyFiles = function(file_vector){
     simplified_files = c()
@@ -36,6 +27,13 @@ SimplifyFiles = function(file_vector){
     return(simplified_files)
 }
 
+# strips the number of the run
+SimpleFilename = function(filename){
+    s = str_split(filename, "~")
+    s = s[[1]][1]
+    return(s)
+}
+
 # all reps in a batch
 GetAllRuns = function(batch_name){
     f_template = paste("../data/replicants/", batch_name, "*", sep="")
@@ -43,41 +41,30 @@ GetAllRuns = function(batch_name){
 }
 
 ParseParams = function(batch_name){
-    sections = str_split(batch_name, "__")[[1]]
-    eq = ParseEqString(sections[2])
-    g = ParseGraphString(sections[3])
+    sections = str_split(batch_name, "___")[[1]]
+    eq = ParseEqString(sections[1])
+    g = ParseGraphString(sections[2])
     res = cbind(eq, g)
     return(res)
 }
 
 ParseEqString = function(eq_str){
-    eq = str_split(eq_str, "[cne]")[[1]]
-    eq = eq[2:length(eq)]
-    df = data.frame(constant = NA)
+    eq = str_split(eq_str, "__")[[1]]
+    df = data.frame(constant = NA, error_sd = NA, var1_coef = NA, var1_sd = NA)
     for (idx in 1:length(eq)){
-        param = eq[idx]
-        # constant
-        if (idx == 1) {
-            constant = as.numeric(substr(param, 1, 1))
-            df$constant = constant
-        }
-        # error
-        else if (idx == length(eq)) {
-            error_sd_str = str_replace(substr(param, 3, 5), "-", ".")
-            error_sd = as.numeric(error_sd_str)
-            df$error_sd = error_sd
-        }
-        # everything else
-        else {
-            coefficient = as.numeric(str_replace(substr(param, 1, 3), "-", "."))
-            sd = as.numeric(str_replace(substr(param, 5, 7), "-", "."))
-            if ("var1_coef" %in% colnames(df)){
-                df$var2_coef = coefficient
-                df$var2_sd = sd
-            } else {
-                df$var1_coef = coefficient
-                df$var1_sd = sd
-            }
+        param = str_split(eq[idx], "_")[[1]]
+        # order ['distribution', 'coefficient', 'mean', 'sd']
+        distribution = param[1]
+        coefficient = param[2]
+        m = param[3]
+        s = param[4]
+        if (distribution == "c") {
+            df$constant = as.numeric(coefficient)
+        } else if (distribution == "e") {
+            df$error_sd = as.numeric(str_replace(s, "-", "."))
+        } else {
+            df$var1_coef = as.numeric(str_replace(coefficient, "-", "."))
+            df$var1_sd = as.numeric(str_replace(s, "-", "."))
         }
     }
     return(df)
@@ -85,18 +72,17 @@ ParseEqString = function(eq_str){
 
 ParseGraphString = function(g_str){
     # hacky, but if 2nd char is a 0, then we know the first 2 are mean degree
-    graph_type = str_replace_all(g_str, "([:digit:]|[:punct:])", "")
-    g_spl = str_split(g_str, "[:alpha:]+")[[1]]
-    size = g_spl[1]
-    param = as.numeric(str_replace(g_spl[2], "-", "."))
-    if (nchar(size) == 6) {
-        md = as.numeric(substr(size, 1, 2))
-        gs = as.numeric(substr(size, 3, nchar(size)))
-    } else if (nchar(size) == 5) {
-        md = as.numeric(substr(size, 1, 1))
-        gs = as.numeric(substr(size, 2, nchar(size)))
+    g_spl = str_split(g_str, "_")[[1]]
+    md = as.numeric(g_spl[1])
+    gs = as.numeric(g_spl[2])
+    graph_type = g_spl[3]
+    if (length(g_spl) == 4) {
+        graph_param = as.numeric(str_replace(g_spl[4], "-", "."))
+    } else {
+        graph_param = NA
     }
-    df = data.frame(graph_param = param, mean_deg = md, graph_size = gs, graph_type = graph_type)
+    df = data.frame(graph_param = graph_param, mean_deg = md, graph_size = gs, graph_type = graph_type)
+    print(df)
     return(df)
 }
 
@@ -235,11 +221,13 @@ ProcessAllBatches = function(all_batches){
 
 # plot fns #
 setwd('/Users/g/Google Drive/project-thresholds/thresholds/src/')
+print("hi")
 ## Prep Files ##
 DATA_PATH = "../data/replicants/"
 all_files = list.files(DATA_PATH)
 all_batches = SimplifyFiles(all_files)
 
+print(all_batches)
 ## Analyze ##
 r = ProcessAllBatches(all_batches)
 k_df = r$k_df
