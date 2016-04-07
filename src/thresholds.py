@@ -343,7 +343,7 @@ def sim_reps(
     *sim_params
     ):
     for sim_num in range(n_rep):
-        output_path = OUTPUT_FOLDER + output_id + '_' + str(sim_num)
+        output_path = OUTPUT_FOLDER + output_id + '~' + str(sim_num)
         run_sim(output_path, *sim_params)
 
 def eq_to_str(eq_dict):
@@ -395,10 +395,10 @@ if __name__ == '__main__':
         for line in f:
             j = json.loads(line)
             threshold_eq_param_space.append(j)
-    mean_degrees = [8, 12, 16, 20]
+    mean_degrees = [12, 16, 20]
     graph_sizes = [1000]
     ws_rewire_probs = [.1]
-    pl_cluster_probs = [.2]
+    pl_cluster_probs = [.1]
 
     # this is for purely sim graphs
     for eq in threshold_eq_param_space:

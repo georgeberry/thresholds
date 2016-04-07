@@ -1,14 +1,6 @@
-# This file does RMSE analysis
-# It generates two plots
-#   1) RMSE vs error as fraction of r^2 (violin or boxplot)
-#   2) RMSE as function of # training obs for various params
-#
-# The challenge here is how to deal with reps (computationally)
-# Each param set will have its own folder
-# We can read an entire folder, do the analysis, and then avg results
-# For instance, for box in plot 1), we'll have 100 RMSE obs
-# For plot 2), we'll have 100 obs for each X val for each param set
-#   This is a lot, is there an easy way to draw the error bars?
+# This file takes our replicated runs
+# Does modeling, and summarizes the results
+# This produces two aggregated CSV files that form the basis of our anlaysis
 
 # we want to get all the filenames, and strip
 library(stringr)
@@ -17,7 +9,7 @@ library(AER)
 library(ggplot2)
 library(reshape2)
 
-# simplifies all files
+## String parsing functions ##
 SimplifyFiles = function(file_vector){
     simplified_files = c()
     for (f in file_vector){
@@ -86,7 +78,6 @@ ParseGraphString = function(g_str){
     return(df)
 }
 
-
 ## rmse fns ##
 
 CalcRmse = function(true_y, pred_y){
@@ -103,6 +94,7 @@ RmseOLS = function(formula, df, y){
 }
 
 #RmseTobit = function(formula, df, y){
+#     # need to use this fuckit operator
 #    observed_df <<- df[df$observed == 1,]
 #    mod = tobit(formula=formula, left=0, right=Inf, data=observed_df)
 #    rmse = CalcRmse(y, predict(mod, df))
@@ -170,6 +162,8 @@ BatchRmseAtK = function(all_batch_files, formula){
     return(summary_df)
 }
 
+## Batch processing functions ##
+
 # attach all params to the other two output dfs
 ProcessBatch = function(batch_name){
     param_df = ParseParams(batch_name)
@@ -219,9 +213,10 @@ ProcessAllBatches = function(all_batches){
     return(list(k_df=k_df, rmse_df=rmse_df))
 }
 
+## Run script ##
+
 # plot fns #
 setwd('/Users/g/Google Drive/project-thresholds/thresholds/src/')
-print("hi")
 ## Prep Files ##
 DATA_PATH = "../data/replicants/"
 all_files = list.files(DATA_PATH)
