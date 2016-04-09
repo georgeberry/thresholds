@@ -106,7 +106,7 @@ RmseOLS = function(formula, df){
 
 # can create a param + rmse line here, with rmse variance
 BatchRmse = function(all_batch_files, formula){
-    rmse_df = data.frame(rmse_obs = numeric(0), epsilon_mean_obs = numeric(0), cons_obs = numeric(0), beta_obs = numeric(0), rmse_true = numeric(0), num_observed = numeric(0))
+    rmse_df = data.frame(rmse_obs = numeric(0), epsilon_mean_obs = numeric(0), cons_obs = numeric(0), beta_obs = numeric(0), rmse_true = numeric(0), num_observed = numeric(0), naive_rmse = numeric(0))
     for (f in all_batch_files){
         df = read.csv(f)
         if (sum(df$observed) < 20){
@@ -118,14 +118,15 @@ BatchRmse = function(all_batch_files, formula){
         rmse_true = rmse_list$rmse_true
         cons_obs = rmse_list$cons_obs
         beta_obs = rmse_list$beta_obs
+        naive_rmse = CalcRmse(df$after_activation_alters, df$threshold)
         epsilon_mean_obs = mean(rmse_list$observed_epsilon)
-        rmse_df = rbind(rmse_df, data.frame(rmse_obs = rmse_obs, epsilon_mean_obs = epsilon_mean_obs, cons_obs = cons_obs, beta_obs = beta_obs, rmse_true = rmse_true, num_observed = sum(df$observed)))
+        rmse_df = rbind(rmse_df, data.frame(rmse_obs = rmse_obs, epsilon_mean_obs = epsilon_mean_obs, cons_obs = cons_obs, beta_obs = beta_obs, rmse_true = rmse_true, num_observed = sum(df$observed), naive_rmse))
     }
     means = apply(rmse_df, 2, mean)
-    names(means) = c("mean_rmse_obs", "epsilon_mean_obs", "cons_mean_obs", "beta_mean_obs", "mean_rmse_true", "mean_num_observed")
+    names(means) = c("mean_rmse_obs", "epsilon_mean_obs", "cons_mean_obs", "beta_mean_obs", "mean_rmse_true", "mean_num_observed", "mean_rmse_naive")
     means = data.frame(as.list(means))
     sds = apply(rmse_df, 2, sd)
-    names(sds) = c("sd_rmse_obs", "sd_obs_epsilon", "cons_mean_sd", "beta_mean_sd", "sd_rmse_true", "sd_num_observed")
+    names(sds) = c("sd_rmse_obs", "sd_obs_epsilon", "cons_mean_sd", "beta_mean_sd", "sd_rmse_true", "sd_num_observed", "sd_rmse_naive")
     sds = data.frame(as.list(sds))
     return(cbind(means, sds))
 }

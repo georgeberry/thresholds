@@ -10,10 +10,10 @@ As we increase the error sd, we reduced explained variance (and therefore increa
 To fix this, we can do a couple of things:
 1. Get error term among the correctly measured thresholds (DONE)
 2. Get rmse vs true rmse (DONE)
-3. Get coefficients
-4. Plot error terms as function of params
+3. Get coefficients (DONE)
+4. Plot error terms as function of params (DONE)
 5. Plot rmse vs true as fn of params
-6. Plot coefficient error as fn of params
+6. Plot coefficient error as fn of params (DONE)
 
 ## Empirical networks
 

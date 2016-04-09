@@ -6,7 +6,7 @@ library(reshape2)
 
 setwd("/Users/g/Google Drive/project-thresholds/thresholds/src/")
 
-ONE_OFF_PATH = "../data/replicants/__c5NNn3-001-0eN01-0__121000plc0-2_46"
+ONE_OFF_PATH = "../data/replicants/c_5_N_N__n_3-0_0_1-0__e_N_0_2-0___20_1000_pl_0-1~93"
 RMSE_DF_PATH = "../data/rmse_df.csv"
 K_DF_PATH = "../data/k_df.csv"
 
@@ -32,11 +32,6 @@ sample_df$sample = 0
 observed_df$sample = 1
 sample_df = rbind(sample_df, observed_df)
 
-# example rmse
-ex_df = df[,c("threshold_ceil", "after_activation_alters")]
-ex_df$after_activation_alters[is.na(ex_df$after_activation_alters)] = 0
-rmse_example_val = sqrt(mean((ex_df$threshold_ceil - ex_df$after_activation_alters)^2))
-
 # stacked distributions
 ggplot(df, aes(x=threshold)) + geom_histogram(data=df[df$observed==1,], fill='blue', alpha=.4) + geom_histogram(data=df, fill='red', alpha=.3) + theme(text=element_text(size=20)) + theme(text=element_text(size=20)) + xlab("Threshold") + ylab("Count")
 
@@ -49,7 +44,7 @@ ggplot(comparison_df, aes(y=threshold_ceil, x=var1, color=factor(sample))) + geo
 ## missing-ness heatmaps ##
 
 # might need to name columns appropriately
-df_m = rmse_df[,c("Mean_Observed", "graph_type", "mean_deg")]
+df_m = rmse_df[,c("mean_num_observed", "graph_type", "mean_deg")]
 df_m = melt(df_m, id=c("graph_type", "mean_deg"))
 a_m = melt(acast(df_m, mean_deg ~ graph_type ~ variable, mean))
 ggplot(a_m, aes(x=factor(Var1), y=value, fill=factor(Var2))) + geom_bar(stat="identity", position="dodge") + xlab("Mean Degree") + ylab("Num Correctly Measured Thresholds") + theme(text=element_text(size=20)) + ylim(0, 200) + scale_fill_discrete(name = "Graph Type")
@@ -61,13 +56,9 @@ ggplot(a_m, aes(x=factor(Var1), y=value, fill=factor(Var2))) + geom_bar(stat="id
 
 ## error var vs mean degree heatmap ##
 
-df_v = rmse_df[,c("mean_deg", "error_sd", "Mean_RMSE_OLS")]
+df_v = rmse_df[,c("mean_deg", "error_sd", "mean_rmse_obs")]
 df_v = melt(df_v, id=c("error_sd", "mean_deg"))
 a = melt(acast(df_v, mean_deg ~ error_sd ~ variable, mean))
-#a_df = as.data.frame(a)[4:1,]
-#colnames(a_df) = c("0.5", "0.8", "1", "1.5", "2")
-#rownames(a_df) = c("20", "16", "12", "8")
-#d3heatmap(a_df, dendrogram="none", colors="YlOrRd")
 ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) + geom_raster() + scale_fill_gradientn(colours=c("#82CAFA","#FFFFFF","#FBB917"), guide = guide_legend(title = "RMSE")) + xlab("Mean Degree") + ylab("Error Std Dev") + theme(text=element_text(size=20))
 
 ## plots of rmse rates by k ##
@@ -80,7 +71,22 @@ ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) + geom_raster() + scale_f
 
 # can aggregate across various graph types
 # by graph type / error var
-ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(error_sd))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Error Std Dev") + geom_hline(aes(yintercept=rmse_example_val))
 
-ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(graph_type))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Graph Type") + geom_hline(aes(yintercept=rmse_example_val)) + ylim(0,8)
+# need rmse at k relative to the naive and ideal rmse
 
+#ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(error_sd))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Error Std Dev")
+
+#ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(graph_type))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Graph Type")
+
+# plot selection on error as function of error sd #
+
+ggplot(rmse_df, aes(x=error_sd, y=epsilon_mean_obs)) + geom_point()
+
+
+# coefficient bias #
+
+ggplot(rmse_df, aes(x=error_sd, y=beta_mean_obs)) + geom_point()
+
+ggplot(rmse_df, aes(x=error_sd, y=cons_mean_obs)) + geom_point()
+
+ggplot(rmse_df, aes(x=error_sd)) + geom_smooth(aes(y=mean_rmse_obs)) + geom_smooth(aes(y=mean_rmse_true))
