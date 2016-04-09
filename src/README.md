@@ -8,9 +8,12 @@
 As we increase the error sd, we reduced explained variance (and therefore increase unexplained variance), yet we also appear to increase the bias because the selection on the error is worse.
 
 To fix this, we can do a couple of things:
-1. Get error among the correctly measured thresholds
-2. Plot how the prediction-RMSE changes relative to the ideal-RMSE as we increase error variance
-3. Bootstrap the coefficients for model runs and see the mean/sd here
+1. Get error term among the correctly measured thresholds (DONE)
+2. Get rmse vs true rmse (DONE)
+3. Get coefficients
+4. Plot error terms as function of params
+5. Plot rmse vs true as fn of params
+6. Plot coefficient error as fn of params
 
 ## Empirical networks
 
@@ -23,3 +26,7 @@ Rather, we can use the empirical homophily in a real network to create a thresho
 ### How well does our method work in small networks
 
 We can take Coleman's diffusion of innovations data and apply our method to this from the outside. How many thresholds do we correctly measure? Is there a way to quantify how not-wrong we are?
+
+### Natural experiment?
+
+Can we view the network diffusion process as inducing many natural experiments? Many tiny natural experiments lolol.

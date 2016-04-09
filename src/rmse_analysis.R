@@ -86,11 +86,14 @@ CalcRmse = function(true_y, pred_y){
 }
 
 # gives imporant params + RMSE for one batch
-RmseOLS = function(formula, df, y){
+RmseOLS = function(formula, df){
     observed_df = df[df$observed == 1,]
-    mod = lm(formula, data=observed_df)
-    rmse = CalcRmse(y, predict(mod, df))
-    return(rmse)
+    mod_obs = lm(after_activation_alters ~ var1, data=observed_df)
+    rmse_obs = CalcRmse(df$threshold, predict(mod_obs, df))
+    mod_true = lm(threshold ~ var1, data=df)
+    rmse_true = CalcRmse(df$threshold, predict(mod_true, df))
+    coefs = coef(mod_obs)
+    return(list("rmse_obs" = rmse_obs, "rmse_true" = rmse_true, "observed_epsilon" = observed_df$epsilon, "cons_obs" = coefs[1], "beta_obs" = coefs[2]))
 }
 
 #RmseTobit = function(formula, df, y){
@@ -103,38 +106,41 @@ RmseOLS = function(formula, df, y){
 
 # can create a param + rmse line here, with rmse variance
 BatchRmse = function(all_batch_files, formula){
-    rmse_df = data.frame(rmse_ols = numeric(0), rmse_tobit = numeric(0))
+    rmse_df = data.frame(rmse_obs = numeric(0), epsilon_mean_obs = numeric(0), cons_obs = numeric(0), beta_obs = numeric(0), rmse_true = numeric(0), num_observed = numeric(0))
     for (f in all_batch_files){
         df = read.csv(f)
         if (sum(df$observed) < 20){
             next
         }
         df$after_activation_alters = df$after_activation_alters - .5
-        df$threshold = ceiling(df$threshold)
-        rmse_ols = RmseOLS(formula, df, df$threshold)
-        rmse_tobit = 1
-        #rmse_tobit = RmseTobit(formula, df, df$threshold)
-        rmse_df = rbind(rmse_df, data.frame(rmse_ols = rmse_ols, rmse_tobit = rmse_tobit, observed = sum(df$observed)))
+        rmse_list = RmseOLS(formula, df)
+        rmse_obs = rmse_list$rmse_obs
+        rmse_true = rmse_list$rmse_true
+        cons_obs = rmse_list$cons_obs
+        beta_obs = rmse_list$beta_obs
+        epsilon_mean_obs = mean(rmse_list$observed_epsilon)
+        rmse_df = rbind(rmse_df, data.frame(rmse_obs = rmse_obs, epsilon_mean_obs = epsilon_mean_obs, cons_obs = cons_obs, beta_obs = beta_obs, rmse_true = rmse_true, num_observed = sum(df$observed)))
     }
     means = apply(rmse_df, 2, mean)
-    names(means) = c("Mean_RMSE_OLS", "Mean_RMSE_Tobit", "Mean_Observed")
+    names(means) = c("mean_rmse_obs", "epsilon_mean_obs", "cons_mean_obs", "beta_mean_obs", "mean_rmse_true", "mean_num_observed")
     means = data.frame(as.list(means))
-    ses = apply(rmse_df, 2, sd) / sqrt(nrow(rmse_df))
-    names(ses) = c("SE_RMSE_OLS", "SE_RMSE_Tobit")
-    ses = data.frame(as.list(ses))
-    return(cbind(means, ses))
+    sds = apply(rmse_df, 2, sd)
+    names(sds) = c("sd_rmse_obs", "sd_obs_epsilon", "cons_mean_sd", "beta_mean_sd", "sd_rmse_true", "sd_num_observed")
+    sds = data.frame(as.list(sds))
+    return(cbind(means, sds))
 }
 
 # gives RMSE at number obs (maybe every 10?)
 RmseAtKObs = function(formula, df, y){
-    rmse_at_k_df = data.frame(k=numeric(0), rmse_OLS=numeric(0))
+    rmse_at_k_df = data.frame(k=numeric(0), rmse_OLS=numeric(0), cons_obs=numeric(0), beta_obs=numeric(0))
     o_df = df[df$observed == 1,] %>% arrange(activation_order)
     k_seq = seq(10, nrow(o_df), 10)
     for (k in k_seq){
         k_df = head(o_df, k)
         mod = lm(formula, data=k_df)
         rmse_at_k = CalcRmse(y, predict(mod, df))
-        rmse_at_k_df = rbind(rmse_at_k_df, data.frame(k=k, rmse_OLS=rmse_at_k))
+        coefs = coef(mod)
+        rmse_at_k_df = rbind(rmse_at_k_df, data.frame(k=k, rmse_OLS=rmse_at_k, cons_obs=coefs[1], beta_obs=coefs[2]))
     }
     return(rmse_at_k_df)
 }
@@ -144,7 +150,7 @@ RmseAtKObs = function(formula, df, y){
 # output: df where cols are mean/SE
 #           rows are vals of k
 BatchRmseAtK = function(all_batch_files, formula){
-    rmse_at_k_df = data.frame(k=numeric(0), rmse_OLS=numeric(0))
+    rmse_at_k_df = data.frame(k=numeric(0), rmse_OLS=numeric(0), cons_obs=numeric(0), beta_obs=numeric(0), rmse_true=numeric(0))
     for (f in all_batch_files){
         df = read.csv(f)
         if (sum(df$observed) < 10){
@@ -153,12 +159,13 @@ BatchRmseAtK = function(all_batch_files, formula){
         df$after_activation_alters = df$after_activation_alters - .5
         df$threshold = ceiling(df$threshold)
         rmse_at_k = RmseAtKObs(formula, df, df$threshold)
+        mod_true = lm(threshold ~ var1, data=df)
+        rmse_at_k$rmse_true = CalcRmse(df$threshold, predict(mod_true, df))
         rmse_at_k_df = rbind(rmse_at_k_df, rmse_at_k)
     }
     summary_df = rmse_at_k_df %>%
         group_by(k) %>%
-        summarize(mean_rmse=mean(rmse_OLS), sd_rmse=sd(rmse_OLS), n=n()) %>%
-        mutate(se_rmse = sd_rmse / sqrt(n))
+        summarize(mean_rmse=mean(rmse_OLS), sd_rmse=sd(rmse_OLS), cons_obs=mean(cons_obs), beta_obs=mean(beta_obs), cons_sd=sd(cons_obs), beta_sd=sd(beta_obs), rmse_true=mean(rmse_true), n=n())
     return(summary_df)
 }
 
@@ -177,7 +184,6 @@ ProcessBatch = function(batch_name){
     rmse_df$mean_deg = param_df$mean_deg
     rmse_df$graph_param = param_df$graph_param
     rmse_df$id_col = paste(rmse_df$graph_type, rmse_df$graph_size, rmse_df$error_sd, rmse_df$mean_deg, rmse_df$graph_param)
-
     rmse_at_k_df$graph_type = param_df$graph_type
     rmse_at_k_df$graph_size = param_df$graph_size
     rmse_at_k_df$error_sd = param_df$error_sd
