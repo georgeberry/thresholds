@@ -12,8 +12,10 @@ To fix this, we can do a couple of things:
 2. Get rmse vs true rmse (DONE)
 3. Get coefficients (DONE)
 4. Plot error terms as function of params (DONE)
-5. Plot rmse vs true as fn of params
+5. Plot rmse vs true as fn of params (DONE)
 6. Plot coefficient error as fn of params (DONE)
+7. Make pretty plots of collisions for all graph simulation types
+8. 
 
 ## Empirical networks
 

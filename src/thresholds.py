@@ -58,12 +58,6 @@ TODO:
     - Quantify bias in distribution
 """
 
-## Constants ##
-
-N_REPS = 100
-OUTPUT_FOLDER = '../data/replicants/'
-THRESHOLD_PARAM_FILE = '../data/made_up_param_space.json'
-
 ## Functions ##
 
 def timer(f):
@@ -76,11 +70,12 @@ def timer(f):
         return result
     return wrapper
 
-## Threshold creation functions ##
+## Threshold creation ##
 
 def create_thresholds(n, equation):
     '''
     intput looks like:
+    n: Number of samples to draw
     equation = {
         'var_1_name': {
             'distribution': 'normal',
@@ -93,16 +88,8 @@ def create_thresholds(n, equation):
         },
         ...
     }
-    n: Number of samples to draw
-    equation: R style regression equation
-    distribution_dict: dict of form {'var_name': 'normal'}
-        accepts 'normal' or 'binomial'
-
-    outputs list of dicts of form:
-        {'threshold': y, 'age': val, 'gender': val, ...}
     '''
     output_list_of_dicts = []
-
     for node in range(n):
         node_variable_dict = {}
         threshold_total = 0.0
@@ -373,10 +360,18 @@ def create_output_identifier(
     eq_dict,
     graph_params,
     ):
+    """
+    Simple type of serialization to describe the graph parameters
+
+    Divide the threshold function and graph params by ___
+    Divide variables within the threshold function by __
+    Divide all other elements by _
+
+    Can then split on ___, then __, then _
+    """
     id_list = []
     eq_str = eq_to_str(eq_dict)
     id_list.append(eq_str)
-
     param_list = []
     for param in graph_params:
         if param == None:
@@ -389,6 +384,12 @@ def create_output_identifier(
     return id_str.replace('.', '-')
 
 if __name__ == '__main__':
+    ## Constants ##
+
+    N_REPS = 100
+    OUTPUT_FOLDER = '../data/replicants/'
+    THRESHOLD_PARAM_FILE = '../data/made_up_param_space.json'
+
     # some relatively constant definitions
     threshold_eq_param_space = []
     with open(THRESHOLD_PARAM_FILE, 'rb') as f:
@@ -422,7 +423,6 @@ if __name__ == '__main__':
                     gs,
                     'pl',
                 )
-
                 sim_reps(N_REPS, output_id, pl_graph, eq)
                 """
                 # pl w/ clustering
