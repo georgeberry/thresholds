@@ -15,7 +15,7 @@ To fix this, we can do a couple of things:
 5. Plot rmse vs true as fn of params (DONE)
 6. Plot coefficient error as fn of params (DONE)
 7. Make pretty plots of collisions for all graph simulation types
-8. 
+8. Use the threshold condition on simple empirical data (e.g. Coleman)
 
 ## Empirical networks
 
