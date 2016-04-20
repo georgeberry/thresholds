@@ -14,6 +14,7 @@
 As we increase the error sd, we reduced explained variance (and therefore increase unexplained variance), yet we also appear to increase the bias because the selection on the error is worse.
 
 To fix this, we can do a couple of things:
+
 1. Get error term among the correctly measured thresholds (DONE)
 2. Get rmse vs true rmse (DONE)
 3. Get coefficients (DONE)
