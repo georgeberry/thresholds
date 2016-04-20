@@ -1,14 +1,8 @@
 # To-dos
-
-1. disentangle bias and variance from increased error sd (DONE)
+1. disentangle bias and variance from increased error sd
 2. plot this nicely
 3. Add empirical networks from Facebook (built in homophily!)
-4. Add the medical diffusion network, to link up with old school soc people (DONE; USELESS)
-5. Double check `rmse_analysis.R` to make sure it's modeling correctly
-
-## Plots
-
-1. Complete graph analysis, everyone has threshold 1, demonstrate upward bias
+4. Add the medical diffusion network, to link up with old school soc people
 
 ## Bias vs Variance
 As we increase the error sd, we reduced explained variance (and therefore increase unexplained variance), yet we also appear to increase the bias because the selection on the error is worse.
@@ -24,12 +18,6 @@ To fix this, we can do a couple of things:
 8. Use the threshold condition on simple empirical data (e.g. Coleman)
 
 ## Empirical networks
-
-### Coleman dataset
-
-1. Follow Burt and do the professional advice network (exclude friendship ties)
-2. Repeat Valente's analysis of early-late-middle threshold by overall comparison
-3. Give analysis of the difference between
 
 ### Thresholds based on covariates
 
