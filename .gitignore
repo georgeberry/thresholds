@@ -3,3 +3,7 @@
 *.pyc
 *.RData
 *.Rhistory
+data/replicants/*
+data/coleman/*
+data/*.csv
+data/*.json
