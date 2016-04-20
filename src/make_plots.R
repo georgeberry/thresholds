@@ -3,16 +3,33 @@ library(plotly)
 library(raster)
 library(scales)
 library(reshape2)
+library(AER)
+
+# This file takes the output of rmse_analysis.R and makes pretty plots
+# Plots the following things:
+#   1. One run---histogram of measured and all thresholds 
+#   2. One run---scatterplot of true vs measured thresholds
+#   3. One run---threshold vs X value, true and correctly measured thresholds
+#   4. All runs---Bar graph of number of correctly measured thresholds
+#   5. All runs---Heatmap of mean RMSE at mean degree by error st.dev
+#   6. All runs---RMSE at k
+#   7. All runs---Error of correctly measured cases
+#   8. All runs---Beta based on correctly measured cases
+#   9. All runs---Constant of correctly measured cases
+#   10. All runs---RMSE true vs RMSE observed
 
 setwd("/Users/g/Google Drive/project-thresholds/thresholds/src/")
-
 ONE_OFF_PATH = "../data/replicants/c_5_N_N__n_3-0_0_1-0__e_N_0_2-0___20_1000_pl_0-1~93"
 RMSE_DF_PATH = "../data/rmse_df.csv"
 K_DF_PATH = "../data/k_df.csv"
-
 one_off_df = read.csv(ONE_OFF_PATH)
 rmse_df = read.csv(RMSE_DF_PATH)
 k_df = read.csv(K_DF_PATH)
+
+
+
+
+
 
 ## one-off example plots ##
 
@@ -39,7 +56,12 @@ ggplot(df, aes(x=threshold)) + geom_histogram(data=df[df$observed==1,], fill='bl
 ggplot(sample_df[sample_df$activated == 1,], aes(y=after_activation_alters, x=threshold, color=factor(sample))) + geom_point(alpha=.7) + scale_colour_discrete(name="", breaks=c(0, 1), labels=c("All Data", "Correct")) + ylab("Measured Threshold") + xlab("True Threshold") + theme(text=element_text(size=20)) + geom_abline(intercept=.5) + xlim(-5, 45)
 
 # true vs observed, regression
-ggplot(comparison_df, aes(y=threshold_ceil, x=var1, color=factor(sample))) + geom_point() + theme(text=element_text(size=20)) + scale_colour_discrete(name="", breaks=c(0, 1), labels=c("True Thresholds", "Correct Measured")) + ylab("Threshold") + xlab("X Value") + geom_smooth(method=lm) 
+ggplot(comparison_df, aes(y=threshold_ceil, x=var1, color=factor(sample))) + geom_point() + theme(text=element_text(size=20)) + scale_colour_discrete(name="", breaks=c(0, 1), labels=c("True Thresholds", "Correct Measured")) + ylab("Threshold") + xlab("X Value") + geom_smooth(method=lm)
+
+ggplot(observed_df, aes(y=threshold_ceil, x=var1)) + geom_point() + geom_smooth(method='tobit', formula=threshold_ceil~var1, data=observed_df)
+
+summary(lm(threshold_ceil~var1, data=observed_df))
+summary(tobit(after_activation_alters~var1, data=observed_df))
 
 ## missing-ness heatmaps ##
 
@@ -74,19 +96,27 @@ ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) + geom_raster() + scale_f
 
 # need rmse at k relative to the naive and ideal rmse
 
-#ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(error_sd))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Error Std Dev")
+ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(error_sd))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Error Std Dev")
 
-#ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(graph_type))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Graph Type")
+ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(graph_type))) + geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) + xlab("k") + ylab("RMSE") + theme(text=element_text(size=20)) + scale_colour_discrete(name = "Graph Type")
+
+
+## BIAS VS VARIANCE ##
 
 # plot selection on error as function of error sd #
 
-ggplot(rmse_df, aes(x=error_sd, y=epsilon_mean_obs)) + geom_point()
-
+ggplot(rmse_df, aes(x=error_sd, y=epsilon_mean_obs, group=factor(graph_type))) + geom_point() + geom_smooth(method=lm, se=FALSE)
 
 # coefficient bias #
 
-ggplot(rmse_df, aes(x=error_sd, y=beta_mean_obs)) + geom_point()
+# beta
 
-ggplot(rmse_df, aes(x=error_sd, y=cons_mean_obs)) + geom_point()
+ggplot(rmse_df, aes(x=error_sd, y=beta_mean_obs, group=interaction(graph_type, mean_deg), color=interaction(graph_type, mean_deg))) + geom_point() + geom_smooth(method=lm, se=FALSE)
 
-ggplot(rmse_df, aes(x=error_sd)) + geom_smooth(aes(y=mean_rmse_obs)) + geom_smooth(aes(y=mean_rmse_true))
+# constant
+
+ggplot(rmse_df, aes(x=error_sd, y=cons_mean_obs, group=interaction(graph_type, mean_deg), color=interaction(graph_type, mean_deg))) + geom_point() + geom_smooth(method=lm, se=FALSE)
+
+# fraction of rmse that is bias vs variance
+
+ggplot(rmse_df, aes(x=error_sd)) + geom_smooth(method=lm, aes(y=mean_rmse_true)) + geom_smooth(method=lm, aes(y=mean_rmse_obs))
