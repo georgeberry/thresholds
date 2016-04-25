@@ -386,7 +386,7 @@ def create_output_identifier(
 if __name__ == '__main__':
     ## Constants ##
 
-    N_REPS = 100
+    N_REPS = 1000
     OUTPUT_FOLDER = '../data/replicants/'
     THRESHOLD_PARAM_FILE = '../data/made_up_param_space.json'
 
@@ -433,3 +433,9 @@ if __name__ == '__main__':
                     )
                     plc_graph = nx.powerlaw_cluster_graph(gs, int(md/2.), c)
                     sim_reps(N_REPS, output_id, plc_graph, eq)
+
+    # for empirical graphs
+    empirical_graph_files = []
+
+    for eg in empirical_graph_files:
+        pass

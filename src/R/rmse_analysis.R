@@ -30,7 +30,7 @@ SimpleFilename = function(filename){
 
 # all reps in a batch
 GetAllRuns = function(batch_name){
-    f_template = paste("../data/replicants/", batch_name, "*", sep="")
+    f_template = paste("../../data/replicants/", batch_name, "*", sep="")
     return(Sys.glob(f_template))
 }
 
@@ -76,14 +76,13 @@ ParseGraphString = function(g_str){
         graph_param = NA
     }
     df = data.frame(graph_param = graph_param, mean_deg = md, graph_size = gs, graph_type = graph_type)
-    print(df)
     return(df)
 }
 
 ## rmse fns ##
 
 CalcRmse = function(true_y, pred_y){
-    rmse = sqrt(mean((true_y - pred_y)^2))
+    rmse = sqrt(mean((true_y - pred_y)^2, na.rm=TRUE))
     return(rmse)
 }
 
@@ -103,8 +102,8 @@ RmseOLS = function(df){
         "rmse_obs" = rmse_obs,
         "rmse_true" = rmse_true,
         "epsilon_obs" = observed_df$epsilon,
-        "cons_obs" = coefs[1],
-        "beta_obs" = coefs[2],
+        "cons_obs" = coefs_obs[1],
+        "beta_obs" = coefs_obs[2],
         "cons_true" = coefs_true[1],
         "beta_true" = coefs_true[2]
         )
@@ -143,7 +142,7 @@ BatchRmse = function(all_batch_files){
         cons_obs = rmse_list$cons_obs
         beta_obs = rmse_list$beta_obs
         cons_true = rmse_list$cons_true
-        beta_obs = rmse_list$beta_obs
+        beta_true = rmse_list$beta_true
         rmse_naive = CalcRmse(df$after_activation_alters, df$threshold)
         epsilon_obs_mean = mean(rmse_list$epsilon_obs)
         rmse_df = rbind(
@@ -178,8 +177,8 @@ BatchRmse = function(all_batch_files){
     names(sds) = c(
         "rmse_obs_sd",
         "obs_epsilon_sd",
-        "cons_mean_sd",
-        "beta_mean_sd",
+        "cons_obs_sd",
+        "beta_obs_sd",
         "cons_true_sd",
         "beta_true_sd",
         "rmse_true_sd",
@@ -196,28 +195,36 @@ RmseAtKObs = function(df){
         k=numeric(0),
         rmse_obs=numeric(0),
         rmse_true=numeric(0),
+        rmse_naive=numeric(0),
         cons_obs=numeric(0),
-        beta_obs=numeric(0)
+        beta_obs=numeric(0),
+        cons_true=numeric(0),
+        beta_true=numeric(0)
     )
     y = df$threshold # true value
     o_df = df[df$observed == 1,] %>% arrange(activation_order)
     k_seq = seq(10, nrow(o_df), 10)
     for (k in k_seq){
         k_df = head(o_df, k)
-        k_df$after_activation_alters = k$df_after_activation_alters - .5
+        k_df$after_activation_alters = k_df$after_activation_alters - .5
         mod_obs = lm(after_activation_alters ~ var1, data=k_df)
         rmse_at_k = CalcRmse(y, predict(mod_obs, df))
         coefs_obs = coef(mod_obs)
         mod_true = lm(threshold ~ var1, data=df)
+        coefs_true = coef(mod_true)
         rmse_true = CalcRmse(df$threshold, predict(mod_true, df))
+        rmse_naive = CalcRmse(k_df$threshold, k_df$after_activation_alters)
         rmse_at_k_df = rbind(
             rmse_at_k_df,
             data.frame(
                 k = k,
                 rmse_obs = rmse_at_k,
                 rmse_true = rmse_true,
+                rmse_naive = rmse_naive,
                 cons_obs = coefs_obs[1],
-                beta_obs = coefs_obs[2]
+                beta_obs = coefs_obs[2],
+                cons_true = coefs_true[1],
+                beta_true = coefs_true[2]
             )
         )
     }
@@ -230,11 +237,14 @@ RmseAtKObs = function(df){
 #           rows are vals of k
 BatchRmseAtK = function(all_batch_files){
     rmse_at_k_df = data.frame(
-        k=numeric(0),
-        rmse_obs=numeric(0),
-        cons_obs=numeric(0),
-        beta_obs=numeric(0),
-        rmse_true=numeric(0)
+        k = numeric(0),
+        rmse_obs = numeric(0),
+        rmse_true = numeric(0),
+        rmse_naive = numeric(0),
+        cons_obs = numeric(0),
+        beta_obs = numeric(0),
+        cons_true = numeric(0),
+        beta_true = numeric(0)
     )
     for (f in all_batch_files){
         df = read.csv(f)
@@ -243,7 +253,19 @@ BatchRmseAtK = function(all_batch_files){
         }
         # df$threshold = ceiling(df$threshold)
         rmse_at_k = RmseAtKObs(df)
-        rmse_at_k_df = rbind(rmse_at_k_df, rmse_at_k)
+        rmse_at_k_df = rbind(
+            rmse_at_k_df,
+            data.frame(
+                k = rmse_at_k$k,
+                rmse_obs = rmse_at_k$rmse_obs,
+                rmse_true = rmse_at_k$rmse_true,
+                rmse_naive = rmse_at_k$rmse_naive,
+                cons_obs = rmse_at_k$cons_obs,
+                beta_obs = rmse_at_k$beta_obs,
+                cons_true = rmse_at_k$cons_true,
+                beta_true = rmse_at_k$beta_true
+            )
+        )
     }
     summary_df = rmse_at_k_df %>%
         group_by(k) %>%
@@ -260,6 +282,8 @@ BatchRmseAtK = function(all_batch_files){
             beta_true_sd = sd(beta_true),
             rmse_true_mean = mean(rmse_true),
             rmse_true_sd = sd(rmse_true),
+            rmse_naive_mean = mean(rmse_naive),
+            rmse_naive_sd = sd(rmse_naive),
             n = n()
         )
     return(summary_df)
@@ -309,6 +333,7 @@ ProcessAllBatches = function(all_batches){
     rmse_df = NULL
     k_df = NULL
     for (b in all_batches){
+        print("starting batch")
         if (nchar(b) > 20){
             r = ProcessBatch(b)
             batch_rmse_df = r$rmse_df
@@ -332,7 +357,7 @@ ProcessAllBatches = function(all_batches){
 ## Run script ##
 
 # plot fns #
-setwd('/Users/g/Google Drive/project-thresholds/thresholds/src/')
+setwd('/Users/g/Google Drive/project-thresholds/thresholds/src/R/')
 ## Prep Files ##
 DATA_PATH = "../../data/replicants/"
 all_files = list.files(DATA_PATH)

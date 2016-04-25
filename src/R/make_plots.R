@@ -3,7 +3,6 @@ library(plotly)
 library(raster)
 library(scales)
 library(reshape2)
-library(AER)
 
 # This file takes the output of rmse_analysis.R and makes pretty plots
 # Plots the following things:
@@ -18,10 +17,10 @@ library(AER)
 #   9. All runs---Constant of correctly measured cases
 #   10. All runs---RMSE true vs RMSE observed
 
-setwd("/Users/g/Google Drive/project-thresholds/thresholds/src/")
-ONE_OFF_PATH = "../data/replicants/c_5_N_N__n_3-0_0_1-0__e_N_0_2-0___20_1000_pl_0-1~93"
-RMSE_DF_PATH = "../data/rmse_df.csv"
-K_DF_PATH = "../data/k_df.csv"
+setwd("/Users/g/Google Drive/project-thresholds/thresholds/src/R/")
+ONE_OFF_PATH = "../../data/replicants/c_5_N_N__n_3-0_0_1-0__e_N_0_2-0___20_1000_pl_0-1~94"
+RMSE_DF_PATH = "../../data/rmse_df.csv"
+K_DF_PATH = "../../data/k_df.csv"
 one_off_df = read.csv(ONE_OFF_PATH)
 rmse_df = read.csv(RMSE_DF_PATH)
 k_df = read.csv(K_DF_PATH)
@@ -76,7 +75,7 @@ summary(lm(threshold_ceil~var1, data=observed_df))
 ## missing-ness heatmaps ##
 
 # might need to name columns appropriately
-df_m = rmse_df[,c("mean_num_observed", "graph_type", "mean_deg")]
+df_m = rmse_df[,c("num_observed_mean", "graph_type", "mean_deg")]
 df_m = melt(df_m, id=c("graph_type", "mean_deg"))
 a_m = melt(acast(df_m, mean_deg ~ graph_type ~ variable, mean))
 ggplot(a_m, aes(x=factor(Var1), y=value, fill=factor(Var2))) +
@@ -87,7 +86,7 @@ ggplot(a_m, aes(x=factor(Var1), y=value, fill=factor(Var2))) +
     ylim(0, 200) +
     scale_fill_discrete(name = "Graph Type")
 
-ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) +
+ggplot(a_m, aes(factor(Var1), factor(Var2), fill=value)) +
     geom_raster() +
     scale_fill_gradientn(colours=c("#C2DFFF","#E0FFFF","#E9AB17"), guide = guide_legend(title = "Observations")) +
     xlab("Mean Degree") +
@@ -101,7 +100,7 @@ ggplot(df_m, aes(Name, variable)) +
 
 ## error var vs mean degree heatmap ##
 
-df_v = rmse_df[,c("mean_deg", "error_sd", "mean_rmse_obs")]
+df_v = rmse_df[,c("mean_deg", "error_sd", "rmse_obs_mean_obs")]
 df_v = melt(df_v, id=c("error_sd", "mean_deg"))
 a = melt(acast(df_v, mean_deg ~ error_sd ~ variable, mean))
 ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) +
@@ -115,10 +114,10 @@ ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) +
 
 ## rmse rates by k and error variance ##
 
-# ggplot(k_df, aes(x=k, y=mean_rmse, color=id_col)) +
-#    geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse))
+# ggplot(k_df, aes(x=k, y=rmse_obs_mean, color=id_col)) +
+#    geom_smooth(aes(ymin=rmse_obs_mean - rmse_obs_sd, ymax=rmse_obs_mean + rmse_obs_sd))
 
-#ggplot(rmse_df, aes(Mean_RMSE_OLS, id_col)) +
+#ggplot(rmse_df, aes(rmse_obs_mean_OLS, id_col)) +
 #    geom_tile(aes(fill=))
 
 # can aggregate across various graph types
@@ -126,15 +125,15 @@ ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) +
 
 # need rmse at k relative to the naive and ideal rmse
 
-ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(error_sd))) +
-    geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) +
+ggplot(k_df, aes(x=k, y=rmse_obs_mean, color=factor(error_sd))) +
+    geom_smooth(aes(ymin=rmse_obs_mean - rmse_obs_sd, ymax=rmse_obs_mean + rmse_obs_sd)) +
     xlab("k") +
     ylab("RMSE") +
     theme(text=element_text(size=20)) +
     scale_colour_discrete(name = "Error Std Dev")
 
-ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(graph_type))) +
-    geom_smooth(aes(ymin=mean_rmse - sd_rmse, ymax=mean_rmse + sd_rmse)) +
+ggplot(k_df, aes(x=k, y=rmse_obs_mean, color=factor(graph_type))) +
+    geom_smooth(aes(ymin=rmse_obs_mean - rmse_obs_sd, ymax=rmse_obs_mean + rmse_obs_sd)) +
     xlab("k") + ylab("RMSE") +
     theme(text=element_text(size=20)) +
     scale_colour_discrete(name = "Graph Type")
@@ -144,7 +143,7 @@ ggplot(k_df, aes(x=k, y=mean_rmse, color=factor(graph_type))) +
 
 # plot selection on error as function of error sd #
 
-ggplot(rmse_df, aes(x=error_sd, y=epsilon_mean_obs, group=factor(graph_type))) +
+ggplot(rmse_df, aes(x=error_sd, y=epsilon_obs_mean, group=factor(graph_type))) +
     geom_point() +
     geom_smooth(method=lm, se=FALSE)
 
@@ -152,18 +151,18 @@ ggplot(rmse_df, aes(x=error_sd, y=epsilon_mean_obs, group=factor(graph_type))) +
 
 # beta
 
-ggplot(rmse_df, aes(x=error_sd, y=beta_mean_obs, group=interaction(graph_type, mean_deg), color=interaction(graph_type, mean_deg))) +
+ggplot(rmse_df, aes(x=error_sd, y=beta_obs_mean, group=interaction(graph_type, mean_deg), color=interaction(graph_type, mean_deg))) +
     geom_point() +
     geom_smooth(method=lm, se=FALSE)
 
 # constant
 
-ggplot(rmse_df, aes(x=error_sd, y=cons_mean_obs, group=interaction(graph_type, mean_deg), color=interaction(graph_type, mean_deg))) +
+ggplot(rmse_df, aes(x=error_sd, y=cons_obs_mean, group=interaction(graph_type, mean_deg), color=interaction(graph_type, mean_deg))) +
     geom_point() +
     geom_smooth(method=lm, se=FALSE)
 
 # fraction of rmse that is bias vs variance
 
 ggplot(rmse_df, aes(x=error_sd)) +
-    geom_smooth(method=lm, aes(y=mean_rmse_true)) +
-    geom_smooth(method=lm, aes(y=mean_rmse_obs))
+    geom_smooth(method=lm, aes(y=rmse_obs_mean, color=factor(graph_type))) +
+    geom_smooth(method=lm, aes(y=rmse_true_mean))

@@ -76,8 +76,6 @@ VAR_TYPES = [
     'normal',
 ]
 
-all_vars = EMPIRICAL_VAR_NAMES | SIM_VAR_NAMES
-
 MAX_VARS = 1
 
 ## functions ##
@@ -85,6 +83,38 @@ MAX_VARS = 1
 def choose_empirical_vars(n_vars):
     for vnames in combinations(EMPIRICAL_VAR_NAMES, n_vars):
         yield ['constant'] + list(vnames) + ['epsilon']
+
+def create_empirical_means(dists):
+    means = [None] * len(dists)
+    means[-1] = 0
+    return means
+
+
+def create_empirical_dist_dicts(max_vars):
+    """
+    """
+    for n_vars in range(1, max_vars + 1):
+        for vnames in choose_empirical_vars(n_vars):
+            for coefs in create_coefs(vnames):
+                means = create_empirical_means(vnames)
+                for sds in create_sds(vnames):
+                    yield merge_empirical(vnames, coefs, means, sds)
+
+def merge_empirical(vnames, coefs, means, sds):
+    dist_dict = {}
+    for idx in range(len(vnames)):
+        name = vnames[idx]
+        coef = coefs[idx]
+        mean = means[idx]
+        sd = sds[idx]
+        dist_dict[name] = {
+            'distribution': name,
+            'mean': mean,
+            'sd': sd,
+            'coefficient': coef,
+        }
+    return dist_dict
+
 
 def all_indicies(val, iterable):
     indicies = []
@@ -128,10 +158,7 @@ def create_means(dists):
     else:
         yield means
 
-def create_empirical_means(dists):
-    means = [None] * len(dists)
-    means[-1] = 0
-    return means
+
 
 def create_sds(dists):
     sds = [None for _ in dists]
@@ -167,15 +194,6 @@ def create_sim_dist_dicts(max_vars):
                     for sds in create_sds(dists):
                         yield merge(dists, coefs, means, sds)
 
-def create_empirical_dist_dicts(max_vars):
-    """
-    """
-    for n_vars in range(1, max_vars + 1):
-        for vnames in choose_empirical_vars(n_vars):
-            for coefs in create_coefs(vnames):
-                means = create_empirical_means(vnames)
-                for sds in create_sds(vnames):
-                    yield merge_empirical(vnames, coefs, means, sds)
 
 def merge(dists, coefs, means, sds):
     dist_dict = {}
@@ -201,20 +219,6 @@ def merge(dists, coefs, means, sds):
             }
     return dist_dict
 
-def merge_empirical(vnames, coefs, means, sds):
-    dist_dict = {}
-    for idx in range(len(vnames)):
-        name = vnames[idx]
-        coef = coefs[idx]
-        mean = means[idx]
-        sd = sds[idx]
-        dist_dict[name] = {
-            'distribution': name,
-            'mean': mean,
-            'sd': sd,
-            'coefficient': coef,
-        }
-    return dist_dict
 
 ## run program ##
 
