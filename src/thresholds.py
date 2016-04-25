@@ -414,8 +414,8 @@ if __name__ == '__main__':
                     )
                     ws_graph = nx.watts_strogatz_graph(gs, md, p)
                     sim_reps(N_REPS, output_id, ws_graph, eq)
-                # pl
                 """
+                # pl
                 pl_graph = nx.barabasi_albert_graph(gs, int(md/2.))
                 output_id = create_output_identifier(
                     eq,

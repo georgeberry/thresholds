@@ -1,10 +1,8 @@
 # To-dos
 
-1. disentangle bias and variance from increased error sd (DONE)
-2. plot this nicely
-3. Add empirical networks from Facebook (built in homophily!)
-4. Add the medical diffusion network, to link up with old school soc people (DONE; USELESS)
-5. Double check `rmse_analysis.R` to make sure it's modeling correctly
+1. Plot bias v variance nicely
+2. Add empirical networks from Facebook (built in homophily!)
+3. Double check `rmse_analysis.R` to make sure it's modeling correctly
 
 ## Plots
 
