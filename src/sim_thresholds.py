@@ -155,6 +155,15 @@ def label_graph_with_thresholds(graph, thresh_and_cov):
         # node_attrs['evcent'] = evcent[idx]
     return graph
 
+def random_sequence(node_set):
+    """
+    Shuffle nodes without replacement
+    Return them one at a time as an iterator
+    """
+    seq = np.random.choice(list(node_set), len(node_set), replace=False)
+    for elem in seq:
+        yield elem
+
 def async_simulation(graph_with_thresholds):
     '''
     Give this the graph with thresholds
@@ -177,24 +186,30 @@ def async_simulation(graph_with_thresholds):
     all_node_set = set(g.nodes_iter())
     num_nodes = len(all_node_set)
 
-    activated_node_set = get_activated_node_set(g.node)
-    unactivated_node_set = all_node_set - activated_node_set
+    # activated_node_set = get_activated_node_set(g.node)
+    activated_node_set = set()
+    unactivated_node_set = all_node_set
 
-    steps_without_activation = 0
     num_steps = 0
-    activation_order = 1
+    steps_without_activation = 0
+    activation_order = 0
+    rand_seq = random_sequence(unactivated_node_set)
 
     while len(unactivated_node_set) > 0:
+        try:
+            ego = rand_seq.next()
+        except StopIteration:
+            rand_seq = random_sequence(unactivated_node_set)
+            ego = rand_seq.next()
         num_steps += 1
-        ego = random.sample(unactivated_node_set, 1)[0]
         alter_set = set(g[ego].keys())
         activated_alters_num = len(alter_set & activated_node_set)
         threshold = g.node[ego]['threshold']
         if activated_alters_num >= threshold:
             # record empirical number of neighbors at activation time
             g.node[ego]['after_activation_alters'] = activated_alters_num
-            g.node[ego]['activation_order'] = activation_order
             activation_order += 1
+            g.node[ego]['activation_order'] = activation_order
             # record activation status on graph
             g.node[ego]['activated'] = True
             activated_node_set.add(ego)
@@ -206,13 +221,6 @@ def async_simulation(graph_with_thresholds):
             if steps_without_activation > num_nodes:
                 break
     return g
-
-def get_activated_node_set(node_dicts):
-    activated_set = set()
-    for node, data in node_dicts.items():
-        if data['activated'] == True:
-            activated_set.add(node)
-    return activated_set
 
 def make_dataframe_from_simulation(graph_after_simulation):
     '''
@@ -433,9 +441,3 @@ if __name__ == '__main__':
                     )
                     plc_graph = nx.powerlaw_cluster_graph(gs, int(md/2.), c)
                     sim_reps(N_REPS, output_id, plc_graph, eq)
-
-    # for empirical graphs
-    empirical_graph_files = []
-
-    for eg in empirical_graph_files:
-        pass

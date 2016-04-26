@@ -2,11 +2,7 @@
 
 1. Plot bias v variance nicely
 2. Add empirical networks from Facebook (built in homophily!)
-3. Double check `rmse_analysis.R` to make sure it's modeling correctly
-
-## Plots
-
-1. Complete graph analysis, everyone has threshold 1, demonstrate upward bias
+3. Double check `rmse_analysis.R` to make sure it's modeling correctly (DONE)
 
 ## Bias vs Variance
 As we increase the error sd, we reduced explained variance (and therefore increase unexplained variance), yet we also appear to increase the bias because the selection on the error is worse.
@@ -24,6 +20,10 @@ To fix this, we can do a couple of things:
 
 ## Empirical networks
 
+### Fb topologies
+
+
+
 ### Coleman dataset
 
 1. Follow Burt and do the professional advice network (exclude friendship ties)
@@ -40,6 +40,6 @@ Rather, we can use the empirical homophily in a real network to create a thresho
 
 We can take Coleman's diffusion of innovations data and apply our method to this from the outside. How many thresholds do we correctly measure? Is there a way to quantify how not-wrong we are?
 
-### Natural experiment?
+### Natural experiment analogue?
 
 Can we view the network diffusion process as inducing many natural experiments? Many tiny natural experiments lolol.
