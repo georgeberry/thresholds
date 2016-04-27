@@ -197,10 +197,10 @@ def async_simulation(graph_with_thresholds):
 
     while len(unactivated_node_set) > 0:
         try:
-            ego = rand_seq.next()
+            ego = next(rand_seq)
         except StopIteration:
             rand_seq = random_sequence(unactivated_node_set)
-            ego = rand_seq.next()
+            ego = next(rand_seq)
         num_steps += 1
         alter_set = set(g[ego].keys())
         activated_alters_num = len(alter_set & activated_node_set)

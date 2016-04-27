@@ -213,7 +213,7 @@ RmseAtKObs = function(df){
         mod_true = lm(threshold ~ var1, data=df)
         coefs_true = coef(mod_true)
         rmse_true = CalcRmse(df$threshold, predict(mod_true, df))
-        rmse_naive = CalcRmse(k_df$threshold, k_df$after_activation_alters)
+        rmse_naive = CalcRmse(df$threshold, df$after_activation_alters)
         rmse_at_k_df = rbind(
             rmse_at_k_df,
             data.frame(

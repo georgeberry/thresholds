@@ -100,7 +100,7 @@ ggplot(df_m, aes(Name, variable)) +
 
 ## error var vs mean degree heatmap ##
 
-df_v = rmse_df[,c("mean_deg", "error_sd", "rmse_obs_mean_obs")]
+df_v = rmse_df[,c("mean_deg", "error_sd", "rmse_obs_mean")]
 df_v = melt(df_v, id=c("error_sd", "mean_deg"))
 a = melt(acast(df_v, mean_deg ~ error_sd ~ variable, mean))
 ggplot(a, aes(factor(Var1), factor(Var2), fill=value)) +
@@ -130,7 +130,8 @@ ggplot(k_df, aes(x=k, y=rmse_obs_mean, color=factor(error_sd))) +
     xlab("k") +
     ylab("RMSE") +
     theme(text=element_text(size=20)) +
-    scale_colour_discrete(name = "Error Std Dev")
+    scale_colour_discrete(name = "Error Std Dev") +
+    geom_smooth(aes(x=k, y=rmse_naive_mean))
 
 ggplot(k_df, aes(x=k, y=rmse_obs_mean, color=factor(graph_type))) +
     geom_smooth(aes(ymin=rmse_obs_mean - rmse_obs_sd, ymax=rmse_obs_mean + rmse_obs_sd)) +
