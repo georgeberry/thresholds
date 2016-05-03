@@ -202,6 +202,7 @@ RmseAtKObs = function(df){
         beta_true=numeric(0)
     )
     y = df$threshold # true value
+    rmse_naive = CalcRmse(y, df$after_activation_alters)
     o_df = df[df$observed == 1,] %>% arrange(activation_order)
     k_seq = seq(10, nrow(o_df), 10)
     for (k in k_seq){
@@ -213,7 +214,6 @@ RmseAtKObs = function(df){
         mod_true = lm(threshold ~ var1, data=df)
         coefs_true = coef(mod_true)
         rmse_true = CalcRmse(df$threshold, predict(mod_true, df))
-        rmse_naive = CalcRmse(df$threshold, df$after_activation_alters)
         rmse_at_k_df = rbind(
             rmse_at_k_df,
             data.frame(

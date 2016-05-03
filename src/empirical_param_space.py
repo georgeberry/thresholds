@@ -28,27 +28,29 @@ equation = {
     ...
 """
 import json
-from itertools import combinations, combinations_with_replacement
 
 EMPIRICAL_OUTPUT_FILE = '../data/empirical_param_space.json'
-SIM_OUTPUT_FILE = '../data/made_up_param_space.json'
 
 EMPIRICAL_VARS_TO_USE = [
     'gender',
 ]
 
 ERROR_SDS = [
-    0.5,
-    0.8,
-    1.0,
-    1.5,
-    2.0,
+    12.0,
+    15.0,
+    18.0,
 ]
 
-CONSTANT = 5
+CONSTANT = [
+    10.0,
+    12.0,
+    15.0,
+]
 
 COEFFICIENTS = [
-    3.0,
+    5.0,
+    10.0,
+    15.0,
 ]
 
 # can also be 'binomial'
@@ -60,11 +62,36 @@ MAX_VARS = 1
 
 ## functions ##
 
-def create_thresholds():
-    all_vars = ['constant'] + EMPIRICAL_VARS_TO_USE + ['epsilon']
-    for var in all_vars:
-        if var == 'constant':
+def create_eq(var, cons, coef, sd):
+    eq = {
+        'constant': {
+            'coefficient': cons,
+            'distribution': 'constant',
+            'sd': None,
+            'mean': None,
+        },
+        'epsilon': {
+            'coefficient': None,
+            'distribution': 'epsilon',
+            'sd': sd,
+            'mean': 0
+        },
+        var: {
+            'coefficient': coef,
+            'distribution': 'empirical',
+            'sd': None,
+            'mean': None,
+        }
+    }
+    return eq
 
-        elif var == 'epsilon':
 
-        else:
+if __name__ == '__main__':
+    with open(EMPIRICAL_OUTPUT_FILE, 'wb') as f:
+        for var in EMPIRICAL_VARS_TO_USE:
+            for cons in CONSTANT:
+                for coef in COEFFICIENTS:
+                    for sd in ERROR_SDS:
+                        eq = create_eq(var, cons, coef, sd)
+                        j = json.dumps(eq) + '\n'
+                        f.write(j)
