@@ -163,7 +163,7 @@ b = ggplot(rmse_df, aes(x=error_sd, y=beta_obs_mean)) +
 
 c = ggplot(rmse_df, aes(x=error_sd, y=cons_obs_mean)) +
   geom_point() +
-  geom_smooth(method=lm, se=FALSE) + 
+  geom_smooth(method=lm, se=FALSE) +
   scale_color_manual(values=c("deepskyblue", "coral", "dodgerblue", "darkorange", "deepskyblue4", "darkorange3"), guide=FALSE) +
   labs(x="Error SD", y="Constant Mean") +
   theme(text=element_text(size=25))
@@ -175,4 +175,3 @@ ggplot(rmse_df, aes(x=error_sd)) +
   geom_smooth(method=lm, aes(y=rmse_obs_mean)) +
   geom_smooth(method=lm, aes(y=rmse_true_mean)) +
   labs(x="Error SD", "RMSE") +
-  

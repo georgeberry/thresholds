@@ -146,6 +146,7 @@ def label_graph_with_thresholds(graph, thresh_and_cov):
         node_attrs['activated'] = False
         node_attrs['before_activation_alters'] = None
         node_attrs['after_activation_alters'] = None
+        node_attrs['activation_order'] = None
         for cov_name, val in node_thresh_cov.items():
             node_attrs[cov_name] = val
         node_attrs['degree'] = degree[name]
@@ -190,7 +191,6 @@ def async_simulation(graph_with_thresholds):
     activated_node_set = set()
     unactivated_node_set = all_node_set
 
-    num_steps = 0
     steps_without_activation = 0
     activation_order = 0
     rand_seq = random_sequence(unactivated_node_set)
@@ -201,7 +201,6 @@ def async_simulation(graph_with_thresholds):
         except StopIteration:
             rand_seq = random_sequence(unactivated_node_set)
             ego = next(rand_seq)
-        num_steps += 1
         alter_set = set(g[ego].keys())
         activated_alters_num = len(alter_set & activated_node_set)
         threshold = g.node[ego]['threshold']
@@ -251,22 +250,22 @@ def make_dataframe_from_simulation(graph_after_simulation):
             return None
     g = graph_after_simulation
     data_list_of_dicts = []
-    for node, data in g.nodes_iter(data=True):
-        data['name'] = node
-        activated = data['activated']
-        after_activation_alters = data['after_activation_alters']
-        before_activation_alters = data['before_activation_alters']
+    for node, node_attrs in g.nodes_iter(data=True):
+        node_attrs['name'] = node
+        activated = node_attrs['activated']
+        after_activation_alters = node_attrs['after_activation_alters']
+        before_activation_alters = node_attrs['before_activation_alters']
         difference = subtract_or_none(
             after_activation_alters,
             before_activation_alters,
         )
         if after_activation_alters == 0:
-            data['observed'] = 1
+            node_attrs['observed'] = 1
         elif difference == 1:
-            data['observed'] = 1
+            node_attrs['observed'] = 1
         else:
-            data['observed'] = 0
-        data_list_of_dicts.append(data)
+            node_attrs['observed'] = 0
+        data_list_of_dicts.append(node_attrs)
     df = pd.DataFrame(data_list_of_dicts)
     df = df.set_index('name')
     df.activated = df.activated.astype(int)

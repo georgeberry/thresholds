@@ -59,6 +59,7 @@ def label_graph_with_thresholds_empirical(graph, eq):
         node_attrs['activated'] = False
         node_attrs['before_activation_alters'] = None
         node_attrs['after_activation_alters'] = None
+        node_attrs['activation_order'] = None
         node_var_val = node_attrs[var_name]
         threshold = constant + var_coef * node_var_val + all_epsilons[idx]
         node_attrs['threshold'] = threshold

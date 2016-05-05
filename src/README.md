@@ -15,20 +15,31 @@ To fix this, we can do a couple of things:
 4. Plot error terms as function of params (DONE)
 5. Plot rmse vs true as fn of params (DONE)
 6. Plot coefficient error as fn of params (DONE)
-7. Make pretty plots of collisions for all graph simulation types
-8. Use the threshold condition on simple empirical data (e.g. Coleman)
+7. Make pretty plots of collisions for all graph simulation types (DONE)
+8. Use the threshold condition on simple empirical data (e.g. Coleman) (DONE)
+9. Debug the prediction-at-k code (wrong baselines)
+10. Debug the NA's in the empirical sims
+11. Make graphs higher res and re-place legends
+12. In the writeup, fix the formalization: specifically base it on the minimum `d_i`
+
+
 
 ## Empirical networks
 
 ### Fb topologies
 
+Pick FB topologies from the Facebook 100 dataset.
+Need to find functions that are appropriate
+
+I just picked two for early analysis. The function might have to be tuned for the graph specifically (i.e. the constant is 5 times the mean degree, or something like that)
+
 
 
 ### Coleman dataset
 
-1. Follow Burt and do the professional advice network (exclude friendship ties)
-2. Repeat Valente's analysis of early-late-middle threshold by overall comparison
-3. Give analysis of the difference between
+1. Follow Burt and do the professional advice network (exclude friendship ties) (DONE)
+2. Repeat Valente's analysis of early-late-middle threshold by overall comparison (DONE)
+3. Give analysis of the difference between (DONE)
 
 ### Thresholds based on covariates
 
@@ -43,3 +54,5 @@ We can take Coleman's diffusion of innovations data and apply our method to this
 ### Natural experiment analogue?
 
 Can we view the network diffusion process as inducing many natural experiments? Many tiny natural experiments lolol.
+
+###

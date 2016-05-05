@@ -20,7 +20,7 @@ equation = {
         'distribution': 'normal',
         'mean': mean,
         'sd': sd,
-        'coefficient': coefficient
+        'coefficient': coefficient,
     },
     'var_2_name': {
         ...
