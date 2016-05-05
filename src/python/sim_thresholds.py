@@ -243,7 +243,6 @@ def make_dataframe_from_simulation(graph_after_simulation):
 
     We have a bunch of standard col names, plus the cov names
         covs can be 0, 1, 2, etc cols
-
     '''
     def subtract_or_none(x, y):
         if x != None and y != None:
