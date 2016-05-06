@@ -24,14 +24,18 @@ We get rid of the 'observed' lingo, instead using 'cm' for correctly measured
 import os
 import glob
 import pandas as pd
+from math import sqrt
+from sklearn import linear_model
+from sklearn.metrics import mean_squared_error
 
-def sim_run_fnames_iter(results_path):
+def sim_run_fnames_iter(sim_run_path):
     """
     Give this the folder where sim runs are stored
     It yeilds sim run filenames one by one
     """
-    file_set = set(os.listdir(sim_path))
-    file_set.remove('.DS_Store')
+    file_set = set(os.listdir(sim_run_path))
+    if '.DS_Store' in file_set:
+        file_set.remove('.DS_Store')
     for sim_run_fname in file_set:
         yield sim_run_fname
 
@@ -42,7 +46,10 @@ def params_from_fname(sim_run_fname):
     Returns a dict of params: {'this': 'that'}
     """
     params = {}
-    s = sim_run_fname.strip('.csv')
+    if sim_run_fname.endswith('.csv'):
+        s = sim_run_fname[:-4]
+    else:
+        s = sim_run_fname
     s, run_num = s.split('~') # get run num
     params['run_num'] = run_num
     eq, g = s.split('___') # split into threshold eq and graph param parts
@@ -53,10 +60,10 @@ def params_from_fname(sim_run_fname):
     for var in eq_list:
         var_list = var.split('_')
         # order ['distribution', 'coefficient', 'mean', 'sd']
-        distribution = var_list[0]
-        coefficient = var_list[1]
-        mean = var_list[2]
-        sd = var_list[3]
+        distribution = var_list[0].replace('-', '.')
+        coefficient = var_list[1].replace('-', '.')
+        mean = var_list[2].replace('-', '.')
+        sd = var_list[3].replace('-', '.')
         if distribution == 'c':
             params['constant'] = float(coefficient)
         elif distribution == 'e':
@@ -82,38 +89,219 @@ def params_from_fname(sim_run_fname):
 def process_rmse(sim_df):
     """
     This function does the RMSE analysis for one sim run
-    We take the sim_df as an input, which is the df for one simulation run
-    Want to output the following:
-        num_active
+    The sim_df has the following columns
+        name,
+        activated,
+        threshold,
+        before_activation_alters,
+        after_activation_alters,
+        degree,
+        observed,
+        var1,
+        activation_order,
+        epsilon
+        ...
+
+    One subtlety:
+        We get r^2 for the in-sample model
+        But we do RMSE for using the model to predict for everyone
+        RMSE is our way of quantifying prediction error,
+        While r^2 gives us a metric for comparing explained variance
+
+    Output the following:
         cm_num
         cm_epsilon_mean
         cm_cons_ols
         cm_beta_ols
+        cm_r2
         cm_rmse
-        true_cons
-        true_beta
-        true_rmse
+        active_num
+        active_epsilon_mean
+        active_cons
+        active_beta
+        active_r2
+        active_rmse
+        all_num
+        all_epsilon_mean
+        all_cons
+        all_beta
+        all_r2
+        all_rmse
         naive_rmse
     """
-    pass
+    sim_df['constant'] = 1
+    all_X = sim_df[['constant', 'var1']]
+    true_y = sim_df['threshold']
+    rmse_dict = {}
+    # these are cols we keep when chopping up sim_df
+    relevant_cols = [
+        'threshold',
+        'after_activation_alters',
+        'constant',
+        'var1',
+        'epsilon',
+    ]
+    #### cm_df processing here ###############################################
+    cm_df = sim_df.loc[sim_df['observed'] == 1, relevant_cols]
+    cm_y = cm_df['after_activation_alters']
+    cm_X = cm_df[['constant', 'var1']]
+    cm_reg = linear_model.LinearRegression()
+    cm_reg.fit(cm_X, cm_y)
+    # in-sample r-squared
+    cm_r2 = cm_reg.score(cm_X, cm_y)
+    # use this model to predict for all
+    cm_rmse = sqrt(
+        mean_squared_error(
+            true_y, cm_reg.predict(all_X)
+        )
+    )
+    #### a_df processing here ################################################
+    a_df = sim_df.loc[sim_df['activated'] == True, relevant_cols]
+    a_y = a_df['after_activation_alters']
+    a_X = a_df[['constant', 'var1']]
+    a_reg = linear_model.LinearRegression()
+    a_reg.fit(a_X, a_y)
+    # in-sample r-squared
+    a_r2 = a_reg.score(a_X, a_y)
+    # use model to predict for all
+    a_rmse = sqrt(
+        mean_squared_error(
+            true_y, a_reg.predict(all_X)
+        )
+    )
+    #### all processing here #################################################
+    s_y = sim_df['after_activation_alters']
+    s_X = sim_df[['constant', 'var1']]
+    s_reg = linear_model.LinearRegression()
+    s_reg.fit(s_X, s_y)
+    # in-sample r-squared
+    s_r2 = s_reg.score(s_X, s_y)
+    # use model to predict for all
+    s_rmse = sqrt(
+        mean_squared_error(
+            true_y, s_reg.predict(all_X)
+        )
+    )
+    #### naive rmse ##########################################################
+    cm_naive_rmse = sqrt(
+        mean_squared_error(
+            cm_df['threshold'],
+            cm_df['after_activation_alters'],
+        )
+    )
+    a_naive_rmse = sqrt(
+        mean_squared_error(
+            a_df['threshold'],
+            a_df['after_activation_alters'],
+        )
+    )
+    s_naive_rmse = sqrt(
+        mean_squared_error(
+            sim_df['threshold'],
+            sim_df['after_activation_alters'],
+        )
+    )
+    #### make rmse_dict ######################################################
+    rmse_dict['cm_num'] = cm_df.shape[0]
+    rmse_dict['cm_epsilon_mean'] = cm_df['epsilon'].mean()
+    rmse_dict['cm_cons_ols'] = cm_reg.coef_[0]
+    rmse_dict['cm_beta_ols'] = cm_reg.coef_[1]
+    rmse_dict['cm_r2'] = cm_r2
+    rmse_dict['cm_rmse'] = cm_rmse
+    rmse_dict['cm_naive_rmse'] = cm_naive_rmse
+    rmse_dict['active_num'] = a_df.shape[0]
+    rmse_dict['active_epsilon_mean'] = a_df['epsilon'].mean()
+    rmse_dict['active_cons'] = a_reg.coef_[0]
+    rmse_dict['active_beta'] = a_reg.coef_[1]
+    rmse_dict['active_r2'] = a_r2
+    rmse_dict['active_rmse'] = a_rmse
+    rmse_dict['active_naive_rmse'] = a_naive_rmse
+    rmse_dict['all_num'] = sim_df.shape[0]
+    rmse_dict['all_epsilon_mean'] = sim_df['epsilon'].mean()
+    rmse_dict['all_cons'] = s_reg.coef_[0]
+    rmse_dict['all_beta'] = s_reg.coef_[1]
+    rmse_dict['all_r2'] = s_r2
+    rmse_dict['all_rmse'] = s_rmse
+    rmse_dict['all_naive_rmse'] = s_naive_rmse
+    return rmse_dict
 
 def process_k(sim_df):
-    pass
+    """
+    This function does the at-k obs stuff
+    The goal here is simple:
+        Take first 20, 30, 40, etc obs
+        Predict for everyone
+        Calc RMSE
+    Record a couple of extra things:
+        Naive RMSE (threshold - after_activation_alters)
+        Correct RMSE (threshold ~ var1)
+    """
+    k_list = []
+    sim_df['constant'] = 1
+    true_y = sim_df['threshold']
+    all_X = sim_df[['constant', 'var1']]
+    relevant_cols = [
+        'after_activation_alters',
+        'constant',
+        'var1',
+        'activation_order',
+    ]
+    #### compute simulation-wide measures up front ###########################
+    naive_rmse = sqrt(
+        mean_squared_error(
+            true_y,
+            sim_df['after_activation_alters']
+        )
+    )
+    s_reg = linear_model.LinearRegression()
+    s_reg.fit(all_X, true_y)
+    true_rmse = sqrt(
+        mean_squared_error(
+            true_y,
+            s_reg.predict(all_X)
+        )
+    )
+    #### make cm_df ##########################################################
+    cm_df = sim_df.loc[sim_df['observed'] == 1, relevant_cols]
+    cm_df.sort_values(
+        by='activation_order',
+        ascending=True,
+        inplace=True
+    )
+    num_cm = cm_df.shape[0]
+    k_iter = range(20, num_cm + 1, 10) # make iterator
+    #### iterate through k ###################################################
+    for k in k_iter:
+        k_dict = {}
+        k_df = cm_df.head(n=k)
+        k_reg = linear_model.LinearRegression()
+        k_reg.fit(k_df[['constant', 'var1']], k_df['after_activation_alters'])
+        rmse_at_k = sqrt(
+            mean_squared_error(
+                true_y, k_reg.predict(all_X)
+            )
+        )
+        k_dict['k'] = k
+        k_dict['rmse_at_k'] = rmse_at_k
+        k_dict['naive_rmse'] = naive_rmse
+        k_dict['true_rmse'] = true_rmse
+        k_list.append(k_dict)
+    return k_list
 
-def process_sim_run(sim_run_fname):
+def process_sim_run(sim_run_path, sim_run_fname):
     """
     processes one run of sim, just saves us from opening the file twice
     """
     sim_param_dict = params_from_fname(sim_run_fname) # parse params
-
-    sim_df = pd.read_csv(sim_run_fname) # read file
+    sim_df = pd.read_csv(sim_run_path + sim_run_fname) # read file
     rmse_dict = process_rmse(sim_df)
-    k_dict = process_k(sim_df)
+    k_list = process_k(sim_df)
+    # add params, gives an identifier
     rmse_dict.update(sim_param_dict)
-    k_dict.update(sim_param_dict)
-    return rmse_dict, k_dict
+    k_list = [x.update(sim_param_dict) for x in k_list]
+    return rmse_dict, k_list
 
-def process_batches(results_path):
+def process_batches(sim_run_path):
     """
     Goes through batches in an organized way
     Returns two dfs with the data we need
@@ -123,19 +311,19 @@ def process_batches(results_path):
     """
     rmse_list = []
     k_list = []
-    for sim_run_fname in sim_run_fnames_iter(results_path):
-        rmse_dict, k_dict = process_sim_run(sim_run_fname)
+    for sim_run_fname in sim_run_fnames_iter(sim_run_path):
+        rmse_dict, k_list = process_sim_run(sim_run_path, sim_run_fname)
         rmse_list.append(rmse_dict)
-        k_list.append(k_dict)
+        k_list.extend(k_list)
     rmse_df = pd.DataFrame.from_dict(rmse_list)
     k_df = pd.DataFrame.from_dict(k_list)
     return rmse_df, k_df
 
 if __name__ == '__main__':
-    SIM_PATH = ''
-    K_DF_PATH = ''
-    RMSE_DF_PATH = ''
+    SIM_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/test_reps/'
+    K_DF_PATH = '../../data/'
+    RMSE_DF_PATH = '../../data/'
 
-    rmse_df, k_df = process_batches(batches)
+    rmse_df, k_df = process_batches(SIM_PATH)
     rmse_df.to_csv(RMSE_DF_PATH)
     k_df.to_csv(K_DF_PATH)
