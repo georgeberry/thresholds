@@ -16,4 +16,4 @@ TEST_K_DF_PATH = DATA_PATH + 'test_k_df.csv'
 EMPIRICAL_PARAM_FILE = DATA_PATH + 'empirical_param_space.json'
 SIM_PARAM_FILE = DATA_PATH + 'made_up_param_space.json'
 
-EMPIRICAL_GRAPH_FOLDER = BASE_PATH + 'graphml_graphs/'
+EMPIRICAL_GRAPH_FOLDER = DATA_PATH + 'graphml_graphs/'
