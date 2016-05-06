@@ -128,6 +128,10 @@ def process_rmse(sim_df):
         all_r2
         all_rmse
         naive_rmse
+
+    The CM set is what we want to argue works well
+    The activated set is the basis for comparison (cm > activated)
+    We have the true relationship in the data for comparison
     """
     sim_df['constant'] = 1
     all_X = sim_df[['constant', 'var1']]
@@ -170,7 +174,7 @@ def process_rmse(sim_df):
         )
     )
     #### all processing here #################################################
-    s_y = sim_df['after_activation_alters']
+    s_y = sim_df['threshold']
     s_X = sim_df[['constant', 'var1']]
     s_reg = linear_model.LinearRegression()
     s_reg.fit(s_X, s_y)
@@ -195,12 +199,6 @@ def process_rmse(sim_df):
             a_df['after_activation_alters'],
         )
     )
-    s_naive_rmse = sqrt(
-        mean_squared_error(
-            sim_df['threshold'],
-            sim_df['after_activation_alters'],
-        )
-    )
     #### make rmse_dict ######################################################
     rmse_dict['cm_num'] = cm_df.shape[0]
     rmse_dict['cm_epsilon_mean'] = cm_df['epsilon'].mean()
@@ -217,12 +215,11 @@ def process_rmse(sim_df):
     rmse_dict['active_rmse'] = a_rmse
     rmse_dict['active_naive_rmse'] = a_naive_rmse
     rmse_dict['all_num'] = sim_df.shape[0]
-    rmse_dict['all_epsilon_mean'] = sim_df['epsilon'].mean()
-    rmse_dict['all_cons'] = s_reg.coef_[0]
-    rmse_dict['all_beta'] = s_reg.coef_[1]
-    rmse_dict['all_r2'] = s_r2
-    rmse_dict['all_rmse'] = s_rmse
-    rmse_dict['all_naive_rmse'] = s_naive_rmse
+    rmse_dict['true_epsilon_mean'] = sim_df['epsilon'].mean()
+    rmse_dict['true_cons'] = s_reg.coef_[0]
+    rmse_dict['true_beta'] = s_reg.coef_[1]
+    rmse_dict['true_r2'] = s_r2
+    rmse_dict['true_rmse'] = s_rmse
     return rmse_dict
 
 def process_k(sim_df):
@@ -236,7 +233,7 @@ def process_k(sim_df):
         Naive RMSE (threshold - after_activation_alters)
         Correct RMSE (threshold ~ var1)
     """
-    k_list = []
+    run_k_list = []
     sim_df['constant'] = 1
     true_y = sim_df['threshold']
     all_X = sim_df[['constant', 'var1']]
@@ -249,8 +246,8 @@ def process_k(sim_df):
     #### compute simulation-wide measures up front ###########################
     naive_rmse = sqrt(
         mean_squared_error(
-            true_y,
-            sim_df['after_activation_alters']
+            sim_df.loc[sim_df['activated'] == True, 'threshold'],
+            sim_df.loc[sim_df['activated'] == True, 'after_activation_alters']
         )
     )
     s_reg = linear_model.LinearRegression()
@@ -285,8 +282,8 @@ def process_k(sim_df):
         k_dict['rmse_at_k'] = rmse_at_k
         k_dict['naive_rmse'] = naive_rmse
         k_dict['true_rmse'] = true_rmse
-        k_list.append(k_dict)
-    return k_list
+        run_k_list.append(k_dict)
+    return run_k_list
 
 def process_sim_run(sim_run_path, sim_run_fname):
     """
@@ -295,11 +292,13 @@ def process_sim_run(sim_run_path, sim_run_fname):
     sim_param_dict = params_from_fname(sim_run_fname) # parse params
     sim_df = pd.read_csv(sim_run_path + sim_run_fname) # read file
     rmse_dict = process_rmse(sim_df)
-    k_list = process_k(sim_df)
+    run_k_list = process_k(sim_df)
     # add params, gives an identifier
     rmse_dict.update(sim_param_dict)
-    k_list = [x.update(sim_param_dict) for x in k_list]
-    return rmse_dict, k_list
+    # dict.update is in-place
+    for k_dict in run_k_list:
+        k_dict.update(sim_param_dict)
+    return rmse_dict, run_k_list
 
 def process_batches(sim_run_path):
     """
@@ -312,17 +311,20 @@ def process_batches(sim_run_path):
     rmse_list = []
     k_list = []
     for sim_run_fname in sim_run_fnames_iter(sim_run_path):
-        rmse_dict, k_list = process_sim_run(sim_run_path, sim_run_fname)
+        rmse_dict, run_k_list = process_sim_run(sim_run_path, sim_run_fname)
         rmse_list.append(rmse_dict)
-        k_list.extend(k_list)
+        k_list.extend(run_k_list)
     rmse_df = pd.DataFrame.from_dict(rmse_list)
     k_df = pd.DataFrame.from_dict(k_list)
     return rmse_df, k_df
 
 if __name__ == '__main__':
-    SIM_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/test_reps/'
-    K_DF_PATH = '../../data/'
-    RMSE_DF_PATH = '../../data/'
+    BASE_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/'
+    TEST_PATH = BASE_PATH + 'test_reps/'
+    SIM_PATH = BASE_PATH + 'replicants/'
+    EMPIRICAL_PATH = BASE_PATH + 'empirical_replicants/'
+    K_DF_PATH = BASE_PATH + 'k_df.csv'
+    RMSE_DF_PATH = BASE_PATH + 'rmse_df.csv'
 
     rmse_df, k_df = process_batches(SIM_PATH)
     rmse_df.to_csv(RMSE_DF_PATH)

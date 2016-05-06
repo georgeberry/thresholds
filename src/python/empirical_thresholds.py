@@ -66,6 +66,7 @@ def label_graph_with_thresholds_empirical(graph, eq):
         node_attrs['degree'] = degree[node]
         node_attrs['var1'] = node_var_val
         node_attrs['var_name'] = var_name
+        node_attrs['epsilon'] = all_epsilons[idx]
     return graph
 
 def run_sim_empirical(output_path, graph, eq):
@@ -127,5 +128,5 @@ if __name__ == '__main__':
             ))
             # output id
             output_id = output_id_empirical(eq, graph_path)
-            # very run
+            # very run; much go
             sim_reps_empirical(N_REPS, output_id, g, eq)
