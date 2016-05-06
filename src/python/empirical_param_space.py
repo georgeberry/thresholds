@@ -28,8 +28,7 @@ equation = {
     ...
 """
 import json
-
-EMPIRICAL_OUTPUT_FILE = '../data/empirical_param_space.json'
+from constants import *
 
 EMPIRICAL_VARS_TO_USE = [
     'gender',
@@ -87,7 +86,7 @@ def create_eq(var, cons, coef, sd):
 
 
 if __name__ == '__main__':
-    with open(EMPIRICAL_OUTPUT_FILE, 'wb') as f:
+    with open(EMPIRICAL_PARAM_FILE, 'wb') as f:
         for var in EMPIRICAL_VARS_TO_USE:
             for cons in CONSTANT:
                 for coef in COEFFICIENTS:

@@ -28,9 +28,8 @@ for the sim graphs:
 
 """
 import json
+from constants import *
 from itertools import combinations, combinations_with_replacement
-
-SIM_OUTPUT_FILE = '../data/made_up_param_space.json'
 
 SIM_VAR_NAMES = set([
     'var1',
@@ -171,7 +170,7 @@ def merge(dists, coefs, means, sds):
 ## run program ##
 
 if __name__ == '__main__':
-    with open(SIM_OUTPUT_FILE, 'wb') as f:
+    with open(SIM_PARAM_FILE, 'wb') as f:
         for dist_dict in create_sim_dist_dicts(MAX_VARS):
             j = json.dumps(dist_dict) + '\n'
             f.write(j)

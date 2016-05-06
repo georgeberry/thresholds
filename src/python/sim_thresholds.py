@@ -8,6 +8,8 @@ import numpy as np
 import math
 import json
 import os
+
+from constants import *
 """
 This file allows us to:
     1. Create random graphs with certain properties using NetworkX
@@ -336,7 +338,7 @@ def sim_reps(
     *sim_params
     ):
     for sim_num in range(n_rep):
-        output_path = OUTPUT_FOLDER + output_id + '~' + str(sim_num)
+        output_path = SIM_PATH + output_id + '~' + str(sim_num)
         run_sim(output_path, *sim_params)
 
 def eq_to_str(eq_dict):
@@ -393,12 +395,10 @@ if __name__ == '__main__':
     ## Constants ##
 
     N_REPS = 1000
-    OUTPUT_FOLDER = '../data/replicants/'
-    THRESHOLD_PARAM_FILE = '../data/made_up_param_space.json'
 
     # some relatively constant definitions
     threshold_eq_param_space = []
-    with open(THRESHOLD_PARAM_FILE, 'rb') as f:
+    with open(SIM_PARAM_FILE, 'rb') as f:
         for line in f:
             j = json.loads(line)
             threshold_eq_param_space.append(j)

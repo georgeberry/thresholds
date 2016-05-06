@@ -17,6 +17,8 @@ from sim_thresholds import async_simulation
 from sim_thresholds import random_sequence
 from sim_thresholds import timer
 
+from constants import *
+
 """
 Very similar to sim_thresholds.py
 Except tailored to take empirical topologies in .graphml
@@ -92,16 +94,13 @@ def run_sim_empirical(output_path, graph, eq):
 @timer
 def sim_reps_empirical(n_rep, output_id, graph, eq):
     for sim_num in range(n_rep):
-        output_path = OUTPUT_FOLDER + output_id + '~' + str(sim_num)
+        output_path = EMPIRICAL_PATH + output_id + '~' + str(sim_num)
         run_sim_empirical(output_path, graph, eq)
 
 if __name__ == '__main__':
     ## Constants ##
 
     N_REPS = 100
-    EMPIRICAL_GRAPH_FOLDER = '../data/graphml_graphs/'
-    OUTPUT_FOLDER = '../data/empirical_replicants/'
-    THRESHOLD_PARAM_FILE = '../data/empirical_param_space.json'
 
     graph_paths = [
         EMPIRICAL_GRAPH_FOLDER + x for x in os.listdir(EMPIRICAL_GRAPH_FOLDER)
@@ -110,7 +109,7 @@ if __name__ == '__main__':
     print('graph paths are {}'.format(graph_paths))
 
     threshold_eq_param_space = []
-    with open(THRESHOLD_PARAM_FILE, 'rb') as f:
+    with open(EMPIRICAL_PARAM_FILE, 'rb') as f:
         for line in f:
             j = json.loads(line)
             threshold_eq_param_space.append(j)

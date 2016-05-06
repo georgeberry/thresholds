@@ -3,7 +3,11 @@
 *.pyc
 *.RData
 *.Rhistory
-data/replicants/*
-data/coleman/*
+data/replicants
+data/coleman
 data/*.csv
 data/*.json
+data/sim_replicants
+data/empirical_replicants
+data/test_replicants
+data/graphml_graphs

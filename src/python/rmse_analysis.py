@@ -22,11 +22,13 @@ For the data frame creation process, we want to store in the following format:
 We get rid of the 'observed' lingo, instead using 'cm' for correctly measured
 """
 import os
+import sys
 import glob
 import pandas as pd
 from math import sqrt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error
+from constants import *
 
 def sim_run_fnames_iter(sim_run_path):
     """
@@ -285,7 +287,7 @@ def process_k(sim_df):
         run_k_list.append(k_dict)
     return run_k_list
 
-def process_sim_run(sim_run_path, sim_run_fname):
+def process_run(sim_run_path, sim_run_fname):
     """
     processes one run of sim, just saves us from opening the file twice
     """
@@ -300,7 +302,7 @@ def process_sim_run(sim_run_path, sim_run_fname):
         k_dict.update(sim_param_dict)
     return rmse_dict, run_k_list
 
-def process_batches(sim_run_path):
+def process_runs(sim_run_path):
     """
     Goes through batches in an organized way
     Returns two dfs with the data we need
@@ -311,7 +313,7 @@ def process_batches(sim_run_path):
     rmse_list = []
     k_list = []
     for sim_run_fname in sim_run_fnames_iter(sim_run_path):
-        rmse_dict, run_k_list = process_sim_run(sim_run_path, sim_run_fname)
+        rmse_dict, run_k_list = process_run(sim_run_path, sim_run_fname)
         rmse_list.append(rmse_dict)
         k_list.extend(run_k_list)
     rmse_df = pd.DataFrame.from_dict(rmse_list)
@@ -319,13 +321,14 @@ def process_batches(sim_run_path):
     return rmse_df, k_df
 
 if __name__ == '__main__':
-    BASE_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/'
-    TEST_PATH = BASE_PATH + 'test_reps/'
-    SIM_PATH = BASE_PATH + 'replicants/'
-    EMPIRICAL_PATH = BASE_PATH + 'empirical_replicants/'
-    K_DF_PATH = BASE_PATH + 'k_df.csv'
-    RMSE_DF_PATH = BASE_PATH + 'rmse_df.csv'
-
-    rmse_df, k_df = process_batches(SIM_PATH)
-    rmse_df.to_csv(RMSE_DF_PATH)
-    k_df.to_csv(K_DF_PATH)
+    if len(sys.argv) > 1 and sys.argv[1].lower() == 'test':
+        test_rmse_df, test_k_df = process_runs(TEST_PATH)
+        test_rmse_df.to_csv(TEST_RMSE_DF_PATH)
+        test_k_df.to_csv(TEST_K_DF_PATH)
+    else:
+        sim_rmse_df, sim_k_df = process_runs(SIM_PATH)
+        sim_rmse_df.to_csv(SIM_RMSE_DF_PATH)
+        sim_k_df.to_csv(SIM_K_DF_PATH)
+        empirical_rmse_df, empirical_k_df(EMPIRICAL_PATH)
+        empirical_rmse_df.to_csv(EMPIRICAL_RMSE_DF_PATH)
+        empirical_k_df.to_csv(EMPIRICAL_K_DF_PATH)
