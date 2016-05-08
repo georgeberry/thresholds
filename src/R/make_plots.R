@@ -13,7 +13,7 @@ library(dplyr)
 #   3. One run---threshold vs X value, true and correctly measured thresholds
 #   4. All runs---Bar graph of number of correctly measured thresholds
 #   5. All runs---Heatmap of mean RMSE at mean degree by error st.dev
-#   6. All runs---RMSE at k
+#   6. All runs---RMSE at k, with baseline RMSE
 #   7. All runs---Error of correctly measured cases
 #   8. All runs---Beta based on correctly measured cases
 #   9. All runs---Constant of correctly measured cases
@@ -35,16 +35,30 @@ EMPR_K_DF_PATH = paste(BASE_PATH, "empirical_k_df.csv", sep="")
 
 #### One-off analysis ########################################################
 
+# comparison_df stacks all data (sample=0) with cm subset (sample=1)
+
+cm_df = one_off_df[one_off_df$observed==1,]
+sample_df = one_off_df
+sample_df$sample = 0
+cm_df$sample = 1
+sample_df = rbind(sample_df, observed_df)
+
 ######## stacked distributions ###############################################
-ggplot(df, aes(x=threshold)) +
-    geom_histogram(data=df[df$observed==1,], fill='blue', alpha=.4) +
-    geom_histogram(data=df, fill='red', alpha=.3) +
+ggplot(sample_df, aes(x=threshold)) +
+    geom_histogram(
+        data=sample_df[sample_df$sample==0,], fill='blue', alpha=.4
+    ) +
+    geom_histogram(
+        data=sample_df[sample_df$sample==1,], fill='red', alpha=.3
+    ) +
     theme(text=element_text(size=20)) +
     theme(text=element_text(size=20)) +
     xlab("Threshold") + ylab("Count")
 
-######## true vs measured thresholds #########################################
-ggplot(sample_df[sample_df$activated == 1,], aes(y=after_activation_alters, x=threshold, color=factor(sample))) +
+######## all activated vs measured thresholds ################################
+# should we also do this vs all?
+ggplot(sample_df[sample_df$activated==1,]) +
+    aes(y=after_activation_alters, x=threshold, color=factor(sample))) +
     geom_point(alpha=.7) +
     scale_colour_discrete(name="", breaks=c(0, 1), labels=c("All Data", "Correct")) +
     ylab("Measured Threshold") +
@@ -54,13 +68,14 @@ ggplot(sample_df[sample_df$activated == 1,], aes(y=after_activation_alters, x=th
     xlim(-5, 45)
 
 ######## true vs observed, regression ########################################
-ggplot(comparison_df, aes(y=threshold_ceil, x=var1, color=factor(sample))) +
+ggplot(sample_df) +
+    aes(y=threshold_ceil, x=var1, color=factor(sample))) +
     geom_point() +
+    geom_smooth(method=lm) +
     theme(text=element_text(size=20)) +
     scale_colour_discrete(name="", breaks=c(0, 1), labels=c("True Thresholds", "Correct Measured")) +
     ylab("Threshold") +
-    xlab("X Value") +
-    geom_smooth(method=lm)
+    xlab("X Value")
 
 #### RMSE analysis ############################################################
 
@@ -344,21 +359,7 @@ rmse_df = read.csv(RMSE_DF_PATH)
 k_df = read.csv(K_DF_PATH)
 
 ## one-off example plots ##
-df = one_off_df
-df$threshold_ceil = ceiling(df$threshold)
-comparison_df = df[,c('var1', 'epsilon', 'threshold_ceil')]
-comparison_df$sample = 0
-observed_comparison_df = df[df$observed == 1,c('var1','epsilon','after_activation_alters')]
-observed_comparison_df$sample = 1
-observed_comparison_df$threshold_ceil = observed_comparison_df$after_activation_alters
-observed_comparison_df$after_activation_alters = NULL
-comparison_df = rbind(comparison_df, observed_comparison_df)
 
-observed_df = df[df$observed == 1, ]
-sample_df = df
-sample_df$sample = 0
-observed_df$sample = 1
-sample_df = rbind(sample_df, observed_df)
 
 summary(lm(threshold_ceil~var1, data=observed_df))
 # summary(tobit(after_activation_alters~var1, data=observed_df))
