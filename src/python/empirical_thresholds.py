@@ -94,7 +94,7 @@ def run_sim_empirical(output_path, graph, eq):
 @timer
 def sim_reps_empirical(n_rep, output_id, graph, eq):
     for sim_num in range(n_rep):
-        output_path = EMPIRICAL_PATH + output_id + '~' + str(sim_num)
+        output_path = EMPIRICAL_PATH + output_id + '~' + str(sim_num) + '.csv'
         run_sim_empirical(output_path, graph, eq)
 
 if __name__ == '__main__':

@@ -4,6 +4,7 @@ library(raster)
 library(scales)
 library(reshape2)
 library(gridExtra)
+library(dplyr)
 
 # This file takes the output of rmse_analysis.R and makes pretty plots
 # Plots the following things:
@@ -17,11 +18,80 @@ library(gridExtra)
 #   8. All runs---Beta based on correctly measured cases
 #   9. All runs---Constant of correctly measured cases
 #   10. All runs---RMSE true vs RMSE observed
+#
+# Since the rewrite of rmse_analysis, we now do aggregation here with dplyr
+#
+#
 
-setwd("/Users/g/Google Drive/project-thresholds/thresholds/src/R/")
-ONE_OFF_PATH = "../../data/replicants/c_5_N_N__n_3-0_0_1-0__e_N_0_2-0___20_1000_pl_0-1~94"
-RMSE_DF_PATH = "../../data/rmse_df.csv"
-K_DF_PATH = "../../data/k_df.csv"
+#### Constants ###############################################################
+
+BASE_PATH = '/Users/g/Desktop/data/'
+SIM_REP_PATH = paste(BASE_PATH, "sim_replicants/", sep="")
+ONE_OFF_SIM_PATH = paste(SIM_REP_PATH, "c_5_N_N__n_3-0_0_1-0__e_N_0_0-5___12_1000_plc_0-1~7.csv", sep="")
+SIM_RMSE_DF_PATH = paste(BASE_PATH, "sim_rmse_df.csv", sep="")
+SIM_K_DF_PATH = paste(BASE_PATH, "sim_k_df.csv", sep="")
+EMPR_REP_PATH = paste(BASE_PATH, "empirical_replicants/", sep="")
+ONE_OFF_EMPR_PATH = paste(EMPR_REP_PATH, "e_N_0_12.0__c_10.0_N_N__empirical_5.0_N_N___American75_gc~3.csv")
+EMPR_RMSE_DF_PATH = paste(BASE_PATH, "empirical_rmse_df.csv", sep="")
+EMPR_K_DF_PATH = paste(BASE_PATH, "empirical_k_df.csv", sep="")
+
+#### One-off analysis #########################################################
+
+
+
+#### RMSE analysis ############################################################
+
+
+#### for sim data ####
+rmse_df = read.csv(SIM_RMSE_DF_PATH)
+rmse_df = rmse_df %>%
+    group_by(sim_network, constant, var1_coef, var1_sd, error_sd) %>%
+    summarize(
+        count = n(),
+        cm_num_mean = mean(cm_num),
+        cm_num_sd = sd(cm_num),
+        cm_cons_mean = mean(cm_cons_ols),
+        cm_beta_sd = mean(cm_cons_ols),
+        cm_beta_mean = mean(cm_beta_ols),
+        cm_beta_sd = sd(cm_beta_ols),
+        cm_r2 = mean(cm_r2),
+        cm_naive_rmse = mean(cm_naive_rmse),
+        cm_rmse = mean(cm_rmse),
+        active_num_mean = mean(active_num),
+        active_num_sd = sd(active_num),
+        active_cons_mean = mean(active_cons),
+        active_beta_sd = mean(active_cons),
+        active_beta_mean = mean(active_beta),
+        active_beta_sd = sd(active_beta),
+        active_r2 = mean(active_r2),
+        active_naive_rmse = mean(active_naive_rmse),
+        active_rmse = mean(active_rmse),
+        true_num_mean = mean(run_num),
+        true_cons_mean = mean(true_cons),
+        true_beta_sd = mean(true_cons),
+        true_beta_mean = mean(true_beta),
+        true_beta_sd = sd(true_beta),
+        true_r2 = mean(true_r2),
+        true_rmse = mean(true_rmse)
+    )
+
+
+#### K analysis ###############################################################
+
+#### for sim data ####
+k_df = read.csv(SIM_K_DF_PATH)
+k_df = k_df %>%
+    group_by(sim_network, constant, var1_coef, var1_sd, error_sd, k) %>%
+    summarize(
+        count = n(),
+        rmse_at_k = mean(rmse_at_k),
+        naive_rmse = mean(naive_rmse),
+        true_rmse = mean(true_rmse)
+    ) %>%
+    filter(count > 100)
+
+
+
 one_off_df = read.csv(ONE_OFF_PATH)
 rmse_df = read.csv(RMSE_DF_PATH)
 k_df = read.csv(K_DF_PATH)
@@ -148,7 +218,7 @@ ggplot(rmse_df, aes(x=error_sd, y=epsilon_obs_mean, color=interaction(graph_type
     geom_smooth(method=lm, se=FALSE) +
     scale_color_manual(values=c("deepskyblue", "coral", "dodgerblue", "darkorange", "deepskyblue4", "darkorange3"),name="Graph Type") +
     labs(x="Error SD", "Correctly Measured Epsilon Mean")
-    
+
 
 # coefficient bias #
 
@@ -163,7 +233,7 @@ b = ggplot(rmse_df, aes(x=error_sd, y=beta_obs_mean, group=interaction(graph_typ
 
 c = ggplot(rmse_df, aes(x=error_sd, y=cons_obs_mean, group=interaction(graph_type, mean_deg), color=interaction(graph_type, mean_deg))) +
     geom_point() +
-    geom_smooth(method=lm, se=FALSE) + 
+    geom_smooth(method=lm, se=FALSE) +
     scale_color_manual(values=c("deepskyblue", "coral", "dodgerblue", "darkorange", "deepskyblue4", "darkorange3"), guide=FALSE) +
     labs(x="Error SD", y="Constant Mean")
 grid.arrange(c, b, ncol=2, widths=c(1, 1.15))

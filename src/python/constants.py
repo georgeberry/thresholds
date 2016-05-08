@@ -2,7 +2,7 @@
 We store all the paths here in an orderly fashion
 """
 
-DATA_PATH = '../../data/'
+DATA_PATH = '/Users/g/Desktop/data/'
 SIM_PATH = DATA_PATH + 'sim_replicants/'
 SIM_RMSE_DF_PATH = DATA_PATH + 'sim_rmse_df.csv'
 SIM_K_DF_PATH = DATA_PATH + 'sim_k_df.csv'

@@ -338,7 +338,7 @@ def sim_reps(
     *sim_params
     ):
     for sim_num in range(n_rep):
-        output_path = SIM_PATH + output_id + '~' + str(sim_num)
+        output_path = SIM_PATH + output_id + '~' + str(sim_num) + '.csv'
         run_sim(output_path, *sim_params)
 
 def eq_to_str(eq_dict):
@@ -435,7 +435,7 @@ if __name__ == '__main__':
                 for c in pl_cluster_probs:
                     output_id = create_output_identifier(
                         eq,
-                        [md, gs, 'pl', p],
+                        [md, gs, 'plc', p],
                     )
                     plc_graph = nx.powerlaw_cluster_graph(gs, int(md/2.), c)
                     sim_reps(N_REPS, output_id, plc_graph, eq)

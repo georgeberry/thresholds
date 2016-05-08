@@ -73,7 +73,8 @@ def params_from_fname(sim_run_fname):
         else:
             vname = 'var{}'.format(vcount)
             params[vname + '_' + 'coef'] = float(coefficient)
-            params[vname + '_' + 'sd'] = float(sd)
+            if not EMPIRICAL:
+                params[vname + '_' + 'sd'] = float(sd)
             vcount += 1
     # parse graph params here
     g_list = g.split('__')
@@ -151,7 +152,7 @@ def process_rmse(sim_df):
     cm_df = sim_df.loc[sim_df['observed'] == 1, relevant_cols]
     cm_y = cm_df['after_activation_alters']
     cm_X = cm_df[['constant', 'var1']]
-    cm_reg = linear_model.LinearRegression()
+    cm_reg = linear_model.LinearRegression(fit_intercept=False)
     cm_reg.fit(cm_X, cm_y)
     # in-sample r-squared
     cm_r2 = cm_reg.score(cm_X, cm_y)
@@ -165,7 +166,7 @@ def process_rmse(sim_df):
     a_df = sim_df.loc[sim_df['activated'] == True, relevant_cols]
     a_y = a_df['after_activation_alters']
     a_X = a_df[['constant', 'var1']]
-    a_reg = linear_model.LinearRegression()
+    a_reg = linear_model.LinearRegression(fit_intercept=False)
     a_reg.fit(a_X, a_y)
     # in-sample r-squared
     a_r2 = a_reg.score(a_X, a_y)
@@ -178,7 +179,7 @@ def process_rmse(sim_df):
     #### all processing here #################################################
     s_y = sim_df['threshold']
     s_X = sim_df[['constant', 'var1']]
-    s_reg = linear_model.LinearRegression()
+    s_reg = linear_model.LinearRegression(fit_intercept=False)
     s_reg.fit(s_X, s_y)
     # in-sample r-squared
     s_r2 = s_reg.score(s_X, s_y)
@@ -322,13 +323,16 @@ def process_runs(sim_run_path):
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1].lower() == 'test':
+        EMPIRICAL = False
         test_rmse_df, test_k_df = process_runs(TEST_PATH)
         test_rmse_df.to_csv(TEST_RMSE_DF_PATH)
         test_k_df.to_csv(TEST_K_DF_PATH)
     else:
-        sim_rmse_df, sim_k_df = process_runs(SIM_PATH)
-        sim_rmse_df.to_csv(SIM_RMSE_DF_PATH)
-        sim_k_df.to_csv(SIM_K_DF_PATH)
-        empirical_rmse_df, empirical_k_df(EMPIRICAL_PATH)
+        EMPIRICAL = False
+        #sim_rmse_df, sim_k_df = process_runs(SIM_PATH)
+        #sim_rmse_df.to_csv(SIM_RMSE_DF_PATH)
+        #sim_k_df.to_csv(SIM_K_DF_PATH)
+        EMPIRICAL = True
+        empirical_rmse_df, empirical_k_df = process_runs(EMPIRICAL_PATH)
         empirical_rmse_df.to_csv(EMPIRICAL_RMSE_DF_PATH)
         empirical_k_df.to_csv(EMPIRICAL_K_DF_PATH)
