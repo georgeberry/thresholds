@@ -163,7 +163,7 @@ def random_sequence(node_set):
     Shuffle nodes without replacement
     Return them one at a time as an iterator
     """
-    seq = np.random.choice(list(node_set), len(node_set), replace=False)
+    seq = np.random.choice(list(node_set), len(node_set), replace=True)
     for elem in seq:
         yield elem
 
