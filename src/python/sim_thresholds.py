@@ -203,6 +203,9 @@ def async_simulation(graph_with_thresholds):
         except StopIteration:
             rand_seq = random_sequence(unactivated_node_set)
             ego = next(rand_seq)
+        # if person has activated, we skip them
+        if ego in activated_node_set:
+            continue
         alter_set = set(g[ego].keys())
         activated_alters_num = len(alter_set & activated_node_set)
         threshold = g.node[ego]['threshold']
