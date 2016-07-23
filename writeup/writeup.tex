@@ -1,0 +1,652 @@
+\documentclass[a4paper]{article}
+\usepackage[english]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage[table]{xcolor}
+\usepackage{csquotes}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{graphicx}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{verbatim}
+\usepackage{afterpage}
+\usepackage{placeins}
+\usepackage{bbm}
+
+\newcommand\blankpage{%
+    \null
+    \thispagestyle{empty}%
+    \addtocounter{page}{-1}%
+    \newpage}
+
+\newcommand{\notimplies}{%
+  \mathrel{{\ooalign{\hidewidth$\not\phantom{=}$\hidewidth\cr$\implies$}}}}
+
+% Allow commenting
+\newif\ifdraft\draftfalse
+%\usepackage{xcolor}
+\newcommand\ccnote[1]{\ifdraft{\color{olive} [CC: #1]}\fi}
+\newcommand\gbnote[1]{\ifdraft{\color{purple} [GB: #1]}\fi}
+\newcommand\mmnote[1]{\ifdraft{\color{orange} [MM: #1]}\fi}
+
+
+\newtheorem{definition}{Definition}
+\newtheorem{condition}{Condition}
+\newtheorem{assn}{Assumption}
+\newtheorem{theorem}{Theorem}
+
+\usepackage[backend=biber,style=authoryear]{biblatex}
+\addbibresource{thresholdbib.bib}
+
+\title{Correctly Measuring Social Contagion}
+\author{George E. Berry and Christopher J. Cameron}
+
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+We prove that activation thresholds are impossible to correctly measure for some nodes in virtually all social contagion processes, even when each step of the process is observed. We demonstrate that if all thresholds are not correctly measured, statistical models that estimate the effect of peers on behavior produce systematic bias in estimates of social influence. This bias holds even in regression and probability approaches that do not explicitly employ the concept of a threshold. We use simulation to determine the severity of incorrect measurement in social contagion, and find that mis-measurement is a function of the threshold distribution and network structure. We propose modeling activation thresholds as a function of node-level covariates, and demonstrate that this approach can allow reasonable---but not unbiased---estimation true thresholds using the correctly measured subset.
+\end{abstract}
+
+\section{Introduction}
+
+Threshold approaches have long been central to understanding the diffusion of innovations, information cascades, and behavioral change in networks \parencite{Rogers1962, Granovetter1978, Valente1996, Kempe2003, Macy1990, Watts2002}. When individuals in a social network face uncertain adoption decisions or when adoption decisions exhibit strategic complimentarities, the behavior of network neighbors can play a crucial role in decision making. Threshold approaches provide a useful abstraction to model these types of interdependent decisions: nodes require a certain level of social reinforcement from peers before adopting.
+
+Thresholds have been widely adopted as a technique to model social contagion \parencite{Centola2007, Granovetter1978, Watts2002, Greve1995a, Macy1991c}. Additionally, the concept of a threshold can be seen in classical studies of diffusion \parencite{Coleman1957, Rogers1962, Burt2016, Granovetter1986}, in the utility functions of contemporary studies of peer influence \parencite{}, in models of influence maximization \parencite{}, in empirical studies of adoption behavior \parencite{Valente1995, Valente1996, Ludemann1999a, Romero2011}, and in models of social influence more generally \parencite{christakis-fowler, Marsden, Friedkin}. When we posit that the utility from peer adoptions can cause a focal actor to engage in a new behavior, we implicitly talk about adoption thresholds. Intuitively, there is \emph{some} critical number of peer adoptions that actually induces the switch.
+
+In this paper, we lay out a fundamental problem with threshold approaches: not all thresholds can be empirically measured in networked social contagion processes. This creates a type of missing data: nodes are ``missing'' because we can only place their adoption threshold in an interval---and the theoretical maximum size of such intervals is the node's degree. Past research has taken the maximum of this interval for all nodes in the graph, leading to \emph{only} upwardly biased estimates of node thresholds. This causes problems even in models where the concept of a threshold is not employed explicitly. For instance, a utility-based model of adoption that includes the number of active neighbors as a predictor for adoption status will underestimate the true marginal utility of peer adoption. This happens because the variable is biased upward in the case where a node is recorded as active.
+
+The inability to correctly measure node thresholds does not result from a failure to observe all stages of a contagion process: we cannot simply get ``more data'' about a given process and correctly measure node thresholds. Rather, the failure of measurability that we discover results from the logical combination of graphs, node thresholds, and node update orderings. We prove that a wide class of contagion processes are not threshold measurable, and these proofs are remarkably simple. In addition, we provide examples of contagion processes that \emph{are} threshold measurable. While not exhaustive, the complexity of these examples suggests that few processes are measurable.
+
+Specifically, the failure of measurability applies to all social contagion processes where the researcher both (i) cannot observe a node's private threshold satisfaction status and (ii-a) does not know a node's delay before activating or (ii-b) asserts that activation is instantaneous. Since empirical studies of social contagion---even experimental ones---often do not know this private information, we conclude that the upward bias we identify in this paper affects studies of social contagion quite generally.
+
+Although not all node thresholds can be correctly measured in social contagion processes, we demonstrate that modeling adoption thresholds as a function of node-level observables can substantially reduce the bias induced by using the ``number of neighbors at activation time'' rule for measuring thresholds \parencite{Valente1996}. Among studies that have explicitly applied thresholds to empirical data \parencite{Valente1995, Valente1996, Ludemann1999a, Romero2011}, none have recognized the measurability problem that we highlight in this paper. To our knowledge, estimating node thresholds as a function of node-level characteristics has not been attempted.
+
+The rest of this article is organized as follows: In section \ref{sec:intuition}, we provide an intuitive statement of the measurability problem. In section \ref{sec:proof}, we formally define a contagion process and prove our main result that thresholds cannot be correctly measured in most social contagion processes. In section \ref{sec:bias}, we provide a brief proof that if we cannot correctly measure adoption thresholds, existing models systematically underestimate the magnitude of social influence and peer effects. In section \ref{sec:simulation}, we demonstrate through simulation the typical magnitude of the upward bias in threshold measurement, and provide an example of how this bias can be reduce through prediction conditional on node-level covariates. We find that by using only the correctly measured subset of nodes (often around 10\% of the data), we obtain a much better estimate of true node thresholds.
+
+This paper is motivated by a desire to directly investigate empirical social contagion processes using existing theory. For instance, \cite{Centola2007} propose the theory of \emph{complex contagion}, where individuals require multiple instances of social reinforcement before adopting. If researchers would like to assess the level of ``complexity'' of an empirical social contagion, existing approaches produce systematically incorrect results. One can only undertake such an analysis with the techniques developed in this paper.
+
+\section{An Intuitive Example} \label{sec:intuition}
+
+To see the problem intuitively, consider the following hypothetical laboratory experiment: we wish to see how many alter adoptions are required for an individual to commit to purchasing a product. We show her a computer screen indicating that zero friends have adopted and ask her whether she would like to purchase the product. We repeat this process for one, two, and three friends. After the second friend activation, she indicates that she would purchase the product. Since we know she did not adopt with zero or one alters active, but did adopt when two alters were active, we correctly measure her adoption threshold as two.
+
+Consider the case of a lazy research assistant, who forgets to check with ego after the first and second alters have adopted. The assistant checks with ego with zero active friends, and again when she has three active friends, where ego indicates that she would adopt. In this case, we do not have a measurement of ego's activation status with 1 and 2 active alters. Therefore, the most precise statement we can make based on this data is that her true threshold lies in the half-open interval $(0, 3]$.
+
+If we do not have a record of ego's activation status after some alter activations, we can fail to correctly measure ego's adoption threshold. This happens in instances where nodes check their alter status at intervals, giving multiple friends time to adopt. For instance, if an individual checks her friends' statuses at $t = 1$ and $t = 3$, and 5 friends adopt at time $t = 2$, we have no way of ascertaining the minimum exposure level that \emph{would have induced} her to adopt, we only obtain an interval between 1 and 5.
+
+This discussion also suggests a way to ensure correct measurement of activation thresholds: systematically randomize an individual's ego network. Such studies have been conducted in online environments \parencite{Aral2008, Bakshy2011}, and offer the best chance of avoiding the problems we detail in this paper.
+
+\begin{comment}
+Thresholds have been defined as both the number (e.g. \cite{Granovetter1978}) and fraction (e.g. \cite{Valente1996, Watts2002, Kempe2003, Kempe2005}) of alters that are required to induce ego to activate. In this paper, we employ absolute rather than fractional thresholds for ease of presentation. However, results presented here apply to the fractional case as well, with suitable changes to the modeling procedure. \ccnote{This might need to actually be demonstrated to be believable.}
+
+The difference between absolute and fractional thresholds encodes our assumption about the influence of non-adopters. In the absolute threshold case, only those alters adopting exert influence, whereas in the fractional threshold case, both adopters and non-adopters exert influence.
+
+Throughout this paper we will use \emph{ego} to refer to a focal node, and \emph{alters} to refer to that focal node's network neighbors. Ego's \emph{threshold} will be the minimum number of alters that need to adopt to induce ego to adopt the contagion. At a given point in time, the number of activated nodes among ego's alters is ego's \emph{exposure}.
+
+As an example, consider a doctor's decision to begin prescribing a new drug and assume the doctor relies on peer behavior to inform her own practice. A doctor may have a threshold of four, meaning that she needs four alters to adopt a drug before she finds it worthwhile to start prescribing the drug. At a given point in time, we measure the doctor and the activation status of her alters. If three of her alters are activated, we say that she has exposure 3 at this point in time. At this exposure, \ccnote{her threshold of four is unsatisfied with three adopters and} she is \emph{unactivated}, meaning she has not adopted the innovation yet.
+
+\subsection{Overview of Issues With Existing Approaches}
+
+Previous work with observational data has generally assumed that the ``adoption threshold is the exposure at time-of-adoption'' \parencite{Valente1996}.
+%The rule used in past empirical work is the following: the ``adoption threshold is the exposure at time-of-adoption'' (\cite{Valente1996}).
+We find that using this rule leads to upwardly biased estimates of adoption thresholds in almost any conceivable case\footnote{As shown below, to avoid bias one has to construct the cascade according to a stringent set of rules that are virtually impossible to satisfy in a real social network.},
+regardless of whether individuals update synchronously or asynchronously, whether individuals have a lag time between perception and adoption, or whether time is considered discrete or continuous. Work in computer science using the $p(k)$-curve method suffers from a similar bias (\cite{Crandall2008, Backstrom2006a, Romero2011}). This follows from recognizing that the numerator of the $p(k)$ curve method is a count of the number of individuals who adopted at exposure $k$, which is just an application of the ``exposure at time-of-adoption'' rule. The numerator of the $p(k)$ curve method is therefore upwardly biased.
+
+We develop a condition that allows us to determine whether bias exists or not for a given node, letting us extract a \emph{correctly measured subset} of nodes from the graph. To estimate thresholds for the nodes that we cannot measure correctly, we employ a predictive modeling approach. In certain circumstances, this estimation procedure works extremely well. In several situations that we study here, using the exposure-at-activation-time rule for every node in the graph leads to larger levels of error many times larger than using 5\% of the nodes which are correctly measured.
+
+Because thresholds determined by the exposure-at-activation-time rule are upwardly biased as a rule, probabilistic or hazard rate models of adoption which incorporate the number of activated neighbors as an independent variable systematically underestimate the effect of peer influence. This follows straightforwardly: if we add a strictly positive number to a covariatet in a regression, we deflate the size of the coefficient for that variable.
+
+Our threshold estimation method is therefore necessary to reduce bias in statistical models of peer influence, along with being useful for assessing contagion-level properties such as the complexity of a contagion. 
+\end{comment}
+\section{Threshold Measurability}
+
+In this section, we prove that contagion processes relevant to social scientists are not threshold measurable. We start with an observation: researchers generally do not have control over the network structure or node update order.
+
+We assume that these three elements are out of the researcher's control. If the researcher has control over threshold assignment, there is no need to estimate the threshold distribution. If the researcher can design the network structure \parencite{centola} or enforce that nodes update in a certain order \parencite{tsvetkova}, then thresholds may be correctly measured at a higher rate. However, in the vast majority of studies---including all observational studies and some experimental studies---these factors are not controlled by the researcher. The only research design that we're aware of that fully alleviates the problems discussed in this section is a randomized experiment with control over the information transmitted to ego (e.g. \cite{bakshy}).
+
+\subsection{Preliminaries}
+
+\begin{comment}
+I don't want to do it, but we need to use a knowledge operator here to clearly express our ideas.
+
+There is a distinction between an agent (node) knowing its own status, vs a researcher knowing the node's status
+
+
+\end{comment}
+
+A contagion process happens on a network $G = (V, E)$ where $V$ represents the nodes and $E$ represents the edges. Each node $i \in V$ has threshold $h_i \in \mathbb{R}$. $e_i$ is a node's \emph{exposure}, or its number of active neighbors. Each $i \in V$ has a public \emph{activation status} $a_i \in \{0, 1\}$, where 1 indicates that $i$ is activated and that $i$'s neighbors can observe this activation. Each $i$ also has a private \emph{threshold satisfaction} status $s_i \in \{0, 1\}$. A node may update and see $e_i \ge h_i$, implying $s_i = 1$, but public activation could be delayed by the \emph{activation delay} $\delta_i$.
+
+We separate threshold satisfaction and public activation due to the presence of an \emph{update ordering}. Let $U$ be an update ordering of the form $(\{i\}, \{j, k\}, ...)$. This ordering would indicate that $i$ updates at time 1, then $j$ and $k$ update simultaneously at time 2. Without loss of generality, we use discrete time\footnote{Any continuous time process can be transformed to discrete time by putting the nodes in order by update time and assigning the first node to time 1, the second to time 2, and so forth. We allow two nodes to update at the same time, synchronous or asynchronous updating makes no difference for our argument.}.
+
+Given $G$, $H_i$, and $U$, define the set of \emph{states of the world} $\Omega$. Each $\omega \in \Omega$ completely represents one state in the contagion process, given by the tuple $(t, G, H, U, \Delta, E, S, A)$. Since $G$, $H$, and $U$ are fixed, only $t$, $E$, $S$, and $A$ are allowed to vary between state. For simplicity, we omit $G$ and $U$ from our argument, writing $\omega = (t, H, E, S, A)$.
+
+The core argument of our paper can be framed as follows: ``nature'' reveals certain states of the world to the researcher, $\Omega_R$. The researcher must infer $H$ from $\Omega_R$. Our main result is the following: as we place increasing restrictions on which elements in $\omega$ the researcher can observe, the task of inferring the full vector $H$ from $\Omega_R$ becomes impossible.
+
+For instance, suppose the researcher does not observe $H$ directly and additionally cannot observe private threshold satisfaction $S$, then we write $\omega = (t, H^-, E, S^-, A)$. There are two points of note here: (i) the set $\Omega_R$ need not contain every realized step in the contagion process. For instance, perhaps a researcher observes daily samples from the underlying contagion process. Then the $\omega \in \Omega_R$ would consist only of these samples. (ii) the researcher needs to compare various observations $\omega \in \Omega_R$ to correctly infer the unobserved $H$. This point will be expanded upon in our discussion of threshold measurability below.
+
+\subsection{Assumptions}
+
+We make some assumptions to set up the formal proof of our main result. These assumptions are sensible scope conditions, and in particular Assumption \ref{assn:perfect_obs} provides the most optimistic condition for full threshold measurability.
+
+\begin{assn} \label{assn:immutability}
+\textbf{Non-intervention}: The researcher can not change $G$ or $H$ under any circumstances
+\end{assn}
+
+\begin{assn} \label{assn:ignorance}
+\textbf{Ignorance}: The researcher does not in advance know any $h_i \in H$
+\end{assn}
+
+\begin{assn} \label{assn:perfect_obs}
+\textbf{Granularity}: $\Omega_R$ contains all realized $\omega$
+\end{assn}
+
+\noindent
+Assumption \ref{assn:perfect_obs} means that the researcher observes every state that the contagion process achieves. This assumption means that there is not a finer-grained sampling of the contagion process that can be employed. Although in practice we often receive samples of the underlying contagion process, for our purposes here we assume that no such finer sampling is possible.
+
+We also define two technical assumptions for completeness:
+
+\begin{assn} \label{assn:saturation}
+\textbf{Saturation}: All nodes in $V$ activate eventually
+\end{assn}
+
+\begin{assn} \label{assn:consistency}
+\textbf{Consistency}: G, U, and H are consistent with Assumption \ref{assn:saturation}
+\end{assn}
+
+\noindent
+We make these assumptions to simplify the analysis without loss of generality. Practically speaking, the contagion process does not have to saturate for our result to apply. Simply take the subgraph of eventually activated nodes, then Assumption \ref{assn:saturation} and Assumption \ref{assn:consistency} apply and our results hold.
+
+\subsection{Definitions}
+
+\begin{definition} \label{def:knowledge}
+When the researcher systematically cannot observe an element of $\omega$ we say that element is \textbf{hidden}
+\end{definition}
+
+\noindent
+For instance, $H$ is always hidden, and we write $\omega = (t, H^-, E, S, A)$ to denote this. $E$ and $A$ are never hidden, with $S$ varying depending on the particulars of the contagion process. We treat hidden elements as if they did not exist for the purpose of inferring $H$.
+
+\begin{definition} \label{def:measured}
+A threshold $h_i$ is \textbf{correctly measured} when either:
+\begin{enumerate}
+\item for some $t, t' \in U_i$, $t' > t$, we have $e_{i,t'} - e_{i,t} = 1$ and $s_{i,t'} = 1$ while $s_{i,t} = 0$
+OR
+\item for some $t, t' \in U_i$, $t' > t$, we have $e_{i,t'} - e_{i,t} = 1$ and $a_{i,t'} = 1$ while $a_{i,t} = 0$
+\end{enumerate}
+\end{definition}
+
+\noindent
+Restricting ourselves to $t, t' \in U_i$ means that we do not have any information $i$ does not have. Intuitively, we can not check $i$'s status before $i$ does---if we could, it would imply that we knew $h_i$ already. If we have access to $i$'s private information $s_i$, then Definition \ref{def:measured}.1 applies, otherwise Definition \ref{def:measured}.2 applies.
+
+Stated another way, assume we observe $\Omega_R$. Then we correctly measure $i$'s threshold if, for some $\omega, \omega' \in \Omega_R$, $e_i' - e_i = 1$ and either $s_i' - s_i = 1$ or $a_i' - a_i = 1$. Call the correctly measured subset $C$. 
+
+Stating correct measurement for a single $i$ allows us to formulate a condition for the all nodes in the contagion process.
+
+\begin{definition} \label{def:measurable}
+A contagion process is \textbf{threshold measurable} if we can correctly measure thresholds for all nodes in the contagion process according to Definition \ref{def:measured} for any $(G, U, H, \Delta)$. In this case, $C$ = $V$ for all $(G, U, H, \Delta)$.
+\end{definition}
+
+\noindent
+Definition \ref{def:measurable} allows us to determine whether a process is \emph{not} threshold measurable by providing a counterexample for that specific process. In creating this counterexample, we play the part of ``nature'' trying to foil the researcher: we choose $(G, U, H, \Delta)$. If we can provide an example that is not threshold measurable, then the class of processes is considered not measurable. While searching $(G, U, H, \Delta)$ for a counterexample may seem like a difficult task in the abstract, in practice it is trivial (see Section \ref{sec:examples}).
+
+Definition \ref{def:measurable} frames the problem in a tractable way: it allows us to construct counterexamples. This has the benefit of allowing us to avoid making assumptions about $(G, U, H, \Delta)$, such as distributional assumptions about node degree or thresholds. The downside to this approach is that there may be specific restrictions that, when placed on $(G, U, H \Delta)$, facilitate threshold measurability that are not discovered by our counterexample approach. We identify one such set of restrictions below, but leave an exhaustive typology to future work.
+
+\subsection{Which Processes are Threshold Measurable?}
+
+\begin{theorem} \label{theorem:public}
+No process where $(G, U, H, \Delta)$ is unrestricted is threshold measurable
+\end{theorem}
+
+\begin{proof}
+Since we have control over $(G, U, H, \Delta)$, assume that $V = (i, j, k)$, $E = ((i, j), (j, k), (k, i))$, and $h_i = h_j = 0$, $h_k = 1$. Let $U = (\{k\}, \{i, j\}, \{k\})$ so that $k$ updates at time 1, $i$ and $j$ update at time 2, and $k$ updates again at time 3. Let $\Delta = (0, 0, 0)$, indicating no lags in public activation after a node finds its threshold is satisfied.
+
+Then the contagion process plays out as follows: at time 1, $k$ checks and sees that it has exposure 0, which is less than its threshold of 1, and so $a_k = 0$. At time 2, $i$ and $j$ activate since they have threshold 0 and no activation lag. Then at time 3, $k$ checks and sees that $e_k = 2$ while $h_k = 1$, and so activates immediately. Since $k$'s two updates produce $e_k^1 = 0$ and $e_k^3 = 2$ while $a_k^1 = s_k^1 = 0$ and $a_k^3 = s_k^3 = 1$, Definition \ref{def:measured} is not satisfied and the process is not threshold measurable. In particular, all we know is that $k$'s threshold lies in the interval $(0, 2]$
+
+\end{proof}
+
+\noindent
+This is our main result. When we have control over $(G, U, H, \Delta)$ to create our counterexample, it is trivial to create small graphs on which nodes are not correctly measured, which implies the process is not measurable. Since large contagion processes are in a sense composed of small contagion processes, our ability to find small structures that violate threshold measurability implies that we should \emph{never} expect a contagion process in the social world to be threshold measurable.
+
+\begin{definition} \label{def:collision}
+A \textbf{collision} occurs if, for some $i$ and some update times $t, t' \in U_i$, more than one neighbor of $i$ activates publicly.
+\end{definition}
+
+\noindent
+It's clear that collisions cause incorrect measurement of thresholds. The reason measurability fails with no constraints on contagion processes is precisely because collisions occur. Collisions are in a sense inevitable when high degree nodes are present, although the probability of a collision occurring is particular to specific processes, and reliant on assumptions about node update times and graph topology.
+
+\begin{theorem} \label{theorem:fast}
+There exists a $(U, \Delta)$ that ensures a contagion process where $S$ is observed is threshold measurable
+\end{theorem}
+
+\begin{proof}
+It helps to return to our intuition in Section \ref{sec:intution}. For each node to be correctly measured, the contagion process must mimic an experiment in the sense that each node must update and record its status after each alter activation. Since we would like threshold measurability for arbitrary $G$ and $H$, this implies that each node must update after each activation. We can construct a $U$ and $\Delta$ that allow this.
+
+Let $z$ be the set of satisfied unactivated nodes, where $s_i = 1$ and $a_i = 0$ for all $i \in z$. At each time $t = \{2, 4, 6, ...\}$, have all unactivated nodes $V \setminus z$ update simultaneously. For each node $i \in V \setminus z$ whose threshold is satisfied, add $i$ to $z$ and assign $i$ a public activation delay $\delta_i = 2|z| - 1$. This means that at even times, all nodes update, and at odd times, a single node publicly activates. Then this defines a $U$ and $\Delta$. 
+
+To see that such a process is threshold measurable, consider any $i \in V$ and assume that $i$ eventually activates publicly. Since $i$ updates at every time $t = \{2, 4, 6, ...\}$ and we know $S$ at each $t$, find $t^* = min(t) : s_i^t = 1$. Then, since we know by construction that exactly one node activated publicly at $t^* - 1$, $h_i = e_i^{t^*}$.
+\end{proof}
+
+\noindent
+Importantly, we require the ability to \emph{construct} $U$ and $\Delta$ as the process is unfolding. This type of centralized control does not exist in social networks, which are decentralized by definition. We note that there are likely other constructions of $U$ and $\Delta$ that satisfy the intuition in Section \ref{sec:intuition}. And, as we noted above, there may be other restrictions on $(G, U, H, \Delta)$ that allow threshold measurability.
+
+\begin{comment}
+Note how activation delays are seen by the researcher as an update
+
+Do we observe delta? No!
+
+Develop notation for ``researcher observed data'', which is a subset of fields in \omega
+
+Assume U touches all nodes eventually
+Assume that only nodes that would ever be activated are recorded
+
+clarify hidden by default (delta always hidden, for instance)
+
+make it clearer when we're playing nature and when we're playing researcher
+\end{comment}
+
+\begin{theorem} \label{theorem:public}
+No process where $G$ and $H$ are fixed and $S$ and $\Delta$ are hidden is threshold measurable
+\end{theorem}
+
+\begin{proof}
+Note that Theorem \ref{theorem:fast} relies on being able to record private threshold satisfaction status $s_i$ for every node. For that theorem, we devised a $(U, \Delta)$ that took any $(G, H)$ and ensured threshold measurability. For this proof, we provide a $(G, H)$ that, for any $(U, \Delta)$, fails to be threshold measurable when $S$ and $\Delta$ are hidden. Define an activation ordering $Q$, which records the times at which nodes publicly activate. Note that for $i$, $q_i = u_i^* + \delta_i$, where $u_i^* = \min(t) : e_i \ge h_i$. Assume $i$ activates eventually so that $u_i^*$ exists.
+
+Since $Q$ fully contains the information in any $(U, \Delta)$, it satisfies the proof criterion. Now, we construct a $(G, H)$, for which any $Q$ produces collisions (see Figure \ref{fig:tetradplot}). Let $V = (i, j, k, l)$ and $E = ((i, j), (i, k), (j, k), (j, l), (k, l))$. Let $h_i = 0$ while $h_j = h_k = h_l = 1$.
+
+Node $i$ must activate first. After it does, we have one of three cases:
+\begin{enumerate} \label{theorem:impossible}
+\item $q_j < q_k$: When $k$ activates, $k$ has 2 active neighbors, so a collision has happened
+\item $q_j > q_k$: When $j$ activates, $j$ has 2 active neighbors, so a collision has happened
+\item $q_k = q_j$: When $l$ activates, $l$ has 2 active neighbors, so a collision has happened
+\end{enumerate}
+
+\noindent
+We have shown that there exists a $(G, H)$ that fails to be threshold measurable for any $(U, \Delta)$ when $S$ and $\Delta$ are hidden.
+
+\end{proof}
+
+\begin{figure}[h]
+\label{fig:tetradplot}
+\includegraphics[width=\textwidth]{tetradplot.png}
+\caption{An example of one realization of $Q$, corresponding to case 3 from Theorem \ref{theorem:impossible}. Blue nodes are inactive, orange nodes are active. Squares represent correctly measured nodes, triangles represent incorrectly measured nodes.}
+\end{figure}
+
+\begin{comment}
+\begin{table} \label{table:processes}
+ \begin{center}
+  \begin{tabular}{cccc|c}
+    Information & Update Process & Activation Delay & Fast Updating & Measurable \\
+    \hline
+    Public & Async & Yes & Yes & No \\
+    Public & Async & Yes & No & No \\
+    Public & Async & No & -- & No \\
+    Public & Async & No & No & No \\
+    Public & Sync & Yes & Yes & No \\
+    Public & Sync & Yes & No & No \\
+    Public & Sync & No & -- & No \\
+    Public & Sync & No & No & No \\
+    \rowcolor{lightgray} Private & Async & Yes & Yes & Yes \\
+    Private & Async & Yes & No & No \\
+    Private & Async & No & -- & No \\
+    Private & Async & No & No & No \\
+    \rowcolor{lightgray} Private & Sync & Yes & Yes & Yes \\
+    Private & Sync & Yes & No & No \\
+    Private & Sync & No & -- & No \\
+    Private & Sync & No & No & No \\
+  \end{tabular}
+ \end{center}
+  \caption{Exhaustive list of the 8 possible contagion processes. Only certain private information processes with an activation delay are threshold measurable. Gray indicates measurable.}
+\end{table}
+\end{comment}
+
+\begin{comment}
+
+\subsection{Failures of Threshold Measurability} \label{sec:measurability}
+
+The arguments provided above are abstract. It is useful to examine small graphs to understand how, even in simple cases, correctly measuring thresholds fails. Recall that to demonstrate that a contagion process is not threshold measurable, we need only find one graph topology, node update ordering, and threshold assignment that is not threshold measurable. We examine two-, three-, and four-node graphs in the section and find that creating such counterexamples is trivial.
+
+Since our intended area of study is observational social contagion processes, we limit ourselves to public information processes with no activation delay, which is the most common model of diffusion employed in observational research. In this section, nodes are named according to their position in the graph (e.g. the topmost node is called $top$).
+
+\subsubsection{Dyad}
+
+We see a dyad in Figure \ref{fig:dyadplot} where both the $top$ and $bottom$ nodes have threshold 0. Three update orderings are possible here: $(\{top\}, \{bottom\})$, $(\{bottom\}, \{top\})$, and $(\{top, bottom\})$. The first two of these update orderings are asynchronous. In the asynchronous case, we fail to correctly measure one of the two thresholds. This is indicated by the triangle in Figure \ref{fig:dyadplot}.
+
+\begin{figure}[h]
+\label{fig:dyadplot}
+\includegraphics[scale=0.2]{dyadplot.png}
+\centering
+\caption{Social contagion in a dyad across two time periods. Blue indicates inactive nodes, orange indicates active nodes; squares represent nodes with correctly measured thresholds, triangles represent nodes with incorrectly measured thresholds. In this particular process, both nodes have threshold 0. $Top$ updates first and is correctly measured. $Bottom$ then updates and activates with 1 active neighbor, and so $bottom$'s threshold is incorrectly measured as 1.}
+\end{figure}
+
+\subsubsection{Triad}
+
+Figure \ref{fig:triadplot} displays a triad with update order $C = (\{top\}, \{\text{\emph{left}}\}, \{right\})$. We correctly measure the thresholds of $top$ and \emph{left}, but incorrectly measure the threshold of $right$. For $right$, we measure a threshold interval of $(0, 2]$.
+
+\begin{figure}[h]
+\label{fig:triadplot}
+\includegraphics[width=\textwidth]{triadplot.png}
+\caption{Social contagion in a triad across three time periods. Blue indicates inactive nodes, orange indicates active nodes; squares represent nodes with correctly measured thresholds, triangles represent nodes with incorrectly measured thresholds. We update one node per time period. We see that $right$ is incorrectly measured as having threshold of 2, when it is in fact 1.}
+\end{figure}
+
+\ccnote{Notice how $left$ is rendered as \emph{left} in this subsection. I think the letter spacing looks better when \textbackslash text\{\textbackslash emph\{left\}\} is used inside the math environment.}
+
+\subsubsection{Tetrad}
+
+Figure \ref{fig:tetradplot} demonstrates a contagion process with update order \\
+$C = (\{left\}, \{top, bottom\}, \{right\})$. The reader may have noticed that in the dyadic and triadic cases, a synchronous updating process would allow correct measurement of all thresholds. However, the four-node case demonstrates that a synchronous updating process fails to correctly measure thresholds in simple graph structures as well.
+
+\begin{figure}[h]
+\label{fig:tetradplot}
+\includegraphics[width=\textwidth]{tetradplot.png}
+\caption{Social contagion in a tetrad across three time periods. Blue indicates inactive nodes, orange indicates active nodes; squares represent nodes with correctly measured thresholds, triangles represent nodes with incorrectly measured thresholds. $Right$ has threshold 1, yet node has 2 active neighbors at activation time. Note that any synchronous or asynchronous updating order fails to correctly measure the threshold one of at least one of the three nodes with threshold 1. For instance, if we were to activate $left$, $top$, and $right$, $bottom$ would have 3 active neighbors at activation time and therefore be incorrectly measured.}
+\end{figure}
+
+It is easy to check that any asynchronous updating order will also produce at least one incorrectly measured node in the absence of activation delays plus private signals. For instance, the update order $C = (\{left\}, \{top\}, \{bottom\}, \{right\})$ will incorrectly measure the thresholds of $bottom$ and $right$.
+
+\end{comment}
+
+\section{Biased Estimation of Social Influence}
+
+\begin{comment}
+Assume for simplicity: no activation delays, update ordering is not correlated with threshold
+
+Then we know: E[x | y] is biased upward, since E[x | y = 1] is biased upward and E[x | y = 0] is not biased
+
+We have 2 cases:
+1) estimating a probability of adoption at each threshold
+2) estimating a marginal effect, a beta coefficient, of the utility of adopting neighbors
+
+Consider the CEF E[y | x], at each x, this will just give the probability that an individual is active in the sample
+
+We can write beta as E^-1[x * x] E[x * y] = sum xy / sum xx
+
+\end{comment}
+
+Theorem \ref{theorem:public} implies that social contagion processes observed in the real world will suffer collisions (Definition \ref{def:collision}) and therefore some measured thresholds will be greater than true thresholds. Consider such a process where collisions have occurred, and further assume we have observed the entire process, so we may reason about a fully enumerated finite sample. Let $h_i$ be node $i$'s true threshold and $\hat{h}_i$ our measurement from observing a contagion process, obtained by taking $e_i$ at $i$'s first activation time. Since we know that for at least one $i$, $\hat{h}_i > h_i$, then $E[\hat{h}_i] > E[h_i]$.
+
+For simplicity, we make three assumptions: (i) there are no activation delays ($\delta_i = 0$ for all $i$); (ii) node update orderings $U_i$ are uncorrelated with thresholds $h_i$ for all nodes $i$; (iii) the activation probability is monotonically increasing in $e_i$. The first assumption avoids more complicated modeling forms taking lags into account, while the second removes a potential selection bias problem that could complicate the analysis. The third simplifies analysis by assuming that the benefit to additional adopters is always positive, and allows us to use a simpler regression form for explanation.
+
+To see the nature of bias only due to mis-measurement, consider a conditional expectation function, $E[y_i | E_i = e_i]$, which gives the probability of adoption at each exposure level. Imposing a parametric form on this conditional expectation will yield a model such as 
+
+\begin{equation} \label{eq:truemod}
+y_i = \alpha + \beta e_i + \epsilon_i
+\end{equation}
+
+\noindent
+which we can estimate using regression. $\beta$ represents the increase in adoption probability from one additional adopting neighbor. For our purposes, let's assume that Equation \ref{eq:truemod} is the true model generating the data. Within each cell given by $e_i$, we have $E[y_i | E_i = e_i]$. Rewrite $E[y_i | E_i = e_i] = \frac{\#(Y_i = 1 | E_i = e_i)}{\#(E_i = e_i)} = \frac{\#(\hat{H}_i = e_i)}{\#(E_i = e_i)}$, where $\hat{H}$ is the measured activation threshold for each node.
+
+$\hat{H}$ is biased upwards by Theorem \ref{theorem:public}. This bias has the effect of taking $y = 1$ observations from low values of $e_i$ and shifting them to higher values of $e_i$. This crates an under-estimate in cells of $e_i$ where there is more ``out-migration'', and overestimates where this is more ``in-migration''.
+
+To see this formally, note that our first two assumptions in this section ensure that we correctly sample unactivated nodes. Let $e_i^0$ represent an unactivated node with exposure $e_i$ and $e_i^1$ be an activated node with exposure $e_i$. Then $\#(E_i = e_i) = \#(E_i^0 = e_i^0) + \#(E_i^1 = e_i^1)$. A ``bias event'' that moves an observation to a higher value of $e_i$ subtracts 1 from the numerator and 1 from $\#(E_i^1 = e_i^1)$ in the denominator. Note that $\frac{x - 1}{c + x - 1} < \frac{x}{c + x}$ while $c, x \ge 1$. Since $\#(E_i^0 = e_i^0)$ stays fixed\footnote{Under the assumptions above, we can be sure that a node that updates but does not activate has not had its threshold met.}, we conclude that when bias \emph{subtracts} active nodes from a cell, we underestimate the probability in that cell. A similar argument shows that, when bias \emph{adds} active nodes to that cell, we overestimate the probability.
+
+The result of this shuffle in any particular instance is indeterminate. There may be cells in the middle of the $E_i$ distribution that have little out-migration and much in-migration, creating an artificial spike in the estimated adoption probability. Alternately, very high values of $e_i$ may recieve all the in-migration, stretching out the range of $E_i$.
+
+If the shuffle follows a relatively predictable pattern, i.e. lower values of $e_i$ out-migrate more, and pick a higher cell uniformly at random without stretching the range, then it implies we should see a \emph{pivot point} $e_i^*$ for the bias introduced by mis-measurement. For $e_i < e_i^*$, $E[\hat{y}_i| E_i = e_i] < E[y_i| E_i = e_i]$, while for $e_i > e_i^*$, $E[\hat{y}_i| E_i = e_i] > E[y_i| E_i = e_i]$. This means that the bias changes sign at some $e_i^*$. This is not an absolute rule, but is a starting point for addressing the nature of bias in estimating adoption probabilities, such as those found in \parencite{Romero2011,Crandall2008}.
+
+Note that this is \emph{not} an argument about a violation of regression assumptions. The same analysis holds if we wished to simply plot adoption probabilities at each exposure level. Rather, this is an argument about introducing a specific type of bias into the measurement of an independent variable. Models to account for errors-in-variables bias exist (e.g. \cite{frost2000}), but such models generally assume that the error is mean zero, normally distributed, and uncorrelated with the independent variable. Since we have no such guarantees, we leave further modeling of this errors-in-variables problem to future research.
+
+Finally, we emphasize that Model \ref{eq:truemod} does not contain the concept of a threshold explicitly! Regression models of adoption decisions and nonparametric probability-based approaches are susceptible to bias due to Theorem \ref{theorem:public}.
+
+\section{Simulation evidence}
+
+The arguments offered above have the flavor of an impossibility proof. We should not expect, in the social world, to correctly measure all activation thresholds. However, without assumptions about threshold distributions, update frequencies, and graph generation routines, it is difficult to reason about the specific rates of the problems we have identified above. How often do we mis-measure thresholds? How large is the bias introduced by this mis-measurement? Succinctly: we mis-measure frequently and the bias is enormous.
+
+To establish these results, we conduct simulations. <<Simulations have been used to establish well-accepted results about the social world, cite a bunch of stuff>> We choose two simulated graph topologies: Watts-Strogatz \parencite{} and power law with clustering \parencite{}. In addition, we use several empirical topologies from online social networks \parencite{}. We simplify from the very general treatment of contagion in section \ref{sec:measurability}: the processes studied here have no activation delays and no private information. In the language developed above, $\delta_i = 0$ for all $i$, and $S$ is hidden.
+
+After establishing the severity of the problem, we suggest a parametric modeling approach to reduce the bias using the subset of nodes that are correctly measured. This reveals an intersting phenomenon: nodes that are correctly measured tend to be systematically different from the overall population. Specifically, correctly measured nodes tend to have negative error terms, since more nodes early in a contagion process are correctly measured. This implies that covariates (features) with high explanatory power are necessary to correctly model social contagion, since a high level of explained variance puts a limit on the bias that can be introduced by the error. It also suggests that further work needs to be done examining the particular nature of bias introduced by statistical modeling of processes in social networks.
+
+\subsection{Simulation Details}
+
+We conduct simulations on four graph topologies: random graph, Watts--Strogatz \parencite{Watts1998}, Barabási–-Albert \parencite{Barabasi1999}, and power law with clustering \parencite{Holme2002}. Graphs have 1000 nodes, with mean degree $\bar{d} = \{12, 16, 20\}$. We run simulations 100 times per graph parameterization. We present results only from Watts--Strogatz and power law with clustering graphs here, as results from the other topologies are not markedly different. We detail the simulation algorithm in Appendix <<>>.
+
+\subsection{Thresholds from Covariates}
+
+\cite{Granovetter1978} generates thresholds by simply drawing from a uniform or Gaussian distribution, while \cite{Watts2002,Kempe2003} use a uniform distribution. In empirical research, however, we often employ actor-level characteristics to explain outcomes. If we treat a node's threshold as the outcome to be explained, we can construct a model of ego's threshold as a function of ego-level covariates, including ego-network characteristics (e.g. degree) and ego's network-level characteristics (e.g. ego's betweenness).
+
+To our knowledge, thresholds have not been treated as an outcome variable, and have traditionally been used as an explanatory variable. In addition to the theoretical usefulness of explaining thresholds, we we need to develop a model with thresholds as the outcome in order to predict thresholds for the incorrectly measured nodes. Recasting thresholds in a regression framework makes Granovetter's model a special case of ours, where we suppress the importance of actor-level covariates in favor of studying other theoretical questions.
+
+For our simulations, we generate thresholds from a simple parametric model. $h_i$ is node $i$'s threshold. Define $x_i \sim \mathcal{N}(0, 1)$ as an explanatory variable. Let $\epsilon_i \sim \mathcal{N}(0, \sigma)$ be the unmeasured idiosyncratic error of $i$. We treat $\sigma$ as a parameter to explore and vary it from ${0.5, 0.8, 1.0, 1.5, 2.0}$. Then we have the \emph{threshold equation}
+
+\begin{equation} \label{eq:thresh}
+h_i = \beta_0 + \beta_1 x_i + \epsilon_i
+\end{equation}
+
+\noindent
+For simulation purposes, assume the parameters of this model to be
+
+\begin{equation} \label{eq:sim_thresh}
+h_i = 5 + 3 x_i + \epsilon_i
+\end{equation}
+
+\noindent
+Treating the error standard deviation $\sigma$ as a parameter allows varying the maximum explained variance in the model. A high value of $\sigma$ means that even a perfect model will have modest explanatory power, represented by a low $R^2$.
+
+\subsection{Which Thresholds Are Correctly Measured?}
+
+We choose one run of the simulation with a power law with clustering graph with mean degree 20 for exposition. We see in Figure \ref{fig:obs_vs_not} that measured thresholds tend to be lower-valued thresholds. As shown in Figure \ref{fig:obs_rate}, the correct measurement rate for the simulations we study ranges between 6\% and 19\%.
+
+\begin{figure}[h]
+\label{fig:obs_vs_not}
+\includegraphics[width=\textwidth]{obs_vs_not.png}
+\caption{Correctly measured thresholds for one run of the power law with clustering graph with mean degree 20. Correctly measured thresholds are in purple, while all measured thresholds are in red. For instance, if at a given threshold value, the purple bar reaches 40\% of the height of the red bar, it means that we measure 40\% of the thresholds at that value correctly.}
+\end{figure}
+
+\begin{figure}[h]
+\label{fig:obs_rate}
+\includegraphics[width=\textwidth]{observations.png}
+\caption{Number of correctly measured thresholds by graph type and mean degree. Graphs have 1000 nodes. Each bar is averaged over the 5 different $\sigma$ values employed for the error term, comprising 5 different simulations with 100 replications each.}
+\end{figure}
+
+\subsection{Measurement Bias}
+
+Only a small fraction of thresholds are correctly measured. Threshold intervals with size greater than 1 prevent us from being certain where an individual's threshold lies. The exposure-at-activation-time rule uses the maximum of the threshold interval as an individual's threshold, which always produces upward bias in measuring thresholds.
+
+The amount of upward bias is a relevant question, however. In Figures \ref{fig:measured1} and \ref{fig:measured2} we plot the exposure-at-activation-time measurement against the true threshold. At all true threshold levels, upward measurement bias is substantial. In two particularly extreme cases, this simulation run results in a node of threshold 6 being measured with threshold 43, and a node with threshold 13 being measured with threshold 46. These represent high degree nodes that go long periods of time between updates.
+
+This example is not anomolous: such outliers occur in every simulation we have examined visually. Without incorporating information on node update behavior and applying our measurement condition, any node observed with a high exposure at activation can be rationalized as a low-threshold node with a long update interval. In Figure \ref{fig:measured2} we replot Figure \ref{fig:measured1} with axes to scale, in order to give a clear visual indication of the level of mis-measurement induced by employing the exposure-at-activation-time rule.
+
+\begin{figure}[h]
+\label{fig:measured1}
+\includegraphics[width=\textwidth]{measured1.png}
+\caption{Plot of the thresholds versus measured thresholds. As we go across the $x$-axis, we see that at each true threshold value, measured thresholds are above the $x = y$ line, except for cases identified by our correct measurement condition. Note the different scales in the axes.}
+\end{figure}
+
+\subsection{Selection Into Correct Measurement}
+
+We use the correctly measured subset of nodes to estimate the relationship between $Y$ and $X$. In graphs with 1000 nodes, this means using between 50-200 observations to estimate the model. If selection into correct measurement were random, then we would expect $\hat{\beta}$ to be unbiased, but with more variance due the reduction in sample size.
+
+Figure \ref{fig:model_comparison} demonstrates the result of using OLS on a representative simulation run. The slope of the line generated from the correctly measured subset slightly understates the relationship between $X$ and $Y$. Using replications across our parameter space, we find that using the correctly measured subset to estimate $\beta$ does not recover the true relationship $\beta_1$ between $X$ and $Y$\footnote{This is not due to left-censoring. Tobit models are also biased.}.
+
+\begin{figure}[h]
+\label{fig:model_comparison}
+\includegraphics[width=\textwidth]{model_comparison.png}
+\caption{A comparison of OLS estimates for the relationship between $x$ and $y$ using the correctly measured subset and the true relationship in the data.}
+\end{figure}
+
+Biased parameters imply selection on the error term. Figure \ref{fig:error_bias} presents the error term in the correctly measured subset as a function of model parameters. Note that, on average, the error term is negative for all parameter values, while the true error is mean 0 by construction. This demonstrates the presence of selection bias. Returning to Figure \ref{fig:obs_vs_not}, we are more likely to correctly measure lower thresholds, meaning that having a negative error term makes it more likely that we correctly measure a node's threshold.
+
+\begin{figure}[h]
+\label{fig:selection_bias}
+\includegraphics[width=\textwidth]{selection_bias.png}
+\caption{The true values from Equation \ref{eq:sim_thresh} are a constant of 5 and a beta coefficient of 3. We see here that, as we increase the unexplained variance in the model in the form of error standard deviation, we create more variance in our predictions and, in most cases, introduce more bias as well. Colors correspond to graph type, with shades of blue representing power law graphs with clustering, and shades of orange representing Watts-Strogatz graphs.}
+\end{figure}
+
+The standard response to selection bias is to model it as a function of observables using a Heckman procedure \cite{}. Since we know the true model (Equation \ref{eq:sim_thresh}), the only other variables that we can include are network measures. We hypothesized that nodes in certain network positions would be more likely to be selected into correct measurement. For instance, perhaps lower degree nodes would be more likely to be correctly measured. In our simulations, using ego's degree, closeness, betweenness, and eigenvector centrality in the first stage of a Heckit procedure did not reduce selection bias. We leave further investigation of network-level factors leading to selection into correct measurement for future research.
+
+Since we are unable to model the selection bias, we have \emph{selection on the error}, which results in the correctly measured subset having a \emph{systematically different} relationship between $X$ and $Y$ in the correctly measured subset than the population. In other words, $\hat{\beta} \neq \beta$.
+
+\subsection{The Effects of Selection Bias}
+
+There are two reasons to estimate Equation \ref{eq:sim_thresh}: to recover an unbiased $\hat{\beta}$ to explain causes of individual thresholds; or to use the estimated model to predict thresholds for the incorrectly measured nodes in order to recover the threshold distribution. This is an \emph{explanation} versus \emph{prediction} problem, as discussed in \cite{Kleinberg2015}.
+
+\begin{figure}[h]
+\label{fig:epsilon}
+\includegraphics[width=\textwidth]{epsilon.png}
+\caption{The value of epsilon in the correctly measured subset for values of the error standard deviation.}
+\end{figure}
+
+Figure \ref{fig:epislon} displays the average value of the error term in the correctly measured subset. As we increase the unexplained variance in the true model, selection on the error becomes worse. We see in Figure \ref{fig:selection_bias} the level of bias in $\hat{\beta}$ for increasing $\sigma$. When $X$ explains much of the variance in $Y$, $\hat{\beta}$ is close to $\beta$, although still biased. When $\sigma$ is larger, nodes with larger negative error terms are selected into correct measurement, which increases the bias on $\hat{\beta}$. This indicates that using our methodology to explain factors that contribute to thresholds must be done carefully, and researchers must have strong theoretical reasons to believe that the correct variables are included in the model. We note that the $R^2$ of the regression on the correctly measured subset is \emph{not} the same as the $R^2$ on the true model in the population, and an argument that good predictors are included in the model is primarily theoretical.
+
+The increasing level of bias on $\hat{\beta}$ as $\sigma$ increases creates specific conditions for which $\hat{\beta}$ may be interpreted for \emph{explanation}. However, we find that at any level of $\sigma$, our method performs well when using $X$ for \emph{prediction} in order to recover the threshold distribution $Y$ for all nodes. In this context, bias in $\hat{\beta}$ is far less problematic. Figures \ref{fig:rmse_at_k_sd} and \ref{fig:rmse_at_k_graph} demonstrates the RMSE for predicting $Y$ for all nodes in the graph, using only the correctly measured subset. We use the RMSE of the exposure-at-activation-time rule as a baseline\footnote{This compares $e_{i,t}$ for the first $t$ at which $i$ is active to $h_i$, the true threshold of $i$.}.
+
+We see that, even as we increase $\sigma$, we do not substantially increase the prediction error. If we treat the total RMSE as composed of \emph{bias} and \emph{variance}, we see that the vast majority of RMSE at high levels of $\sigma$ is due to variance. This implies that, even if coefficients are biased, simple regression methods provide good predictions of $Y$, and allow recovering the true threshold distribution with high accuracy.
+
+\subsection{Prediction Error Using $k$ Correct Measurements}
+
+Prediction performance is good when using the entire correctly measured subset, but in many empirical applications we wish to predict future diffusion performance from its initial behavior \parencite{Cheng2014a}. We address the ability to predict node thresholds using only the first $k$ correctly measured nodes.
+
+\begin{figure}[h]
+\label{fig:rmse_at_k_sd}
+\includegraphics[width=\textwidth]{rmse_at_k.png}
+\caption{We see the RMSE using the first $k$ correctly measured nodes to predict thresholds for the whole graph. Here we break down RMSE by error SD, and see that higher error SD corresponds to higher RMSE. This does not disentangle bias and variance.}
+\end{figure}
+
+\begin{figure}[h]
+\label{fig:rmse_at_k_graph}
+\includegraphics[width=\textwidth]{rmse_at_k_graph.png}
+\caption{We see the RMSE using the first $k$ correctly measured nodes to predict thresholds for the whole graph. Here we break down RMSE by graph type, and see that both graphs have about the same prediction error when $k > 100$ (or 10\%). This does not disentangle bias and variance.}
+\end{figure}
+
+\begin{figure}[h]
+\label{fig:bias_vs_variance}
+\includegraphics[width=\textwidth]{bias_vs_variance.png}
+\caption{This figure plots the ideal RMSE at a given error standard deviation versus the RMSE from the model estimated with the correctly measured subset. The gap between the baseline (dark blue line) the cyan and red lines represents the RMSE due to bias. We see that RMSE due to bias does not increase dramatically as the unexplained variance increases.}
+\end{figure}
+
+\begin{comment}
+\subsection{Incorporating Homophily}
+
+Our simulated graphs do not feature covariate or threshold homophily. If thresholds are functions of covariates, and covariates exhibit network autocorrelation, then neighbors in the network will be more likely to have similar thresholds. In order to incorporate threshold homophily, we use two empirical social networks with actor-level characteristics. These networks are drawn from the collection of college Facebook graphs collected by \parencite{Traud2012a}. The first network, from American University, has 6370 nodes and 217654 edges, while the second from Reed College has 962 nodes and 18812 edges. Since these are empirical social networks, these exhibit both realistic topologies as well as network autocorrelation. We use the gender and restrict ourselves to those nodes for which we observe gender in the giant component of the graph.
+
+As we see from
+
+\end{comment}
+
+\begin{comment}
+Use empirical graphs with made up threshold distributions
+\end{comment}
+
+\begin{comment}
+\subsection{Other Network Concerns}
+
+Network autocorrelation (error correlation)
+
+Non-indepdence
+\end{comment}
+
+\begin{comment}
+
+\subsection{Network Autocorrelation}
+
+For simulation purposes, we draw each node's threshold at random. In empirical data, it is possible that network neighbors have similar thresholds, and in particular have similar error terms since there are likely to be common unmeasured factors between network neighbors.
+
+We note that correlated error terms reduce efficency, but do not change the unbiasedness or consistency of OLS-type models. For this reason, we employ OLS for explanatory purposes, and leave more nuanced statistical modeling procedures for future research. From our point of view, assessing the \emph{biasedness} of our approach is the correct first step.
+
+Since there is potential selection bias into the sample, however, we note that threshold correlation among network neighbors can affect the rate of correct measurement. To account for this possibility, we conduct additional simulations using empirical network topologies with actor-level covariates.
+
+
+
+\subsection{Coefficient Bias}
+
+The statistical modeling procedure we adopt is the following:
+
+\begin{enumerate}
+\item Identify correctly measured thresholds using the correct measurement condition
+\item Estimate the model $y = \beta x$ based on the correctly measured subset
+\item Impute thresholds for the unmeasured nodes in the graph by using their $x$ variables and $\beta$
+\end{enumerate}
+
+This procedure is straightforward, but relies on correctly estimating $\beta$ coefficients. We have a unique type of selection problem, where the networked process---a combination of network topology, thresholds, and node update behavior---selects some nodes into correct measurement. When this selection is not at-random with respect to $\epsilon$, then $\hat{\beta} \neq \beta$.
+
+In this section we assess the level of bias in $\hat{\beta}$ using simulated data. The simplest demonstration that $\hat{\beta}$ often is biased is the presentation of a typical simulation run in Figure \ref{fig:model_comparison}. We see here that the slope from the correctly measured subset is less than the true relationship in the data. In this case, $\hat{\beta} < \beta$. In all simulations we have examined visually, the slope is under-estimated. The lines in \ref{fig:model_comparison} are done with OLS. Note that since there is left-censoring at zero, we could conjecture that the difference in slopes would be eliminated if a Tobit procedure were employed. As we present in Table \ref{table:mod_comparisons}, this is not the case.
+
+\begin{figure}[h]
+\label{fig:model_comparison}
+\includegraphics[width=\textwidth]{model_comparison.png}
+\caption{Example of the slope bias. The red line is the relationship between $x$ and $y$ in the population, and the blue line is the relationship in the correctly measured subset. The slope of the line in the correctly measured subset is less than the true slope.}
+\end{figure}
+
+If the slope of a subsample is different from the population slope, we can infer that selection into the subsample was on the error term. As shown in \ref{fig:error_selection}, this is the case. Across all graph parameterizations and all error standard deviations, the error term is on average negative for the correctly measured subset. Returning to Figure \ref{fig:obs_vs_not}, where we observed lower-valued thresholds being correctly measured at higher rates, we can infer that since lower valued thresholds are more likely to be correctly measured, nodes with more negative error terms are more likely to be selected into the correctly measured set. Figure \ref{fig:error_selection} also demonstrates that as we increase the error standard deviation---and therefore decrease the variance explained by $X$---the selection-on-error issue becomes worse.
+
+
+
+\subsection{Bias and Variance}
+
+In addition to assessing the level of bias from selection into correct measurement, we also wish to assess our ability to correctly impute thresholds to nodes in the graph for which we do not have correct thresholds. In contrast to the previous section, where we saw that as explained variance decreases coefficient estimates become poorer, we find that our ability to impute thresholds does not decline in a similar fashion. This counterintuitive result follows from the fact that increasing error standard deviation increases coefficient bias but also \emph{increases the baseline prediction error}. We find that the rate of adding bias to the coefficients as a function of error standard deviation is much lower than the rate of increasing baseline prediction error.
+
+To assess our predictive capability, we use the root mean squared error. This method is appropriate becuase we're predicting for only one variable (thresholds), which always has the same scale as itself. We wish to disentangle prediction error that results from coefficient bias from the prediction error that results from error standard deviation. In order to do this, we plot the ideal MRSE using the true model versus the RMSE from using only the correctly measured subset. This results are presented in Figure \ref{fig:bias_variance_plot}. The prediction error induced by coefficient bias actually declines as a fraction of overall prediction error as we increase the error standard deviation. At $\sigma = 2$, When only a small amount of variance is explained by $X$, the true model has a RMSE of 2, and simulation models have an average RMSE of 2.25.
+
+The results in this section and the previous section, when taken together, indicate that two different criteria should be applied when assessing an imputation of thresholds.
+
+Firstly, if the goal is to correctly recover the threshold function, then a high level of explained variance is necessary in order to have confidence that the impact of selection bias is small. Conversely, if the goal is to correctly impute the distribution of thresholds for the entire graph, but the estimation of the threshold function itself is not important, then even at low levels of explained variance, imputation does not perform markely worse than the ideal model.
+
+This result is important, because it opens up a new avenue for the analysis of social contagion: comparison of threshold distributions between different contagions. This is a new way to characaterize empirical social contagion, which brings empirical analysis into line with a wide body of theoretical literature.
+
+\subsection{Prediction Error at $k$}
+
+Finally, we wish to determine the point at which a researcher is better off using the first $k$ correct measurements to predict thresholds for \emph{all nodes} in a graph rather than relying on the exposure-at-activation-time method. To address this question, we compute the RMSE of the exposure-at-activation-time method by comparing all measurements, correct and incorrect, with true threshold values. We see in Figures \ref{fig:rmse_at_k} and \ref{fig:graph_rmse_at_k} that researchers are better off using our methodology when about 5\% of the graph has been correctly measured. When around 10\% of the graph has been correctly measured, the prediction error is around one-third of the exposure-at-activation method.
+
+We view this result as an encouraging result for the influencer maximization problem, for public health researchers interested in effective targeting, and for online platforms that wish to spend advertizing resources wisely \cite{}.
+
+\begin{figure}[h]
+\label{fig:rmse_at_k}
+\includegraphics[width=\textwidth]{RMSE_at_k.png}
+\caption{Example of the slope bias. The red line is the relationship between $x$ and $y$ in the population, and the blue line is the relationship in the correctly measured subset.}
+\end{figure}
+
+\begin{figure}[h]
+\label{fig:graph_rmse_at_k}
+\includegraphics[width=\textwidth]{graph_rmse_at_k.png}
+\caption{Example of the slope bias. The red line is the relationship between $x$ and $y$ in the population, and the blue line is the relationship in the correctly measured subset.}
+\end{figure}
+
+\begin{enumerate}
+\item The rate of correct measurement
+\item Our ability to explain the measured cases with regression based on obsevables
+\item How imputed thresholds differ from the exposure-at-activation time method
+\end{enumerate}
+
+This dataset comes with three types of social relations, along with adoption dates and actor-level variables. We follow \cite{Valente1996} <<METHODS>>
+
+\end{comment}
+
+\section{Conclusion}
+
+In this paper, we have identified the conditions under which node thresholds are correctly measured. By analogy with a laboratory experiment, we have shown that the private threshold satisfaction state of nodes must be measured after each alter adoption for contagion processes to be threshold measurable in the social world. Since this condition is strict, in virtually all empirical and simulation cases, some thresholds will be incorrectly measured.
+
+Despite this incorrect measurement, we show that employing a simple regression technique provides low-bias parameter estimates when observables explain a large fraction of the variance in thresholds. Even when explained variance is low, parameter bias adds relatively little prediction error beyond the prediction error from variance. We view this result as encouraging for work that wishes to recover threshold distributions in empirical settings. However, when a model of thresholds is interpreted as explanatory, researchers must carefully craft theoretical arguments that the incorporated variables have both explanatory power and causal relevance.
+
+Importantly, our results draw attention to the perils of statistical modeling in networked contagion processes. Models of contagion that do not explicitly employ the concept of a threshold are susceptible to bias from the results we present here, and only full control over ego perceptions avoids this bias. In studies that model the utility of adoption decision based on observational peer behavior \parencite{econ stuff, christakis}, we should expect estimates to be biased due to Theorem \ref{theorem:public}. This is a general result that the modeling literature has to address. 
+
+Our positive reuslt about the usefulness of regression for modeling threshold distributions suggest that we may categorize a contagion processes by its \emph{threshold distribution}. This has been theoretically relevant since \cite{Granovetter1978}, but has not been operationalized empirically to our knowledge. In contrast to structural categorizations of diffusion \parencite{Goel2012}, a threshold distribution categorization of diffusion facilitates new explanations for the success or failures of diffusion. We look forward to future work contrasting contagion processes on the basis of their threshold distributions.
+
+\blankpage
+\blankpage
+\blankpage
+\blankpage
+
+\section{Appendix}
+
+<<MOVE TO APPENDIX>>
+For each simulation trial, we use the following simulation algorithm:
+\begin{enumerate}
+\item Generate a random asynchronous update order for all nodes $C$, which has one node per interval.
+\item For each node in $C$:
+	\begin{enumerate}
+	\item If the node is active, do nothing
+    \item If the node is inactive:
+    	\begin{enumerate}
+        \item If the node's threshold is satisfied: activate it
+        \item If the node's threshold is not satisfied: do not activate, and record the number of active neighbors
+        \end{enumerate}
+	\end{enumerate}
+\item If not all nodes in the graph are active and at least one node was activated in the last pass through $C$, generate a new $C$ and repeat the process
+\item Stop if all nodes have been iterated through without any activations
+\end{enumerate}
+
+\noindent
+This algorithm allows the social contagion to diffuse maximally, since if all nodes are checked at random and none update, no alternate update ordering will change the outcome. We record the number of active neighbors at each node update time, even if the node does not activate. This allows us to construct a threshold interval from the data as found in Definition \ref{def:measured}. If a node has a threshold interval of size 1 or had 0 neighbors active at activation time, it is correctly measured. Otherwise, it is incorrectly measured.
+
+
+\printbibliography
+\end{document}
