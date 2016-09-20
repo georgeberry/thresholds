@@ -33,6 +33,11 @@ ONE_OFF_EMPR_PATH = paste(EMPR_REP_PATH, "e_N_0_12.0__c_10.0_N_N__empirical_5.0_
 EMPR_RMSE_DF_PATH = paste(BASE_PATH, "empirical_rmse_df.csv", sep="")
 EMPR_K_DF_PATH = paste(BASE_PATH, "empirical_k_df.csv", sep="")
 
+#### Read data  ##############################################################
+
+one_off_df = read.csv(ONE_OFF_SIM_PATH)
+
+
 #### One-off analysis ########################################################
 
 # comparison_df stacks all data (sample=0) with cm subset (sample=1)
@@ -41,7 +46,7 @@ cm_df = one_off_df[one_off_df$observed==1,]
 sample_df = one_off_df
 sample_df$sample = 0
 cm_df$sample = 1
-sample_df = rbind(sample_df, observed_df)
+sample_df = rbind(sample_df, cm_df)
 
 ######## stacked distributions ###############################################
 ggplot(sample_df, aes(x=threshold)) +
@@ -58,7 +63,7 @@ ggplot(sample_df, aes(x=threshold)) +
 ######## all activated vs measured thresholds ################################
 # should we also do this vs all?
 ggplot(sample_df[sample_df$activated==1,]) +
-    aes(y=after_activation_alters, x=threshold, color=factor(sample))) +
+    aes(y=after_activation_alters, x=threshold, color=factor(sample)) +
     geom_point(alpha=.7) +
     scale_colour_discrete(name="", breaks=c(0, 1), labels=c("All Data", "Correct")) +
     ylab("Measured Threshold") +
@@ -69,7 +74,7 @@ ggplot(sample_df[sample_df$activated==1,]) +
 
 ######## true vs observed, regression ########################################
 ggplot(sample_df) +
-    aes(y=threshold_ceil, x=var1, color=factor(sample))) +
+    aes(y=ceiling(threshold), x=var1, color=factor(sample)) +
     geom_point() +
     geom_smooth(method=lm) +
     theme(text=element_text(size=20)) +
@@ -298,6 +303,11 @@ sim_k_df = read.csv(SIM_K_DF_PATH)
 sim_k_df = sim_k_df %>%
     group_by(sim_network, constant, var1_coef, var1_sd, error_sd, k) %>%
     summarize(
+        id = paste(
+          as.character(constant[1]),
+          as.character(var1_coef[1]),
+          as.character(var1_sd[1]),
+          as.character(error_sd[1])),
         count = n(),
         rmse_at_k = mean(rmse_at_k),
         naive_rmse = mean(naive_rmse),
@@ -308,7 +318,7 @@ sim_k_df = sim_k_df %>%
 #### sim k analysis here #####################################################
 
 ggplot(sim_k_df) +
-    aes(x=k, y=rmse_obs_mean, color=factor(error_sd))) +
+    aes(x=k, y=naive_rmse, color=factor(error_sd)) +
     geom_smooth() +
     xlab("k") +
     ylab("RMSE") +
@@ -316,11 +326,37 @@ ggplot(sim_k_df) +
     scale_colour_discrete(name = "Error Std Dev")
 
 ggplot(sim_k_df) +
-    aes(x=k, y=rmse_obs_mean, color=factor(graph_type))) +
+    aes(x=k, y=naive_rmse, color=factor(graph_type)) +
     geom_smooth() +
     xlab("k") + ylab("RMSE") +
     theme(text=element_text(size=20)) +
     scale_colour_discrete(name = "Graph Type")
+
+ggplot(sim_k_df, aes(color=sim_network)) +
+  geom_point(aes(x=k, y=rmse_at_k)) +
+  geom_point(aes(x=k, y=naive_rmse)) +
+  geom_point(aes(x=k, y=true_rmse))
+
+summary(lm(naive_rmse ~ constant + var1_coef + var1_sd + error_sd, data=sim_k_df))
+
+#### agg k df  ##############################################################
+
+# another test that could be done: just take first k activations
+
+summary_sim_k_df = sim_k_df %>%
+  group_by(k) %>%
+  summarize(
+    count = sum(count),
+    rmse_at_k = mean(rmse_at_k),
+    naive_rmse = mean(naive_rmse),
+    true_rmse = mean(true_rmse)
+  ) %>%
+  filter(k < 201)
+
+ggplot(summary_sim_k_df) +
+  geom_point(aes(x=k, y=rmse_at_k, color="Correctly Measured Rmse")) +
+  geom_point(aes(x=k, y=naive_rmse, color="Naive Rmse")) +
+  geom_point(aes(x=k, y=true_rmse, color="True Rmse"))
 
 #### for empirical data ######################################################
 

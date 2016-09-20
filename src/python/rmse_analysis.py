@@ -202,6 +202,12 @@ def process_rmse(sim_df):
             a_df['after_activation_alters'],
         )
     )
+    s_naive_rmse = sqrt(
+        mean_squared_error(
+            s_df['threshold'],
+            s_df['after_activation_alters'],
+        )
+    )
     #### make rmse_dict ######################################################
     rmse_dict['cm_num'] = cm_df.shape[0]
     rmse_dict['cm_epsilon_mean'] = cm_df['epsilon'].mean()
@@ -223,6 +229,7 @@ def process_rmse(sim_df):
     rmse_dict['true_beta'] = s_reg.coef_[1]
     rmse_dict['true_r2'] = s_r2
     rmse_dict['true_rmse'] = s_rmse
+    rmse_dict['naive_rmse'] = s_naive_rmse
     return rmse_dict
 
 def process_k(sim_df):
@@ -230,8 +237,7 @@ def process_k(sim_df):
     This function does the at-k obs stuff
     The goal here is simple:
         Take first 20, 30, 40, etc obs
-        Predict for everyone
-        Calc RMSE
+        Predict for everyone, calc RMSE
     Record a couple of extra things:
         Naive RMSE (threshold - after_activation_alters)
         Correct RMSE (threshold ~ var1)
@@ -266,7 +272,7 @@ def process_k(sim_df):
     cm_df.sort_values(
         by='activation_order',
         ascending=True,
-        inplace=True
+        inplace=True,
     )
     num_cm = cm_df.shape[0]
     k_iter = range(20, num_cm + 1, 10) # make iterator
@@ -329,10 +335,10 @@ if __name__ == '__main__':
         test_k_df.to_csv(TEST_K_DF_PATH)
     else:
         EMPIRICAL = False
-        #sim_rmse_df, sim_k_df = process_runs(SIM_PATH)
-        #sim_rmse_df.to_csv(SIM_RMSE_DF_PATH)
-        #sim_k_df.to_csv(SIM_K_DF_PATH)
-        EMPIRICAL = True
-        empirical_rmse_df, empirical_k_df = process_runs(EMPIRICAL_PATH)
-        empirical_rmse_df.to_csv(EMPIRICAL_RMSE_DF_PATH)
-        empirical_k_df.to_csv(EMPIRICAL_K_DF_PATH)
+        sim_rmse_df, sim_k_df = process_runs(SIM_PATH)
+        sim_rmse_df.to_csv(SIM_RMSE_DF_PATH)
+        sim_k_df.to_csv(SIM_K_DF_PATH)
+        #EMPIRICAL = True
+        #empirical_rmse_df, empirical_k_df = process_runs(EMPIRICAL_PATH)
+        #empirical_rmse_df.to_csv(EMPIRICAL_RMSE_DF_PATH)
+        #empirical_k_df.to_csv(EMPIRICAL_K_DF_PATH)

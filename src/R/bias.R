@@ -12,15 +12,15 @@ df = data.frame(y = y, x = x)
 p = df %>%
   group_by(x) %>%
   summarize(prob = mean(y)) %>%
-  ggplot(aes(y=prob, x=x)) + geom_line()
+  ggplot(aes(y=prob, x=x)) + geom_line() + geom_smooth(method="lm")
 plot(p)
 
-x.prime = x + ifelse(y == 1, sample(3, 1000, replace=T), 0)
+x.prime = x + ifelse(y == 1, sample(10, 1000, replace=T), 0)
 df$x.prime = x.prime
 p2 = df %>%
   group_by(x.prime) %>%
   summarize(prob = mean(y)) %>%
-  ggplot(aes(y=prob, x=x.prime)) + geom_line()
+  ggplot(aes(y=prob, x=x.prime)) + geom_line() + geom_smooth(method="lm")
 plot(p2)
 
 summary(lm(y ~ x, data=df))
