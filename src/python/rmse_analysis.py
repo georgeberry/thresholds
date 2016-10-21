@@ -1,96 +1,70 @@
 """
-This is a rewrite of rmse_analysis.R and empirical_rmse_analysis.R
+This takes simulation runs and makes two output files
 
-Why? It's difficult to assess the correctness of R code (for me)
-It's also very slow
+rmse_df:
+k_df
 
-We do not do plotting here, leaving that for make_plots.R and empirical_make_plots.R
 
-We output k_df and rmse_df, however.
+activated,activation_order,after_activation_alters,before_activation_alters,constant,constant_dist_coef,constant_dist_mean,constant_dist_sd,degree,epsilon,epsilon_dist_coef,epsilon_dist_mean,epsilon_dist_sd,name,observed,rand_string,threshold,var1,var1_dist_coef,var1_dist_mean,var1_dist_sd
 
-For the data frame creation process, we want to store in the following format:
-    (this is called a 'record' in pandas)
-    [{'col1': val, 'col2': val}, {'col1': val, 'col2': val}]
-    In other words, we suppress the index and store each row as a dict
-
-    If we have a df, we do:
-    r = df.to_dict('records')
-
-    To recover the df (minus the index), we do:
-    pd.DataFrame.from_dict(r)
-
-We get rid of the 'observed' lingo, instead using 'cm' for correctly measured
 """
 import os
+import csv
 import sys
-import glob
+import itertools
 import pandas as pd
 from math import sqrt
 from sklearn import linear_model
 from sklearn.metrics import mean_squared_error
 from constants import *
 
-def sim_run_fnames_iter(sim_run_path):
+def yield_sim_records(path):
     """
-    Give this the folder where sim runs are stored
-    It yeilds sim run filenames one by one
+    Yields elements grouped by rand_string
     """
-    file_set = set(os.listdir(sim_run_path))
-    if '.DS_Store' in file_set:
-        file_set.remove('.DS_Store')
-    for sim_run_fname in file_set:
-        yield sim_run_fname
+    with open(SIM_PATH, 'r') as f:
+        dict_reader = csv.DictReader(f)
+        for k, v in itertools.groupby(dict_reader, lambda x: x['rand_string']):
+            yield list(v)
 
-def params_from_fname(sim_run_fname):
+def process_rmse(sim_records):
     """
-    Takes sim run file (with the run number)
-        e.g.: e_N_0_15.0__c_10.0_N_N__empirical_5.0_N_N___American75_gc~7
-    Returns a dict of params: {'this': 'that'}
-    """
-    params = {}
-    if sim_run_fname.endswith('.csv'):
-        s = sim_run_fname[:-4]
-    else:
-        s = sim_run_fname
-    s, run_num = s.split('~') # get run num
-    params['run_num'] = run_num
-    eq, g = s.split('___') # split into threshold eq and graph param parts
-    eq_list = eq.split('__')
+    Performs RMSE analysis for one simulation run
 
-    # parse threshold equation here
-    vcount = 1 #increment non-constant and non-epsilon vars
-    for var in eq_list:
-        var_list = var.split('_')
-        # order ['distribution', 'coefficient', 'mean', 'sd']
-        distribution = var_list[0].replace('-', '.')
-        coefficient = var_list[1].replace('-', '.')
-        mean = var_list[2].replace('-', '.')
-        sd = var_list[3].replace('-', '.')
-        if distribution == 'c':
-            params['constant'] = float(coefficient)
-        elif distribution == 'e':
-            params['error_sd'] = float(sd)
-        else:
-            vname = 'var{}'.format(vcount)
-            params[vname + '_' + 'coef'] = float(coefficient)
-            if not EMPIRICAL:
-                params[vname + '_' + 'sd'] = float(sd)
-            vcount += 1
-    # parse graph params here
-    g_list = g.split('__')
-    if len(g_list) == 4:
-        # for sim
-        params['mean_deg'] = float(g_list[0])
-        params['graph_size'] = float(g_list[1])
-        params['graph_type'] = g_list[2]
-        params['graph_param'] = float(g_list[3])
-    else:
-        # for empirical
-        params['sim_network'] = g
-    return params
+    The records passed have something like these columns
+        activated
+        activation_order
+        after_activation_alters
+        before_activation_alters
+        constant
+        constant_dist_coef
+        constant_dist_mean
+        constant_dist_sd
+        degree
+        epsilon
+        epsilon_dist_coef
+        epsilon_dist_mean
+        epsilon_dist_sd
+        name
+        observed
+        rand_string
+        threshold
+        var1
+        var1_dist_coef
+        var1_dist_mean
+        var1_dist_sd
+        ...
+        varN
+        varN_dist_coef
+        varN_dist_mean
+        varN_dist_sd
 
-def process_rmse(sim_df):
-    """
+    Note: there may be multiple variables at the end
+    The rest of the columns are fixed
+
+
+
+
     This function does the RMSE analysis for one sim run
     The sim_df has the following columns
         name,
@@ -136,6 +110,10 @@ def process_rmse(sim_df):
     The activated set is the basis for comparison (cm > activated)
     We have the true relationship in the data for comparison
     """
+    all_df
+    measured_df
+    activated_df
+
     sim_df['constant'] = 1
     all_X = sim_df[['constant', 'var1']]
     true_y = sim_df['threshold']
@@ -293,39 +271,6 @@ def process_k(sim_df):
         k_dict['true_rmse'] = true_rmse
         run_k_list.append(k_dict)
     return run_k_list
-
-def process_run(sim_run_path, sim_run_fname):
-    """
-    processes one run of sim, just saves us from opening the file twice
-    """
-    sim_param_dict = params_from_fname(sim_run_fname) # parse params
-    sim_df = pd.read_csv(sim_run_path + sim_run_fname) # read file
-    rmse_dict = process_rmse(sim_df)
-    run_k_list = process_k(sim_df)
-    # add params, gives an identifier
-    rmse_dict.update(sim_param_dict)
-    # dict.update is in-place
-    for k_dict in run_k_list:
-        k_dict.update(sim_param_dict)
-    return rmse_dict, run_k_list
-
-def process_runs(sim_run_path):
-    """
-    Goes through batches in an organized way
-    Returns two dfs with the data we need
-    This is a little different from the original R file:
-        We don't do the aggregation within runs here
-        We have one line per sim run, not one line per batch
-    """
-    rmse_list = []
-    k_list = []
-    for sim_run_fname in sim_run_fnames_iter(sim_run_path):
-        rmse_dict, run_k_list = process_run(sim_run_path, sim_run_fname)
-        rmse_list.append(rmse_dict)
-        k_list.extend(run_k_list)
-    rmse_df = pd.DataFrame.from_dict(rmse_list)
-    k_df = pd.DataFrame.from_dict(k_list)
-    return rmse_df, k_df
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1].lower() == 'test':

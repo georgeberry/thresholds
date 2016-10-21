@@ -86,7 +86,7 @@ def create_eq(var, cons, coef, sd):
 
 
 if __name__ == '__main__':
-    with open(EMPIRICAL_PARAM_FILE, 'wb') as f:
+    with open(EMPIRICAL_PARAM_FILE, 'w') as f:
         for var in EMPIRICAL_VARS_TO_USE:
             for cons in CONSTANT:
                 for coef in COEFFICIENTS:

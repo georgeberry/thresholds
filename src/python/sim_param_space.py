@@ -170,7 +170,7 @@ def merge(dists, coefs, means, sds):
 ## run program ##
 
 if __name__ == '__main__':
-    with open(SIM_PARAM_FILE, 'wb') as f:
+    with open(SIM_PARAM_FILE, 'w') as f:
         for dist_dict in create_sim_dist_dicts(MAX_VARS):
             j = json.dumps(dist_dict) + '\n'
             f.write(j)
