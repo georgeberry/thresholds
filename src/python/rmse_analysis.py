@@ -2,7 +2,7 @@
 This takes simulation runs and makes two output files
 
 rmse_df:
-k_df
+df_k
 
 
 activated,activation_order,after_activation_alters,before_activation_alters,constant,constant_dist_coef,constant_dist_mean,constant_dist_sd,degree,epsilon,epsilon_dist_coef,epsilon_dist_mean,epsilon_dist_sd,name,observed,rand_string,threshold,var1,var1_dist_coef,var1_dist_mean,var1_dist_sd
@@ -20,14 +20,31 @@ from constants import *
 
 def yield_sim_records(path):
     """
-    Yields elements grouped by rand_string
+    Yields one run of the simulation
     """
     with open(SIM_PATH, 'r') as f:
         dict_reader = csv.DictReader(f)
         for k, v in itertools.groupby(dict_reader, lambda x: x['rand_string']):
-            yield list(v)
+            df_sim = pd.DataFrame(list(v), dtype=float)
+            params = get_sim_params(df_sim)
+            yield df_sim, params
 
-def process_rmse(sim_records):
+def get_sim_params(df_sim):
+    sim_param_cols = [
+        'cluster_prob',
+        'constant',
+        'epsilon_dist_mean',
+        'epsilon_dist_sd',
+        'graph_size',
+        'graph_type',
+        'mean_deg',
+        'rewire_prob',
+        'var1_dist_mean',
+        'var1_dist_sd',
+    ]
+    return df_sim.loc[1, sim_param_cols].to_dict()
+
+def process_rmse(df_sim, var_list=['var1'], sim_params=None):
     """
     Performs RMSE analysis for one simulation run
 
@@ -61,156 +78,104 @@ def process_rmse(sim_records):
 
     Note: there may be multiple variables at the end
     The rest of the columns are fixed
-
-
-
-
-    This function does the RMSE analysis for one sim run
-    The sim_df has the following columns
-        name,
-        activated,
-        threshold,
-        before_activation_alters,
-        after_activation_alters,
-        degree,
-        observed,
-        var1,
-        activation_order,
-        epsilon
-        ...
-
-    One subtlety:
-        We get r^2 for the in-sample model
-        But we do RMSE for using the model to predict for everyone
-        RMSE is our way of quantifying prediction error,
-        While r^2 gives us a metric for comparing explained variance
-
-    Output the following:
-        cm_num
-        cm_epsilon_mean
-        cm_cons_ols
-        cm_beta_ols
-        cm_r2
-        cm_rmse
-        active_num
-        active_epsilon_mean
-        active_cons
-        active_beta
-        active_r2
-        active_rmse
-        all_num
-        all_epsilon_mean
-        all_cons
-        all_beta
-        all_r2
-        all_rmse
-        naive_rmse
-
-    The CM set is what we want to argue works well
-    The activated set is the basis for comparison (cm > activated)
-    We have the true relationship in the data for comparison
     """
-    all_df
-    measured_df
-    activated_df
+    all_vars = ['constant'] + var_list
 
-    sim_df['constant'] = 1
-    all_X = sim_df[['constant', 'var1']]
-    true_y = sim_df['threshold']
-    rmse_dict = {}
-    # these are cols we keep when chopping up sim_df
+    df_sim['constant'] = 1
+    X_all = df_sim[all_vars]
+    y_all_true = df_sim['threshold']
+    # these are cols we keep when chopping up df_sim
     relevant_cols = [
         'threshold',
         'after_activation_alters',
-        'constant',
-        'var1',
+        *all_vars,
         'epsilon',
     ]
-    #### cm_df processing here ###############################################
-    cm_df = sim_df.loc[sim_df['observed'] == 1, relevant_cols]
-    cm_y = cm_df['after_activation_alters']
-    cm_X = cm_df[['constant', 'var1']]
-    cm_reg = linear_model.LinearRegression(fit_intercept=False)
-    cm_reg.fit(cm_X, cm_y)
-    # in-sample r-squared
-    cm_r2 = cm_reg.score(cm_X, cm_y)
-    # use this model to predict for all
-    cm_rmse = sqrt(
-        mean_squared_error(
-            true_y, cm_reg.predict(all_X)
+
+    def calc_rmse_r2(X_subset, y_subset, X_all, y_all_true):
+        ols = linear_model.LinearRegression(fit_intercept=False)
+        ols.fit(X_subset, y_subset)
+        # in-sample r-squared
+        r2 = ols.score(X_subset, y_subset)
+        # use this model to predict for all
+        rmse = sqrt(
+            mean_squared_error(
+                y_all_true, ols.predict(X_all)
+            )
         )
+        return r2, rmse, ols
+
+    #### correctly measured processing here ##################################
+    df_measured = df_sim.loc[df_sim['observed'] == 1, relevant_cols]
+    X_measured = df_measured[all_vars]
+    y_measured = df_measured['after_activation_alters']
+    r2_measured, rmse_measured, ols_measured = calc_rmse_r2(
+        X_measured,
+        y_measured,
+        X_all,
+        y_all_true,
     )
-    #### a_df processing here ################################################
-    a_df = sim_df.loc[sim_df['activated'] == True, relevant_cols]
-    a_y = a_df['after_activation_alters']
-    a_X = a_df[['constant', 'var1']]
-    a_reg = linear_model.LinearRegression(fit_intercept=False)
-    a_reg.fit(a_X, a_y)
-    # in-sample r-squared
-    a_r2 = a_reg.score(a_X, a_y)
-    # use model to predict for all
-    a_rmse = sqrt(
-        mean_squared_error(
-            true_y, a_reg.predict(all_X)
-        )
+
+    #### actived processing here #############################################
+    df_activated = df_sim.loc[df_sim['activated'] == 1, relevant_cols]
+    y_activated = df_activated['after_activation_alters']
+    X_activated = df_activated[all_vars]
+    r2_activated, rmse_activated, ols_activated = calc_rmse_r2(
+        X_activated,
+        y_activated,
+        X_all,
+        y_all_true,
     )
     #### all processing here #################################################
-    s_y = sim_df['threshold']
-    s_X = sim_df[['constant', 'var1']]
-    s_reg = linear_model.LinearRegression(fit_intercept=False)
-    s_reg.fit(s_X, s_y)
-    # in-sample r-squared
-    s_r2 = s_reg.score(s_X, s_y)
-    # use model to predict for all
-    s_rmse = sqrt(
-        mean_squared_error(
-            true_y, s_reg.predict(all_X)
-        )
+    r2_all, rmse_all, ols_all = calc_rmse_r2(
+        X_all,
+        y_all_true,
+        X_all,
+        y_all_true,
     )
+
     #### naive rmse ##########################################################
-    cm_naive_rmse = sqrt(
+    # use the exposure-at-activation-time rule
+    # RMSE for everyone in the set
+    rmse_activated_naive = sqrt(
         mean_squared_error(
-            cm_df['threshold'],
-            cm_df['after_activation_alters'],
+            df_activated['threshold'],
+            df_activated['after_activation_alters'],
         )
     )
-    a_naive_rmse = sqrt(
-        mean_squared_error(
-            a_df['threshold'],
-            a_df['after_activation_alters'],
-        )
-    )
-    s_naive_rmse = sqrt(
-        mean_squared_error(
-            s_df['threshold'],
-            s_df['after_activation_alters'],
-        )
-    )
+
     #### make rmse_dict ######################################################
-    rmse_dict['cm_num'] = cm_df.shape[0]
-    rmse_dict['cm_epsilon_mean'] = cm_df['epsilon'].mean()
-    rmse_dict['cm_cons_ols'] = cm_reg.coef_[0]
-    rmse_dict['cm_beta_ols'] = cm_reg.coef_[1]
-    rmse_dict['cm_r2'] = cm_r2
-    rmse_dict['cm_rmse'] = cm_rmse
-    rmse_dict['cm_naive_rmse'] = cm_naive_rmse
-    rmse_dict['active_num'] = a_df.shape[0]
-    rmse_dict['active_epsilon_mean'] = a_df['epsilon'].mean()
-    rmse_dict['active_cons'] = a_reg.coef_[0]
-    rmse_dict['active_beta'] = a_reg.coef_[1]
-    rmse_dict['active_r2'] = a_r2
-    rmse_dict['active_rmse'] = a_rmse
-    rmse_dict['active_naive_rmse'] = a_naive_rmse
-    rmse_dict['all_num'] = sim_df.shape[0]
-    rmse_dict['true_epsilon_mean'] = sim_df['epsilon'].mean()
-    rmse_dict['true_cons'] = s_reg.coef_[0]
-    rmse_dict['true_beta'] = s_reg.coef_[1]
-    rmse_dict['true_r2'] = s_r2
-    rmse_dict['true_rmse'] = s_rmse
-    rmse_dict['naive_rmse'] = s_naive_rmse
+    rmse_dict = {}
+
+    rmse_dict['num_measured'] = df_measured.shape[0]
+    rmse_dict['epsilon_mean_measured'] = df_measured['epsilon'].mean()
+    rmse_dict['cons_measured_ols'] = ols_measured.coef_[0]
+    rmse_dict['beta_measured_ols'] = ols_measured.coef_[1]
+    rmse_dict['r2_measured_ols'] = r2_measured
+    rmse_dict['rmse_measured_ols'] = rmse_measured
+
+    rmse_dict['num_activated'] = df_activated.shape[0]
+    rmse_dict['epsilon_mean_activated'] = df_activated['epsilon'].mean()
+    rmse_dict['cons_activated_ols'] = ols_activated.coef_[0]
+    rmse_dict['beta_activated_ols'] = ols_activated.coef_[1]
+    rmse_dict['r2_activated_ols'] = r2_activated
+    rmse_dict['rmse_activated_ols'] = rmse_activated
+    rmse_dict['rmse_activated_naive'] = rmse_activated_naive
+
+    rmse_dict['num_all'] = df_sim.shape[0]
+    rmse_dict['epislon_mean_true'] = df_sim['epsilon'].mean()
+    rmse_dict['cons_true'] = ols_all.coef_[0]
+    rmse_dict['beta_true'] = ols_all.coef_[1]
+    rmse_dict['r2_true'] = r2_all
+    rmse_dict['rmse_true'] = rmse_all
+
+    #add back sim params
+    assert len(set(sim_params.keys()) & rmse_dict.keys()) == 0
+    rmse_dict.update(sim_params)
+
     return rmse_dict
 
-def process_k(sim_df):
+def process_k(df_sim, var_list=['var1'], sim_params=None):
     """
     This function does the at-k obs stuff
     The goal here is simple:
@@ -220,70 +185,98 @@ def process_k(sim_df):
         Naive RMSE (threshold - after_activation_alters)
         Correct RMSE (threshold ~ var1)
     """
-    run_k_list = []
-    sim_df['constant'] = 1
-    true_y = sim_df['threshold']
-    all_X = sim_df[['constant', 'var1']]
+    df_sim['constant'] = 1
+    all_vars = ['constant'] + var_list
+
+    true_y = df_sim['threshold']
+    all_X = df_sim[all_vars]
     relevant_cols = [
         'after_activation_alters',
-        'constant',
-        'var1',
+        *all_vars,
         'activation_order',
     ]
+
     #### compute simulation-wide measures up front ###########################
-    naive_rmse = sqrt(
+    rmse_naive = sqrt(
         mean_squared_error(
-            sim_df.loc[sim_df['activated'] == True, 'threshold'],
-            sim_df.loc[sim_df['activated'] == True, 'after_activation_alters']
+            df_sim.loc[df_sim['activated'] == 1, 'threshold'],
+            df_sim.loc[df_sim['activated'] == 1, 'after_activation_alters'],
         )
     )
-    s_reg = linear_model.LinearRegression()
-    s_reg.fit(all_X, true_y)
-    true_rmse = sqrt(
+    ols_all = linear_model.LinearRegression()
+    ols_all.fit(all_X, true_y)
+    rmse_true = sqrt(
         mean_squared_error(
             true_y,
-            s_reg.predict(all_X)
+            ols_all.predict(all_X)
         )
     )
-    #### make cm_df ##########################################################
-    cm_df = sim_df.loc[sim_df['observed'] == 1, relevant_cols]
-    cm_df.sort_values(
+
+    #### make df_measured ####################################################
+    df_measured = df_sim.loc[df_sim['observed'] == 1, relevant_cols]
+    df_measured.sort_values(
         by='activation_order',
         ascending=True,
         inplace=True,
     )
-    num_cm = cm_df.shape[0]
-    k_iter = range(20, num_cm + 1, 10) # make iterator
+    num_measured = df_measured.shape[0]
+
     #### iterate through k ###################################################
+    run_k_list = []
+    k_iter = range(20, num_measured + 1, 10) # make iterator
     for k in k_iter:
         k_dict = {}
-        k_df = cm_df.head(n=k)
-        k_reg = linear_model.LinearRegression()
-        k_reg.fit(k_df[['constant', 'var1']], k_df['after_activation_alters'])
+        df_k = df_measured.head(n=k)
+        X_k = df_k[all_vars]
+        y_k = df_k['after_activation_alters']
+        ols_k = linear_model.LinearRegression()
+        ols_k.fit(df_k[all_vars], y_k)
         rmse_at_k = sqrt(
             mean_squared_error(
-                true_y, k_reg.predict(all_X)
+                true_y, ols_k.predict(all_X)
             )
         )
         k_dict['k'] = k
         k_dict['rmse_at_k'] = rmse_at_k
-        k_dict['naive_rmse'] = naive_rmse
-        k_dict['true_rmse'] = true_rmse
+        k_dict['rmse_naive'] = rmse_naive
+        k_dict['rmse_true'] = rmse_true
+        # add back sim params
+        assert len(set(sim_params.keys()) & k_dict.keys()) == 0
+        k_dict.update(sim_params)
         run_k_list.append(k_dict)
     return run_k_list
 
+def bail_out(df_sim):
+    if sum(df_sim['activated'] == 1) < 1:
+        print('bailed out')
+        return True
+    return False
+
 if __name__ == '__main__':
-    if len(sys.argv) > 1 and sys.argv[1].lower() == 'test':
-        EMPIRICAL = False
-        test_rmse_df, test_k_df = process_runs(TEST_PATH)
-        test_rmse_df.to_csv(TEST_RMSE_DF_PATH)
-        test_k_df.to_csv(TEST_K_DF_PATH)
-    else:
-        EMPIRICAL = False
-        sim_rmse_df, sim_k_df = process_runs(SIM_PATH)
-        sim_rmse_df.to_csv(SIM_RMSE_DF_PATH)
-        sim_k_df.to_csv(SIM_K_DF_PATH)
-        #EMPIRICAL = True
-        #empirical_rmse_df, empirical_k_df = process_runs(EMPIRICAL_PATH)
-        #empirical_rmse_df.to_csv(EMPIRICAL_RMSE_DF_PATH)
-        #empirical_k_df.to_csv(EMPIRICAL_K_DF_PATH)
+    rmse_records = []
+    k_records = []
+    counter = 0
+
+    for df_sim, sim_params in yield_sim_records(SIM_PATH):
+        if bail_out(df_sim):
+            counter += 1
+            continue
+        rmse_dict = process_rmse(df_sim, sim_params=sim_params)
+        k_list = process_k(df_sim, sim_params=sim_params)
+
+        rmse_records.append(rmse_dict)
+        k_records.extend(k_list)
+        counter += 1
+
+        if counter % 1000 == 0:
+            print('Processed {} runs!'.format(counter))
+
+        if sys.argv[1].lower() == 'test':
+            print(rmse_dict)
+            print(k_list)
+            break
+
+    df_rmse = pd.DataFrame(rmse_records)
+    df_rmse.to_csv(SIM_RMSE_DF_PATH)
+    df_k = pd.DataFrame(k_records)
+    df_k.to_csv(SIM_K_DF_PATH)
