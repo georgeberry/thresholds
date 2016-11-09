@@ -41,6 +41,7 @@ def get_sim_params(df_sim):
         'rewire_prob',
         'var1_dist_mean',
         'var1_dist_sd',
+        'rand_string',
     ]
     return df_sim.loc[1, sim_param_cols].to_dict()
 
@@ -261,6 +262,9 @@ if __name__ == '__main__':
         if bail_out(df_sim):
             counter += 1
             continue
+        if sim_params['rand_string'] == 'xl454inc':
+            df_sim.to_csv(ONE_OFF_DF_PATH)
+        """
         rmse_dict = process_rmse(df_sim, sim_params=sim_params)
         k_list = process_k(df_sim, sim_params=sim_params)
 
@@ -280,3 +284,4 @@ if __name__ == '__main__':
     df_rmse.to_csv(SIM_RMSE_DF_PATH)
     df_k = pd.DataFrame(k_records)
     df_k.to_csv(SIM_K_DF_PATH)
+"""
