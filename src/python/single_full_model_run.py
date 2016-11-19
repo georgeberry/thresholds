@@ -82,6 +82,16 @@ def async_simulation_log(graph_with_thresholds):
                 if steps_without_activation > num_nodes:
                     break
 
+    records = [record for idx, record in g.node.items()]
+    fieldnames = records[0].keys()
+
+    # save the whole graph run
+    with open(ONE_OFF_SIM_PATH, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for record in records:
+            writer.writerow(record)
+
 if __name__ == '__main__':
     eq = {
         'epsilon': {'distribution': 'epsilon',

@@ -1,6 +1,6 @@
 library(ggplot2)
-library(reshape)
 library(dplyr)
+library(xtable)
 
 PATH = '/Users/g/Drive/projects-current/project-thresholds/data/one_off_df.csv'
 
@@ -149,3 +149,101 @@ df_rmse %>%
   mutate(cumsum=cumsum(count)) %>%
   ggplot(.) +
   geom_point(aes(x=threshold, y=cumsum))
+
+
+#### one run summary plots ####################################################
+
+
+PATH = '/Users/g/Drive/projects-current/project-thresholds/data/one_off_sim.csv'
+
+df_sim = read.csv(PATH)
+df_sim$threshold_ceil = ceiling(df_sim$threshold)
+df_sim$correct = df_sim$threshold_ceil == df_sim$after_activation_alters
+
+p2 = ggplot() + 
+  theme_bw() +
+  theme(axis.ticks=element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  geom_histogram(data=df_sim,
+                 alpha=0.18,
+                 binwidth=1.0,
+                 aes(x=after_activation_alters,
+                     color='Measured',
+                     fill='Measured')) +
+  geom_histogram(data=df_sim,
+                 alpha=0.0,
+                 binwidth=1.0,
+                 aes(x=threshold,
+                     color='True',
+                     fill='True')) +
+  scale_color_manual(values=c('Measured'='grey80', 'True'='black'),
+                     guide=FALSE) +
+  scale_fill_manual(values=c('Measured'='grey35', 'True'='white'),
+                    guide=FALSE) +
+  labs(x='Threshold', y='Count') +
+  geom_rug(data=df_sim,
+           position='jitter',
+           sides='b',
+           aes(y=1, x=after_activation_alters))
+
+ggsave("/Users/g/Documents/real_vs_measured.png",
+       p2,
+       width=12,
+       height=4)
+
+df_correct = df_sim %>%
+  filter(correct == TRUE, after_activation_alters > 0)
+
+p3 = ggplot() +
+  theme_bw() +
+  theme(axis.ticks=element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  geom_histogram(data=df_correct,
+                 binwidth=1.0,
+                 alpha=0.18,
+                 aes(x=threshold, fill='Correct', color='Correct')) +
+  geom_histogram(data=df_sim,
+                 binwidth=1.0,
+                 alpha=0.0,
+                 aes(x=threshold, fill='All', color='All')) +
+  scale_color_manual(values=c('Correct'='grey80', 'All'='black'),
+                     guide=FALSE) +
+  scale_fill_manual(values=c('Correct'='grey35', 'All'='white'),
+                    guide=FALSE) +
+  labs(x='Threshold', y='Count')
+
+ggsave("/Users/g/Documents/real_vs_correctly_measured.png",
+       p3,
+       width=6,
+       height=4)
+
+#### matrix of transitions #####################################################
+
+df_activated = df_sim[!is.na(df_sim$after_activation_alters),]
+
+transitions = data.frame(true=ifelse(df_activated$threshold_ceil >= 0,
+                                     df_activated$threshold_ceil,
+                                     0),
+                         plus=df_activated$after_activation_alters - 
+                              df_activated$threshold_ceil)
+
+transition_table = table(transitions)
+xtable(transition_table)
+
+xtable(count(transitions$plus))
+
+#### true vs predicted distribution ###########################################
+
+ols_mod = lm(after_activation_alters ~ var1, df_correct)
+df_sim$pred = predict(ols_mod, df_sim)
+
+ggplot(data=df_sim) +
+  geom_histogram(aes(x=threshold, fill='True', color='True'),
+                 alpha=0.1,
+                 binwidth=1) +
+  geom_histogram(aes(x=pred, fill='Estimated', color='Estiamted'),
+                 alpha=0.1,
+                 binwidth=1) +
+  theme_bw()

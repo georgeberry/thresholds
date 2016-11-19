@@ -20,3 +20,4 @@ EMPIRICAL_GRAPH_FOLDER = DATA_PATH + 'graphml_graphs/'
 
 ONE_OFF_DF_PATH = DATA_PATH + 'one_off_df.csv'
 ONE_OFF_IDEAL_DF_PATH = DATA_PATH + 'one_off_ideal_df.csv'
+ONE_OFF_SIM_PATH = DATA_PATH + 'one_off_sim.csv'

@@ -31,10 +31,10 @@ rmse_plot_df = m %>%
   )
 
 rmse_plot_df$variable = ordered(factor(rmse_plot_df$variable),
-                           levels=c('rmse_true',
-                                    'rmse_measured_ols',
-                                    'rmse_activated_ols',
-                                    'rmse_activated_naive'))
+                                levels=c('rmse_true',
+                                         'rmse_measured_ols',
+                                         'rmse_activated_ols',
+                                         'rmse_activated_naive'))
 
 make_rmse_plot = function(rmse_plot_df, graph, epsilon_sd, title) {
   p = rmse_plot_df %>%
@@ -57,6 +57,24 @@ make_rmse_plot = function(rmse_plot_df, graph, epsilon_sd, title) {
 make_rmse_plot(rmse_plot_df, 'plc', 1, 'Power-law RMSE')
 make_rmse_plot(rmse_plot_df, 'ws', 1, 'Watts-Strogatz RMSE')
 
+#### another take on RMSE plots ################################################
+
+mm = m
+mm$variable = ordered(factor(mm$variable),
+                      levels=c('rmse_true',
+                               'rmse_measured_ols',
+                               'rmse_activated_ols',
+                               'rmse_activated_naive'))
+
+mm %>%
+  filter(epsilon_dist_sd==1.0, graph_type=='plc') %>%
+  ggplot(.) +
+    geom_point(aes(y=value, x=factor(mean_deg), color=variable),
+               position=position_dodge(width=0.4)) +
+    geom_hline(yintercept=1, linetype='dashed') +
+    scale_y_continuous(breaks=c(0,2,4,6,8,10), limits=c(0,11)) +
+    theme_bw()
+
 #### k-df processing ###########################################################
 
 df_k = read.csv(K_PATH)
@@ -78,14 +96,15 @@ k_plot_df = df_k %>%
     rmse_true_lcl = rmse_true_mean - 1.96 * rmse_true_se
   )
 
+k_plot_df = k_plot_df[complete.cases(k_plot_df),]
 
-make_k_plot = function(k_plot_df, graph, deg, epsilon_sd, kmax, title) {
+
+make_k_plot = function(k_plot_df, graph, deg, epsilon_sd, title) {
   p = k_plot_df %>% filter(graph_type==graph,
-                       mean_deg==deg,
-                       epsilon_dist_sd==epsilon_sd,
-                       k <= kmax) %>%
-    mutate(rmse_naive_hline = rmse_naive_mean[which(k == 20)],
-           rmse_true_hline = rmse_true_mean[which(k == 20)]) %>%
+                           mean_deg==deg,
+                           epsilon_dist_sd==epsilon_sd) %>%
+    mutate(rmse_naive_hline = rmse_naive_mean[which(k == 150)],
+           rmse_true_hline = rmse_true_mean[which(k == 150)]) %>%
     ggplot(.) +
     geom_errorbar(aes(x=k,
                       y=rmse_at_k_mean,
@@ -100,8 +119,22 @@ make_k_plot = function(k_plot_df, graph, deg, epsilon_sd, kmax, title) {
   return(p)
 }
 
-make_k_plot(k_plot_df, 'plc', 12, 1, 150, 'PLC first k RMSE')
-make_k_plot(k_plot_df, 'ws', 12, 1, 150, 'WS first k RMSE')
+make_k_plot(k_plot_df, 'plc', 12, 1, 'PLC first k RMSE')
+make_k_plot(k_plot_df, 'ws', 12, 1, 'WS first k RMSE')
 
-# distribution #
 
+
+
+
+
+k_plot_df %>% filter(graph_type=='plc',
+                     mean_deg==12,
+                     epsilon_dist_sd==1) %>%
+  mutate(rmse_naive_hline = rmse_naive_mean[which(k == 150)],
+         rmse_true_hline = rmse_true_mean[which(k == 150)]) %>%
+  ggplot(.) +
+  geom_errorbar(aes(x=k,
+                    y=rmse_at_k_mean,
+                    ymax=rmse_at_k_ucl,
+                    ymin=rmse_at_k_lcl,
+                    color='our model RMSE'))

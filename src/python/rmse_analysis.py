@@ -4,7 +4,6 @@ This takes simulation runs and makes two output files
 rmse_df:
 df_k
 
-
 activated,activation_order,after_activation_alters,before_activation_alters,constant,constant_dist_coef,constant_dist_mean,constant_dist_sd,degree,epsilon,epsilon_dist_coef,epsilon_dist_mean,epsilon_dist_sd,name,observed,rand_string,threshold,var1,var1_dist_coef,var1_dist_mean,var1_dist_sd
 
 """
@@ -185,6 +184,11 @@ def process_k(df_sim, var_list=['var1'], sim_params=None):
     Record a couple of extra things:
         Naive RMSE (threshold - after_activation_alters)
         Correct RMSE (threshold ~ var1)
+    Note that this has undergone a change:
+        k is now the number of *total* activations, not the number of correct
+        activations
+        We record correct activations at k with a new variable: num_correct
+
     """
     df_sim['constant'] = 1
     all_vars = ['constant'] + var_list
@@ -215,19 +219,22 @@ def process_k(df_sim, var_list=['var1'], sim_params=None):
 
     #### make df_measured ####################################################
     df_measured = df_sim.loc[df_sim['observed'] == 1, relevant_cols]
+    df_measured = df_measured.apply(pd.to_numeric)
     df_measured.sort_values(
         by='activation_order',
         ascending=True,
         inplace=True,
     )
-    num_measured = df_measured.shape[0]
 
     #### iterate through k ###################################################
     run_k_list = []
-    k_iter = range(20, num_measured + 1, 10) # make iterator
+    k_iter = range(50, 201, 25) # make iterator
     for k in k_iter:
         k_dict = {}
-        df_k = df_measured.head(n=k)
+        df_k = df_measured.loc[df_measured['activation_order'] <= k,:]
+        nrow, ncol = df_k.shape
+        if nrow <= 10:
+            continue
         X_k = df_k[all_vars]
         y_k = df_k['after_activation_alters']
         ols_k = linear_model.LinearRegression()
@@ -241,6 +248,7 @@ def process_k(df_sim, var_list=['var1'], sim_params=None):
         k_dict['rmse_at_k'] = rmse_at_k
         k_dict['rmse_naive'] = rmse_naive
         k_dict['rmse_true'] = rmse_true
+        k_dict['num_correct'] = nrow
         # add back sim params
         assert len(set(sim_params.keys()) & k_dict.keys()) == 0
         k_dict.update(sim_params)
@@ -264,7 +272,6 @@ if __name__ == '__main__':
             continue
         if sim_params['rand_string'] == 'xl454inc':
             df_sim.to_csv(ONE_OFF_DF_PATH)
-        """
         rmse_dict = process_rmse(df_sim, sim_params=sim_params)
         k_list = process_k(df_sim, sim_params=sim_params)
 
@@ -284,4 +291,3 @@ if __name__ == '__main__':
     df_rmse.to_csv(SIM_RMSE_DF_PATH)
     df_k = pd.DataFrame(k_records)
     df_k.to_csv(SIM_K_DF_PATH)
-"""
