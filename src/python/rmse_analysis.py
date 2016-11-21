@@ -225,16 +225,14 @@ def process_k(df_sim, var_list=['var1'], sim_params=None):
         ascending=True,
         inplace=True,
     )
+    num_measured = df_measured.shape[0]
 
     #### iterate through k ###################################################
     run_k_list = []
-    k_iter = range(50, 201, 25) # make iterator
+    k_iter = range(20, num_measured + 1, 10) # make iterator
     for k in k_iter:
         k_dict = {}
-        df_k = df_measured.loc[df_measured['activation_order'] <= k,:]
-        nrow, ncol = df_k.shape
-        if nrow <= 10:
-            continue
+        df_k = df_measured.head(n=k)
         X_k = df_k[all_vars]
         y_k = df_k['after_activation_alters']
         ols_k = linear_model.LinearRegression()
@@ -248,7 +246,7 @@ def process_k(df_sim, var_list=['var1'], sim_params=None):
         k_dict['rmse_at_k'] = rmse_at_k
         k_dict['rmse_naive'] = rmse_naive
         k_dict['rmse_true'] = rmse_true
-        k_dict['num_correct'] = nrow
+        k_dict['num_activated'] = df_k['activation_order'].max()
         # add back sim params
         assert len(set(sim_params.keys()) & k_dict.keys()) == 0
         k_dict.update(sim_params)

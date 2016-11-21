@@ -427,7 +427,7 @@ if __name__ == '__main__':
         'cluster_prob',
     ])
 
-    sw = SimWriter(SIM_FILE, eq_param_cols)
+    sw = SimWriter(SIM_PATH, eq_param_cols)
 
     # this is for purely sim graphs
     for eq in threshold_eq_param_space:
