@@ -184,13 +184,14 @@ p2 = ggplot() +
   labs(x='Threshold', y='Count') +
   geom_rug(data=df_sim,
            position='jitter',
+           alpha=0.4,
            sides='b',
            aes(y=1, x=after_activation_alters))
 
 ggsave("/Users/g/Documents/real_vs_measured.png",
        p2,
-       width=12,
-       height=4)
+       width=7,
+       height=3)
 
 df_correct = df_sim %>%
   filter(correct == TRUE, after_activation_alters > 0)
@@ -216,8 +217,8 @@ p3 = ggplot() +
 
 ggsave("/Users/g/Documents/real_vs_correctly_measured.png",
        p3,
-       width=6,
-       height=4)
+       width=7,
+       height=3)
 
 #### matrix of transitions #####################################################
 
