@@ -92,7 +92,7 @@ def process_rmse(df_sim, var_list=['var1'], sim_params=None):
         'epsilon',
     ]
 
-    def calc_rmse_r2(X_subset, y_subset, X_all, y_all_true):
+    def calc_r2_rmse(X_subset, y_subset, X_all, y_all_true):
         ols = linear_model.LinearRegression(fit_intercept=False)
         ols.fit(X_subset, y_subset)
         # in-sample r-squared
@@ -103,31 +103,49 @@ def process_rmse(df_sim, var_list=['var1'], sim_params=None):
                 y_all_true, ols.predict(X_all)
             )
         )
-        return r2, rmse, ols
+        return r2, rmse
 
-    #### correctly measured processing here ##################################
     df_measured = df_sim.loc[df_sim['observed'] == 1, relevant_cols]
     X_measured = df_measured[all_vars]
     y_measured = df_measured['after_activation_alters']
-    r2_measured, rmse_measured, ols_measured = calc_rmse_r2(
+
+    df_activated = df_sim.loc[df_sim['activated'] == 1, relevant_cols]
+    y_activated = df_activated['after_activation_alters']
+    y_activated_true = df_activated['threshold']
+    X_activated = df_activated[all_vars]
+
+    #### correctly measured processing here ##################################
+    r2_measured, rmse_measured = calc_r2_rmse(
         X_measured,
         y_measured,
         X_all,
         y_all_true,
     )
 
+    r2_measured_activated, rmse_measured_activated = calc_r2_rmse(
+        X_measured,
+        y_measured,
+        X_activated,
+        y_activated_true,
+    )
+
     #### actived processing here #############################################
-    df_activated = df_sim.loc[df_sim['activated'] == 1, relevant_cols]
-    y_activated = df_activated['after_activation_alters']
-    X_activated = df_activated[all_vars]
-    r2_activated, rmse_activated, ols_activated = calc_rmse_r2(
+    r2_activated, rmse_activated = calc_r2_rmse(
         X_activated,
         y_activated,
         X_all,
         y_all_true,
     )
+
+    r2_activated_activated, rmse_activated_activated = calc_r2_rmse(
+        X_activated,
+        y_activated,
+        X_activated,
+        y_activated_true,
+    )
+
     #### all processing here #################################################
-    r2_all, rmse_all, ols_all = calc_rmse_r2(
+    r2_all, rmse_all = calc_r2_rmse(
         X_all,
         y_all_true,
         X_all,
@@ -149,23 +167,25 @@ def process_rmse(df_sim, var_list=['var1'], sim_params=None):
 
     rmse_dict['num_measured'] = df_measured.shape[0]
     rmse_dict['epsilon_mean_measured'] = df_measured['epsilon'].mean()
-    rmse_dict['cons_measured_ols'] = ols_measured.coef_[0]
-    rmse_dict['beta_measured_ols'] = ols_measured.coef_[1]
+    # rmse_dict['cons_measured_ols'] = ols_measured.coef_[0]
+    # rmse_dict['beta_measured_ols'] = ols_measured.coef_[1]
     rmse_dict['r2_measured_ols'] = r2_measured
     rmse_dict['rmse_measured_ols'] = rmse_measured
+    rmse_dict['rmse_measured_activated'] = rmse_measured_activated
+    rmse_dict['rmse_activated_activated'] = rmse_activated_activated
 
     rmse_dict['num_activated'] = df_activated.shape[0]
     rmse_dict['epsilon_mean_activated'] = df_activated['epsilon'].mean()
-    rmse_dict['cons_activated_ols'] = ols_activated.coef_[0]
-    rmse_dict['beta_activated_ols'] = ols_activated.coef_[1]
+    # rmse_dict['cons_activated_ols'] = ols_activated.coef_[0]
+    # rmse_dict['beta_activated_ols'] = ols_activated.coef_[1]
     rmse_dict['r2_activated_ols'] = r2_activated
     rmse_dict['rmse_activated_ols'] = rmse_activated
     rmse_dict['rmse_activated_naive'] = rmse_activated_naive
 
     rmse_dict['num_all'] = df_sim.shape[0]
     rmse_dict['epislon_mean_true'] = df_sim['epsilon'].mean()
-    rmse_dict['cons_true'] = ols_all.coef_[0]
-    rmse_dict['beta_true'] = ols_all.coef_[1]
+    # rmse_dict['cons_true'] = ols_all.coef_[0]
+    # rmse_dict['beta_true'] = ols_all.coef_[1]
     rmse_dict['r2_true'] = r2_all
     rmse_dict['rmse_true'] = rmse_all
 

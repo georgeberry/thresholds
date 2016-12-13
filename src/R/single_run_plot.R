@@ -5,6 +5,7 @@ library(xtable)
 PATH = '/Users/g/Drive/projects-current/project-thresholds/data/one_off_df.csv'
 
 df_rmse = read.csv(PATH)
+df_rmse$exposure = 
 
 df_summary = df_rmse %>%
   group_by(activated, exposure) %>%
@@ -35,7 +36,7 @@ p1 = ggplot() +
   geom_jitter(data=df_rmse_plot,
               aes(x=exposure,
                   y=activated,
-                  color='blue'), 
+                  color='blue'),
               height=0.15,
               width=0.1) +
   geom_point(data=df_plot, aes(x=exposure, y=p, color='red')) +
@@ -85,7 +86,7 @@ ggplot() +
   geom_jitter(data=df_rmse_ideal,
               aes(x=exposure,
                   y=activated,
-                  color='Exposures'), 
+                  color='Exposures'),
               height=0.15,
               width=0.1) +
   geom_point(data=df_plot_ideal, aes(x=exposure, y=p, color='Correct')) +
@@ -128,7 +129,7 @@ df_rmse %>%
     geom_point(aes(x=threshold, y=p * 1000)) +
     geom_point(aes(x=threshold, y=count, color='activated at step')) +
     geom_point(aes(x=threshold, y=1000-cumsum, color='total active'))
-  
+
 
 df_rmse %>%
   group_by(epsilon) %>%
@@ -138,7 +139,7 @@ df_rmse %>%
   mutate(cumsum=cumsum(count)) %>%
   ggplot(.) +
   geom_point(aes(x=threshold, y=cumsum))
-  
+
 df_rmse %>%
   group_by(epsilon) %>%
   summarize(threshold=median(threshold)) %>%
@@ -158,9 +159,13 @@ PATH = '/Users/g/Drive/projects-current/project-thresholds/data/one_off_sim.csv'
 
 df_sim = read.csv(PATH)
 df_sim$threshold_ceil = ceiling(df_sim$threshold)
-df_sim$correct = df_sim$threshold_ceil == df_sim$after_activation_alters
 
-p2 = ggplot() + 
+df_sim$correct = (df_sim$after_activation_alters - df_sim$before_activation_alters == 1)
+df_sim$correct = df_sim$correct & df_sim$threshold_ceil > 0
+
+sum(df_sim$correct, na.rm=TRUE)
+
+p2 = ggplot() +
   theme_bw() +
   theme(axis.ticks=element_blank(),
         panel.grid.major = element_blank(),
@@ -217,7 +222,7 @@ p3 = ggplot() +
 
 ggsave("/Users/g/Documents/real_vs_correctly_measured.png",
        p3,
-       width=7,
+       width=5,
        height=3)
 
 #### matrix of transitions #####################################################
@@ -227,24 +232,34 @@ df_activated = df_sim[!is.na(df_sim$after_activation_alters),]
 transitions = data.frame(true=ifelse(df_activated$threshold_ceil >= 0,
                                      df_activated$threshold_ceil,
                                      0),
-                         plus=df_activated$after_activation_alters - 
+                         plus=df_activated$after_activation_alters -
                               df_activated$threshold_ceil)
 
 transition_table = table(transitions)
 xtable(transition_table)
 
-xtable(count(transitions$plus))
+xtable(transitions %>% group_by(plus) %>% summarize(count=n()))
 
 #### true vs predicted distribution ###########################################
 
 ols_mod = lm(after_activation_alters ~ var1, df_correct)
+act_mod = lm(after_activation_alters ~ var1, df_sim[df_sim$activated ==1,])
+true_mod = lm(threshold_ceil ~ var1, df_sim)
 df_sim$pred = predict(ols_mod, df_sim)
+df_sim$act_pred = predict(act_mod, df_sim)
+df_sim$true_pred = predict(true_mod, df_sim)
 
 ggplot(data=df_sim) +
   geom_histogram(aes(x=threshold, fill='True', color='True'),
                  alpha=0.1,
                  binwidth=1) +
-  geom_histogram(aes(x=pred, fill='Estimated', color='Estiamted'),
+  #geom_histogram(aes(x=pred, fill='Estimated', color='Estimated'),
+  #               alpha=0.1,
+  #               binwidth=1) +
+  #geom_histogram(aes(x=act_pred, fill='Activated', color='Activated'),
+  #               alpha=0.1,
+  #               binwidth=1) +
+  geom_histogram(aes(x=true_pred, fill='True model', color='True model'),
                  alpha=0.1,
                  binwidth=1) +
   theme_bw()
