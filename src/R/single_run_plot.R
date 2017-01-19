@@ -5,27 +5,26 @@ library(xtable)
 PATH = '/Users/g/Drive/projects-current/project-thresholds/data/one_off_df.csv'
 
 df_rmse = read.csv(PATH)
-df_rmse$exposure = 
 
 df_summary = df_rmse %>%
-  group_by(activated, exposure) %>%
+  group_by(activated, after_activation_alters) %>%
   summarize(count = n())
 
 df_activated = df_summary[df_summary$activated == 1,]
 df_unactivated = df_summary[df_summary$activated == 0,]
 
 df_plot = df_activated %>%
-  left_join(df_unactivated, by="exposure") %>%
+  left_join(df_unactivated, by="after_activation_alters") %>%
   ungroup() %>%
-  filter(exposure <= 10) %>%
-  group_by(exposure) %>%
+  filter(after_activation_alters <= 10) %>%
+  group_by(after_activation_alters) %>%
   mutate(total = count.x + count.y) %>%
-  summarize(p = count.x / total,
-            lcl = binom.test(count.x, total)$conf.int[1],
-            ucl = binom.test(count.x, total)$conf.int[2])
+  summarize(p = count.x / total)
+            # lcl = binom.test(count.x, total)$conf.int[1],
+            # ucl = binom.test(count.x, total)$conf.int[2])
 
 df_plot = as.data.frame(df_plot)
-df_rmse_plot = df_rmse[df_rmse$exposure <= 10,]
+df_rmse_plot = df_rmse[df_rmse$after_activation_alters <= 10,]
 
 p1 = ggplot() +
   guides(color=FALSE) +
@@ -34,14 +33,14 @@ p1 = ggplot() +
   scale_x_continuous(breaks=seq(0,10)) +
   theme_bw() +
   geom_jitter(data=df_rmse_plot,
-              aes(x=exposure,
+              aes(x=after_activation_alters,
                   y=activated,
                   color='blue'),
               height=0.15,
               width=0.1) +
-  geom_point(data=df_plot, aes(x=exposure, y=p, color='red')) +
+  geom_point(data=df_plot, aes(x=after_activation_alters, y=p, color='red')) +
   geom_errorbar(data=df_plot,
-                aes(x=exposure, ymax=ucl, ymin=lcl, color='red'),
+                aes(x=after_activation_alters, ymax=ucl, ymin=lcl, color='red'),
                 width=0.2)
 
 
