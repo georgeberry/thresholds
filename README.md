@@ -12,3 +12,7 @@ The goal is to recover thresholds from empirical data.
 1. Simplify argument about mismeasurement in models
 1. Can we prove something about the direction of bias?
 1. Finish simulations 
+
+# License
+
+GPL3
