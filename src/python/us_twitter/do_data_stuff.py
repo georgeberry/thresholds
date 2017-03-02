@@ -62,26 +62,27 @@ def psql_insert_many(db, table, data):
     table: tablename
     data: a list of tuples containing data for the table
         CAUTION! data tuples must be in the correct order for the table
+        ADVICE! You should correctly type your data before it reaches this point
 
-    Check here: http://stackoverflow.com/questions/8134602/
-                psycopg2-insert-multiple-rows-with-one-query
     We mogrify in advance to get better speed
     This will store your ENTIRE query in memory in python. This is NOT efficient,
         so consider batching a higher level if you have a really giant query
+
+    Check here: http://stackoverflow.com/questions/8134602/
+                psycopg2-insert-multiple-rows-with-one-query
     """
     cursor = db.cursor()
     ncol = len(data[0])
     # looks ugly but creates (%s,%s,%s), with ncol %s
     placeholder = '(' + ','.join(['%s'] * ncol) + ')'
-    # format the data tuples
+    # mogrify returns bytes, we need bytes
     preamble = b'INSERT INTO ' + bytes(table, 'utf8') + b' VALUES '
+    # format the data tuples
     fmt_data = b','.join(cursor.mogrify(placeholder, tup) for tup in data)
     # create a big query string
     query = preamble + fmt_data
-    print(query[:200])
     cursor.execute(query)
     db.commit()
-
 
 if __name__ == '__main__':
     db = psql_connect()
