@@ -1,6 +1,8 @@
 import collections as coll
 import psycopg2
 import json
+import glob
+import bz2
 
 """
 Plan:
@@ -33,7 +35,8 @@ with open('config.json', 'r') as f:
     PSQL_USR, PSQL_PWD = j['psql_usr'], j['psql_pwd']
     HTAG_COUNT_FILE = j['htag_counts']
     # TIMELINE_FOLDER =
-    # EDGELIST_FILE =
+    EDGELIST_FILE = j['edgelist']
+    SUCCESS_USER_PATTERN = j['success_pattern']
 
 # Postgres functions
 
@@ -103,3 +106,70 @@ if __name__ == '__main__':
 
     psql_insert_many(db, 'Hashtags', ht_data)
     print('Inserted hashtags successfully!')
+
+    del ht_data
+
+
+    # Insert edges #
+
+    count = 0
+    edge_data = []
+
+    print('Beginning edge insertion.')
+
+    with open(EDGELIST_FILE, 'r') as f:
+        for line in f:
+            n1, n2 = [int(x) for x in line.strip('\n').split('\t')]
+            edge_data.append((n1, n2))
+            edge_data.append((n2, n1))
+            count += 2
+            # every millionth item insert and reset
+            if count % 1000000 == 0:
+                print("Inserting {} edges!".format(count))
+                psql_insert_many(db, 'Edges', edge_data)
+                edge_data = []
+
+    del edge_data
+
+    """
+
+    # Insert tweets #
+    tweet_data = []
+    count = 0
+
+    file_list = glob.glob(SUCCESS_USER_PATTERN)
+    for fname in file_list:
+        with bz2.open(fname, 'r') as f:
+            uid, data_json = line.split(b'\t', 1)
+                data = json.loads(data_json)
+                for tweet in data:
+                    tweet_tags = []
+                    tid = tweet['id_str']
+                    text = tweet['text']
+                    created_at = create_timestsamp(tweet['created_at'])
+                    for tag in tweet['entities']['hashtags']:
+                        tweet_tags.add(tag['text'])
+                    if len(tweet_tags) == 0:
+                        tweet_data.append((
+                            uid,
+                            tid,
+                            text,
+                            created_at,
+                            None,
+                        ))
+                        count += 1
+                    else:
+                        for tag in tweet_tags:
+                            tweet_data.append((
+                                uid,
+                                tid,
+                                text,
+                                created_at,
+                                tag,
+                            ))
+                            count += 1
+                    if count > 50000:
+                        psql_insert_many(db, 'SuccessTweets', tweet_data)
+                        tweet_data = []
+                        count = 0
+    """

@@ -6,9 +6,8 @@ create table if not exists Hashtags (
 create table if not exists Tweets (
     userid bigint,
     raw_text text,
-    create_time timestamp,
-    hashtags jsonb, -- binary json, contains array
-    mentions jsonb -- binary json, contains array
+    created_at timestamp,
+    hashtag varchar(140) -- binary json, contains array
 );
 
 create table if not exists RawEdges(
