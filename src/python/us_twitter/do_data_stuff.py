@@ -144,35 +144,35 @@ if __name__ == '__main__':
     for fname in file_list:
         with bz2.open(fname, 'r') as f:
             uid, data_json = line.split(b'\t', 1)
-                data = json.loads(data_json)
-                for tweet in data:
-                    tweet_tags = []
-                    tid = tweet['id_str']
-                    text = tweet['text']
-                    created_at = create_timestsamp(tweet['created_at'])
-                    for tag in tweet['entities']['hashtags']:
-                        tweet_tags.add(tag['text'])
-                    if len(tweet_tags) == 0:
+            data = json.loads(data_json)
+            for tweet in data:
+                tweet_tags = []
+                tid = tweet['id_str']
+                text = tweet['text']
+                created_at = create_timestsamp(tweet['created_at'])
+                for tag in tweet['entities']['hashtags']:
+                    tweet_tags.add(tag['text'])
+                if len(tweet_tags) == 0:
+                    tweet_data.append((
+                        uid,
+                        tid,
+                        text,
+                        created_at,
+                        None,
+                    ))
+                    count += 1
+                else:
+                    for tag in tweet_tags:
                         tweet_data.append((
                             uid,
                             tid,
                             text,
                             created_at,
-                            None,
+                            tag,
                         ))
                         count += 1
-                    else:
-                        for tag in tweet_tags:
-                            tweet_data.append((
-                                uid,
-                                tid,
-                                text,
-                                created_at,
-                                tag,
-                            ))
-                            count += 1
-                    if count > 50000:
-                        psql_insert_many(db, 'SuccessTweets', tweet_data)
-                        tweet_data = []
-                        count = 0
-                        print('Inserted another 50k!')
+                if count > 50000:
+                    psql_insert_many(db, 'SuccessTweets', tweet_data)
+                    tweet_data = []
+                    count = 0
+                    print('Inserted another 50k!')
