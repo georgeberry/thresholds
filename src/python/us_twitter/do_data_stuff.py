@@ -86,7 +86,7 @@ if __name__ == '__main__':
     print('Setup successfully.')
 
     # Name for server-side operations
-    cursor = db.cursor(name="first")
+    cursor = db.cursor()
 
     # List of tuples, (htag, count)
     ht_data = []
