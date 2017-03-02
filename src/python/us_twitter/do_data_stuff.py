@@ -143,7 +143,7 @@ if __name__ == '__main__':
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
     for fname in file_list:
-        with bz2.open(fname, 'r') as f:
+        with bz2.open(fname, 'rt') as f:
             for line in f:
                 uid, data_json = line.split('\t', 1)
                 data = json.loads(data_json)
