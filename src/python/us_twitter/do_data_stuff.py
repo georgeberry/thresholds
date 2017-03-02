@@ -146,7 +146,7 @@ if __name__ == '__main__':
             for line in f:
                 uid, data_json = line.split(b'\t', 1)
                 data = json.loads(data_json)
-                for tweet in data:
+                for tweet in data['tweets']:
                     tweet_tags = []
                     tid = tweet['id_str']
                     text = tweet['text']
