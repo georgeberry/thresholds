@@ -54,6 +54,7 @@ def psql_setup(db):
     """
     with open('schema.sql', 'r') as f:
         db.cursor().execute(f.read())
+        db.commit()
 
 def psql_insert_many(cursor, table, data):
     """
