@@ -113,8 +113,8 @@ with open(tag_file) as infile:
             break
 
 tag_out_file = '/Volumes/Starbuck/class/twitter_data/utags_by_user/tags_watched.tsv'
-with open(tag_out_file) as outfile:
-    json.dump(list[tag_set], outfile)
+with open(tag_out_file, 'w') as outfile:
+    json.dump(list(tag_set), outfile)
                
 
 

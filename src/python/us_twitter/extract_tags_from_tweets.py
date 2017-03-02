@@ -13,7 +13,7 @@ def get_uid_hashtags_from_bz2_file(infile_name, outfile_name):
             user_tags = set()
             uid, data_json = line.split(b'\t', 1)
             data = json.loads(data_json)
-            try: 
+            try:
                 for tweet in data['tweets']:
                     for tag in tweet['entities']['hashtags']:
                         user_tags.add(tag['text'])
@@ -28,17 +28,17 @@ def get_uid_hashtags_from_bz2_file(infile_name, outfile_name):
 @click.argument('in_file_path', type=click.Path(exists=True))
 def main(in_file_path):
     #print('run')
-    out_file_path = '/Volumes/Starbuck/class/twitter_data/utags_by_user/' 
+    out_file_path = '/Volumes/Starbuck/class/twitter_data/utags_by_user/'
     in_name = os.path.splitext(os.path.basename(in_file_path))[0]
     outfile_name = os.path.join(out_file_path, in_name+'.json')
     #print(in_file_path)
     print(outfile_name)
-    get_uid_hashtags_from_bz2_file(in_file_path, outfile_name)    
+    get_uid_hashtags_from_bz2_file(in_file_path, outfile_name)
 
 
 if __name__ == '__main__':
     main()
-    
-    
-    
+
+
+
 # find /Volumes/Starbuck/class/twitter_data/filtered_timelines/success_part-*.bz2 -print0 | xargs -0 -n1 -P12 -- bash -c '~/extract_tags_from_tweets.py "$0"'
