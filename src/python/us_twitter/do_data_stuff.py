@@ -71,9 +71,8 @@ def psql_insert_many(cursor, table, data):
     ncol = len(data[0])
     # looks ugly but creates (%s,%s,%s), with ncol %s
     placeholder = '(' + ','.join(['%s'] * ncol) + ')'
-    print(type(placeholder))
     # format the data tuples
-    fmt_data = ','.join(cursor.mogrify(placeholder, tup) for tup in data)
+    fmt_data = ','.join(cursor.mogrify("(%s, %s)", tup) for tup in data)
     # create a big query string
     query = 'INSERT INTO ' + table + ' VALUES ' + fmt_data
     cursor.execute(query)
@@ -93,7 +92,7 @@ if __name__ == '__main__':
     with open(HTAG_COUNT_FILE, 'r') as f:
         for line in f:
             htag, count = line.strip('\n').split('\t')
-            ht_data.append((str(htag), str(count)))
+            ht_data.append((str(htag), int(count)))
 
     print('Here\'s what the data looks like')
     print(ht_data[:10])
