@@ -72,7 +72,7 @@ def psql_insert_many(cursor, table, data):
     # looks ugly but creates (%s,%s,%s), with ncol %s
     placeholder = '(' + ','.join(['%s'] * ncol) + ')'
     # format the data tuples
-    preamble = cursor.mogrify('INSERT INTO %s VALUES ', (table,))
+    preamble = b'INSERT INTO ' + bytes(table, 'utf8') + b' VALUES '
     fmt_data = b','.join(cursor.mogrify(placeholder, tup) for tup in data)
     # create a big query string
     query = preamble + fmt_data
