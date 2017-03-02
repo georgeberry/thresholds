@@ -101,11 +101,21 @@ with open(ncol_out) as infile:
         uid_plus_set.add(dest)
         
 # get tags that are used by <= 50,000 people
+tag_set = set()
+tag_file = '/Volumes/Starbuck/class/twitter_data/utags_by_user/user_counts.tsv'
+with open(tag_file) as infile:
+    for line in infile:
+        tag, count_str = line.strip().split('\t')
+        count = int(count_str)
+        if count <= 50000:
+            tag_set.add(tag)
+        if len(tag_set) > 10000:
+            break
 
-import 
-
-
-
+tag_out_file = '/Volumes/Starbuck/class/twitter_data/utags_by_user/tags_watched.tsv'
+with open(tag_out_file) as outfile:
+    json.dump(list[tag_set], outfile)
+               
 
 
 
