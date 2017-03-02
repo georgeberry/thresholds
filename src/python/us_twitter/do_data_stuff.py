@@ -4,17 +4,20 @@ import json
 
 """
 Plan:
-    1. Get top hashtags among geolocated users (Chris)
-    2. Insert these user timelines into a Tweets dict
-    3. Go through all edges and add those edges to RawEdges
-    4.
+    1. Get seed set of users with geolocs (DONE)
+    2. hashtags used by this set (DONE)
+    3. Get all links from these users (DONE)
+    4. Assemble a neighbor set (DONE)
+    5. Filter neighbors based on hashtag usage
+    6. Get all timeslines for seed nodes
+    7. Get tweets that use relevant hashtags for neighbor nodes
 
 See schema.sql for the postgres schema
 We have four tables
     Hashtags: hashtag usage counts
     Tweets: all tweets, with timestamps, mentions, and hashtags extracted
     RawEdges: all edges compiled by Patrick
-    TimestampEdges:
+    TimestampEdges: edges with timestamps of mention time
 
 Analysis plan:
     For each hashtag we need to look at its first use within a user, then look
@@ -43,7 +46,6 @@ def psql_connect():
         user=PSQL_USR,
         password=PSQL_PWD,
         host="localhost",
-        #port=port,
     )
     return db
 
