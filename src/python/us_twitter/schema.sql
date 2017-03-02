@@ -5,15 +5,15 @@ create table if not exists Hashtags (
 
 create table if not exists SuccessTweets (
     uid bigint,
-    tid varchar(64),
+    tid varchar(22),
     raw_text text,
     created_at timestamp,
-    hashtags jsonb -- binary json, contains array
+    hashtags varchar(140) -- binary json, contains array
 );
 
 create table if not exists NeighborTweets (
     uid bigint,
-    tid varchar(64),
+    tid varchar(22),
     raw_text text,
     created_at timestamp,
     hashtag varchar(140) -- binary json, contains array

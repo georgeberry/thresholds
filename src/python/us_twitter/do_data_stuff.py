@@ -141,6 +141,8 @@ if __name__ == '__main__':
             count += 2
             # every millionth item insert and reset
             if count % 1000000 == 0:
-                print("Inserting {} tags!".format(count))
+                print("Inserting {} edges!".format(count))
                 psql_insert_many(db, 'Edges', edge_data)
                 edge_data = []
+
+    # Insert tweets #
