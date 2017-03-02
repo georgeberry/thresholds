@@ -148,7 +148,7 @@ if __name__ == '__main__':
                 uid, data_json = line.split(b'\t', 1)
                 data = json.loads(data_json)
                 for tweet in data['tweets']:
-                    tweet_tags = []
+                    tweet_tags = set()
                     tid = tweet['id_str']
                     text = tweet['text']
                     created_at = create_timestamp(tweet['created_at'])
