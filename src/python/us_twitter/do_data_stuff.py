@@ -56,7 +56,7 @@ def psql_setup(db):
         db.cursor().execute(f.read())
         db.commit()
 
-def psql_insert_many(cursor, table, data):
+def psql_insert_many(db, table, data):
     """
     cursor: psycopg2 cursor
     table: tablename
@@ -69,6 +69,7 @@ def psql_insert_many(cursor, table, data):
     This will store your ENTIRE query in memory in python. This is NOT efficient,
         so consider batching a higher level if you have a really giant query
     """
+    cursor = db.cursor()
     ncol = len(data[0])
     # looks ugly but creates (%s,%s,%s), with ncol %s
     placeholder = '(' + ','.join(['%s'] * ncol) + ')'
@@ -79,15 +80,14 @@ def psql_insert_many(cursor, table, data):
     query = preamble + fmt_data
     print(query[:200])
     cursor.execute(query)
+    db.commit()
+
 
 if __name__ == '__main__':
     db = psql_connect()
     print('Connected.')
     psql_setup(db)
     print('Setup successfully.')
-
-    # Name for server-side operations
-    cursor = db.cursor()
 
     # List of tuples, (htag, count)
     ht_data = []
@@ -100,5 +100,5 @@ if __name__ == '__main__':
     print('Here\'s what the data looks like')
     print(ht_data[:10])
 
-    psql_insert_many(cursor, 'Hashtags', ht_data)
+    psql_insert_many(db, 'Hashtags', ht_data)
     print('Inserted hashtags successfully!')
