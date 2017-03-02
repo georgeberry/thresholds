@@ -4,7 +4,7 @@ create table if not exists Hashtags (
 );
 
 create table if not exists SuccessTweets (
-    uid varchar(64),
+    uid bigint,
     tid varchar(64),
     raw_text text,
     created_at timestamp,
@@ -12,7 +12,7 @@ create table if not exists SuccessTweets (
 );
 
 create table if not exists NeighborTweets (
-    uid varchar(64),
+    uid bigint,
     tid varchar(64),
     raw_text text,
     created_at timestamp,
@@ -21,6 +21,6 @@ create table if not exists NeighborTweets (
 
 -- src->dst ==> dst-src
 create table if not exists Edges(
-    src varchar(64),
-    dst varchar(64)
+    src bigint,
+    dst bigint
 );
