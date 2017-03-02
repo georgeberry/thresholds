@@ -74,8 +74,8 @@ def psql_insert_many(cursor, table, data):
     # format the data tuples
     fmt_data = b','.join(cursor.mogrify(placeholder, tup) for tup in data)
     # create a big query string
-    query = 'INSERT INTO ' + table + ' VALUES ' + fmt_data
-    print(query)
+    query = 'INSERT INTO ' + table + ' VALUES ' + str(fmt_data)
+    print(query[:200])
     cursor.execute(str(query))
 
 if __name__ == '__main__':
