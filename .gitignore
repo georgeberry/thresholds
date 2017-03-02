@@ -11,3 +11,5 @@ data/sim_replicants
 data/empirical_replicants
 data/test_replicants
 data/graphml_graphs
+config.json
+__pycache__
