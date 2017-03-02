@@ -29,7 +29,7 @@ Analysis plan:
 # Read from config.json, not pushed to git for privacy
 # These config options should be treated as constants
 with open('config.json', 'r') as f:
-    j = json.loads(f)
+    j = json.load(f)
     PSQL_USR, PSQL_PWD = j['psql_usr'], j['psql_pwd']
     HTAG_COUNT_FILE = j['htag_counts']
     # TIMELINE_FOLDER =
@@ -53,7 +53,7 @@ def psql_setup(db):
     you won't blow the world up running it again
     """
     with open('schema.sql', 'r') as f:
-        db.cursor.execute(f.read())
+        db.cursor().execute(f.read())
 
 def psql_insert_many(cursor, table, data):
     """
@@ -71,6 +71,7 @@ def psql_insert_many(cursor, table, data):
     ncol = len(data[0])
     # looks ugly but creates (%s,%s,%s), with ncol %s
     placeholder = '(' + ','.join(['%s'] * ncol) + ')'
+    print(type(placeholder))
     # format the data tuples
     fmt_data = ','.join(cursor.mogrify(placeholder, tup) for tup in data)
     # create a big query string
@@ -91,8 +92,8 @@ if __name__ == '__main__':
 
     with open(HTAG_COUNT_FILE, 'r') as f:
         for line in f:
-            htag, count = line.split('\t')
-            ht_data.append((htag, count))
+            htag, count = line.strip('\n').split('\t')
+            ht_data.append((str(htag), str(count)))
 
     print('Here\'s what the data looks like')
     print(ht_data[:10])
