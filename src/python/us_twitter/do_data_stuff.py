@@ -93,7 +93,7 @@ if __name__ == '__main__':
     print('Setup successfully.')
 
     # Insert hashtags #
-
+    """
     # List of tuples, (htag, count)
     ht_data = []
 
@@ -109,6 +109,7 @@ if __name__ == '__main__':
     print('Inserted hashtags successfully!')
 
     del ht_data
+    """
 
     # Insert edges #
 
@@ -117,7 +118,7 @@ if __name__ == '__main__':
 
     with open(EDGELIST_FILE, 'r') as f:
         for line in f:
-            n1, n2 = [int(x) for x in line.strip('\n').split(' ')]
+            n1, n2 = [int(x) for x in line.strip('\n').split('\t')]
             edge_data.append((n1, n2))
             edge_data.append((n2, n1))
             count += 2
