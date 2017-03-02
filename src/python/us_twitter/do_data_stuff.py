@@ -1,3 +1,4 @@
+import datetime as dt
 import collections as coll
 import psycopg2
 import json
@@ -28,6 +29,20 @@ Analysis plan:
     There is probably a more efficient algorithm to do this.
     Would be great to, in one shot, get threshold and whether its measure or not.
 """
+
+# is day of month zero-padded?
+TW_DATE_FMT = "%a %b %d %H:%M:%S %z %Y"
+PS_DATE_FMT = "%Y-%m-%d %H:%M:%S%z"
+
+# Datetime conversion
+def create_timestamp(twitter_datestring):
+    """
+    Twitter gives format Mon Jul 28 14:29:09 +0000 2014
+    We need format 2014-07-28 14:29:09+00, where +00 is timezone
+    """
+    date = dt.datetime.strptime(twitter_datestring, TW_DATE_FMT)
+    # chop off last 2 characters of timezone for postgres
+    return date.strftime(PS_DATE_FMT)[:-2]
 
 # Read from config.json, not pushed to git for privacy
 # These config options should be treated as constants
