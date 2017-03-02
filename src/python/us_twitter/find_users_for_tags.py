@@ -28,7 +28,7 @@ def get_tweets_for_hashtags_from_bz2_file(infile_name, outfile_name, tag_set, us
         #header_str = '\t'.join(header_vals)+'\n'
         #outfile.write(header_str)
         for i, line in enumerate(infile):
-            if i > 10: break
+            #if i > 10: break
             uid, data_json = line.split(b'\t', 1)
             if not uid in user_set:
                 continue
