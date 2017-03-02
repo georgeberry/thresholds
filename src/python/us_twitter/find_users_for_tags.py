@@ -15,15 +15,23 @@ def load_watch_tags():
     with open(infile_name) as infile:
         tag_set = set(json.load(infile))
     return tag_set
-
-def get_tweets_for_hashtags_from_bz2_file(infile_name, outfile_name, tag_set):
+    
+def load_users():    
+    json_out = '/Volumes/pci_ssd/twitter_patrick/bidirected_us_edges/success_plus_users.json'
+    with open(json_out) as outfile:
+        user_set = set(json.load(outfile))
+    return user_set
+    
+def get_tweets_for_hashtags_from_bz2_file(infile_name, outfile_name, tag_set, user_set):
     header_vals = ['uid', 'tid', 'raw_text', 'created_at', 'hashtag']
     with bz2.open(infile_name) as infile, io.open(outfile_name, 'w') as outfile:
         #header_str = '\t'.join(header_vals)+'\n'
         #outfile.write(header_str)
         for i, line in enumerate(infile):
-            #if i > 10: break
+            if i > 10: break
             uid, data_json = line.split(b'\t', 1)
+            if not uid in user_set:
+                continue
             data = json.loads(data_json)
             try: 
                 for tweet in data['tweets']:
@@ -63,7 +71,8 @@ def main(in_file_path):
     #print(in_file_path)
     print(outfile_name)
     tag_set = load_watch_tags()
-    get_tweets_for_hashtags_from_bz2_file(in_file_path, outfile_name, tag_set)    
+    user_set = load_users()
+    get_tweets_for_hashtags_from_bz2_file(in_file_path, outfile_name, tag_set, user_set)    
 
 if __name__ == '__main__':
     main()
