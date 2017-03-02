@@ -93,6 +93,7 @@ if __name__ == '__main__':
     psql_setup(db)
     print('Setup successfully.')
 
+    """
     # List of tuples, (htag, count)
     ht_data = []
 
@@ -134,6 +135,8 @@ if __name__ == '__main__':
     """
 
     # Insert tweets #
+    print('Starting insert.')
+
     tweet_data = []
     count = 0
 
@@ -172,4 +175,4 @@ if __name__ == '__main__':
                         psql_insert_many(db, 'SuccessTweets', tweet_data)
                         tweet_data = []
                         count = 0
-    """
+                        print('Inserted another 50k!')
