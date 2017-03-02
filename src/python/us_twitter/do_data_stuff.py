@@ -145,7 +145,7 @@ if __name__ == '__main__':
     for fname in file_list:
         with bz2.open(fname, 'r') as f:
             for line in f:
-                uid, data_json = line.split(b'\t', 1)
+                uid, data_json = line.split('\t', 1)
                 data = json.loads(data_json)
                 for tweet in data['tweets']:
                     tweet_tags = set()
