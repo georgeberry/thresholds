@@ -20,9 +20,9 @@ with open("user_counts.tsv", "w") as outfile:
         if count < 10:
             break
         outfile.write("{}\t{}\n".format(tag, count))
-        
-        
-        
+
+
+
 res = coll.Counter()
 for infile_name in glob.glob("success_part-*.json"):
     print(infile_name)
@@ -36,10 +36,10 @@ with open("user_counts_lc.tsv", "w") as outfile:
         if count < 10:
             break
         outfile.write("{}\t{}\n".format(tag, count))
-        
 
-# Get the users of each tag:   
-in_file_pat = "/Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-*.bz2"    
+
+# Get the users of each tag:
+in_file_pat = "/Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-*.bz2"
 tag_users = dict()
 for infile_name in glob.glob("success_part-*.json"):
     print(infile_name)
@@ -58,7 +58,7 @@ for tag, users in tag_users.items():
         continue
     with open(os.path.join('tag_users', tag+'.json'), 'w') as outfile:
         json.dump({tag:users}, outfile)
-        
+
 ###############################################################################
 # Load the US bi-directed graph (this has been converted to ncol format)
 # subset the graph on users with geopoints
@@ -77,7 +77,7 @@ with open(price_file_name) as home_prices:
             uid = record['uid']
             uid_set.add(uid)
         except ValueError as e:
-            print("End of File: {} cases read".format(i)) 
+            print("End of File: {} cases read".format(i))
             break
 
 ncol_file = '/Volumes/pci_ssd/twitter_patrick/bidirected_us_edges/US_bidirected_edgelist.ncol'
@@ -87,7 +87,7 @@ with open(ncol_file) as infile, open(ncol_out, 'w') as outfile:
     for line in infile:
         src, dest = line.strip().split()
         if src in uid_set or dest in uid_set:
-            outfile.write(line)        
+            outfile.write(line)
 
 # < 10 mins
 # hb_graph = ig.Graph.Read_Ncol(ncol_out, weights=None, directed=False)
@@ -99,13 +99,7 @@ with open(ncol_out) as infile:
         src, dest = line.strip().split()
         uid_plus_set.add(src)
         uid_plus_set.add(dest)
-        
+
 # get tags that are used by <= 50,000 people
 
-import 
-
-
-
-
-
-
+import

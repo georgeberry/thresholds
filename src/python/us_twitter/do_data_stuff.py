@@ -5,7 +5,7 @@ import json
 """
 Plan:
     1. Get seed set of users with geolocs (DONE)
-    2. hashtags used by this set (DONE)
+    2. Select set of hashtags used by this set (DONE)
     3. Get all links from these users (DONE)
     4. Assemble a neighbor set (DONE)
     5. Filter neighbors based on hashtag usage
@@ -36,7 +36,7 @@ with open('config.json', 'r') as f:
     PSQL_USR, PSQL_PWD = j['psql_usr'], j['psql_pwd']
     HTAG_COUNT_FILE = j['htag_counts']
     # TIMELINE_FOLDER =
-    # EDGELIST_FILE =
+    EDGELIST_FILE = j['edgelist']
 
 # Postgres functions
 
@@ -92,6 +92,8 @@ if __name__ == '__main__':
     psql_setup(db)
     print('Setup successfully.')
 
+    # Insert hashtags #
+
     # List of tuples, (htag, count)
     ht_data = []
 
@@ -105,3 +107,21 @@ if __name__ == '__main__':
 
     psql_insert_many(db, 'Hashtags', ht_data)
     print('Inserted hashtags successfully!')
+
+    del ht_data
+
+    # Insert edges #
+
+    count = 0
+    edge_data = []
+
+    with open(EDGELIST_FILE, 'r') as f:
+        for line in f:
+            n1, n2 = [int(x) for x in line.strip('\n').split(' ')]
+            edge_data.append((n1, n2))
+            edge_data.append((n2, n1))
+            count += 2
+            # every millionth item insert and reset
+            if count == 1000000:
+                psql_insert_many(db, 'Edges', edge_data)
+                edge_data = []
