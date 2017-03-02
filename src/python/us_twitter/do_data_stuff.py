@@ -77,7 +77,7 @@ def psql_insert_many(cursor, table, data):
     # create a big query string
     query = preamble + fmt_data
     print(query[:200])
-    cursor.execute(str(query))
+    cursor.execute(query)
 
 if __name__ == '__main__':
     db = psql_connect()
