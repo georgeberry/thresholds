@@ -169,7 +169,7 @@ if __name__ == '__main__':
                                 tid,
                                 text,
                                 created_at,
-                                "\N",
+                                b"\N",
                             ]) + b'\n'
                             outfile.write(outline)
                         else:
@@ -179,7 +179,7 @@ if __name__ == '__main__':
                                     tid,
                                     text,
                                     created_at,
-                                    "\N",
+                                    tag,
                                 ]) + b'\n'
                                 outfile.write(outline)
                 break
