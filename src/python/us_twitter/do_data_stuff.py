@@ -169,7 +169,7 @@ if __name__ == '__main__':
                                 tid,
                                 text,
                                 created_at,
-                                b"\N",
+                                b"",
                             ]) + b'\n'
                             outfile.write(outline)
                         else:
