@@ -145,6 +145,8 @@ if __name__ == '__main__':
     # Insert tweets #
     print('Starting insert.')
 
+    fcount = 0
+
     file_list = glob.glob(SUCCESS_USER_PATTERN)
     with open(outfile_name, 'w') as outfile:
         for fname in file_list:
@@ -179,3 +181,5 @@ if __name__ == '__main__':
                                     None,
                                 ]) + b'\n'
                                 outfile.write(outline)
+                fcount += 1
+                print('Done with file {}!'.format(fcount))
