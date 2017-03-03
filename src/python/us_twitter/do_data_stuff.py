@@ -141,12 +141,18 @@ if __name__ == '__main__':
     tweet_data = []
     count = 0
 
+    absolute_count = 0
+    start_at = 12000251
+
     file_list = glob.glob(SUCCESS_USER_PATTERN)
     for fname in file_list:
-        with bz2.open(fname, 'rt') as f:
+        with bz2.open(fname, 'r') as f:
             for line in f:
-                uid, data_json = line.split('\t', 1)
-                uid = int(uid.strip('"'))
+                absolute_count += 1
+                if absolute_count < start_at:
+                    continue
+                uid, data_json = line.split(b'\t', 1)
+                uid = int(uid.strip(b'"'))
                 data = json.loads(data_json)
                 for tweet in data['tweets']:
                     tweet_tags = set()
