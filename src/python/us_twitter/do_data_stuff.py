@@ -148,16 +148,15 @@ if __name__ == '__main__':
 
     fcount = 0
 
-    placeholder = '\t'.join(['%s'] * 5)
     cursor = db.cursor()
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    with open(OUTFILE_NAME, 'wb') as outfile:
+    with open(OUTFILE_NAME, 'w') as outfile:
         for fname in file_list:
-            with bz2.open(fname, 'r') as f:
+            with bz2.open(fname, 'rt') as f:
                 for line in f:
-                    uid, data_json = line.split(b'\t', 1)
-                    uid = int(uid.strip(b'"'))
+                    uid, data_json = line.split('\t', 1)
+                    uid = int(uid.strip('"'))
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         try:
@@ -168,13 +167,13 @@ if __name__ == '__main__':
                             for tag in tweet['entities']['hashtags']:
                                 tweet_tags.add(tag['text'])
                             if len(tweet_tags) == 0:
-                                tup = (uid, tid, text, created_at, b'')
-                                outline = cursor.mogrify(placeholder, tup) + b'\n'
+                                tup = (str(uid), tid, text, created_at, '')
+                                outline = '\t'.join(tup) + '\n'
                                 outfile.write(outline)
                             else:
                                 for tag in tweet_tags:
-                                    tup = (uid, tid, text, created_at, tag)
-                                    outline = cursor.mogrify(placeholder, tup) + b'\n'
+                                    tup = (str(uid), tid, text, created_at, tag)
+                                    outline = '\t'.join(tup) + '\n'
                                     outfile.write(outline)
                         except:
                             "Processing error for tweet!"
