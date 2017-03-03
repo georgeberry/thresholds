@@ -3,6 +3,7 @@ import psycopg2
 import ujson as json
 import glob
 import bz2
+import re
 from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
 """
@@ -162,7 +163,7 @@ if __name__ == '__main__':
                         try:
                             tweet_tags = set()
                             tid = tweet['id_str']
-                            text = tweet['text'].replace('\t', ' ')
+                            text = re.sub(r"\s+", " ", tweet['text'])
                             created_at = create_timestamp(tweet['created_at'])
                             for tag in tweet['entities']['hashtags']:
                                 tweet_tags.add(tag['text'])
