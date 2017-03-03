@@ -165,6 +165,9 @@ if __name__ == '__main__':
                             tid = tweet['id_str']
                             text = re.sub(r"\s+", " ", tweet['text'])
                             created_at = create_timestamp(tweet['created_at'])
+                            if len(created_at) < 10:
+                                continue
+
                             for tag in tweet['entities']['hashtags']:
                                 tweet_tags.add(tag['text'])
                             if len(tweet_tags) == 0:
