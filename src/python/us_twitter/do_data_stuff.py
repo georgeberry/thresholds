@@ -82,7 +82,13 @@ def psql_insert_many(db, table, data):
     # mogrify returns bytes, we need bytes
     preamble = b'INSERT INTO ' + bytes(table, 'utf8') + b' VALUES '
     # format the data tuples
-    fmt_data = b','.join(cursor.mogrify(placeholder, tup) for tup in data)
+    fmt_list = []
+    for tup in data:
+        try:
+            fmt_list.append(cursor.mogrify(placeholder, tup))
+        except:
+            'Mogrify error!'
+    fmt_data = b','.join(fmt_list)
     # create a big query string
     query = preamble + fmt_data
     cursor.execute(query)
@@ -141,16 +147,10 @@ if __name__ == '__main__':
     tweet_data = []
     count = 0
 
-    absolute_count = 0
-    start_at = 12000251
-
     file_list = glob.glob(SUCCESS_USER_PATTERN)
     for fname in file_list:
         with bz2.open(fname, 'r') as f:
             for line in f:
-                absolute_count += 1
-                if absolute_count < start_at:
-                    continue
                 uid, data_json = line.split(b'\t', 1)
                 uid = int(uid.strip(b'"'))
                 data = json.loads(data_json)
