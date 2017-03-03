@@ -5,6 +5,7 @@ import glob
 import bz2
 import re
 import csv
+import io
 from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
 """
@@ -151,18 +152,17 @@ if __name__ == '__main__':
     tweet_count = 0
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    with open(OUTFILE_NAME, 'w') as outfile:
-        writer = csv.writer(outfile)
+    with io.open(OUTFILE_NAME, 'w') as outfile:
         for fname in file_list:
             with bz2.open(fname, 'rt') as f:
                 for line in f:
                     uid, data_json = line.split('\t', 1)
-                    uid = int(uid.strip('"'))
+                    uid = uid.strip('"')
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         tweet_tags = set()
                         tid = tweet['id_str']
-                        text = re.sub(r"\s+", " ", tweet['text'])
+                        text = tweet['text'].replace('\t', ' ')
                         created_at = create_timestamp(tweet['created_at'])
                         # Skip tweets without a creation time
                         if len(created_at) < 10:
@@ -171,9 +171,10 @@ if __name__ == '__main__':
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
                             tup = (uid, tid, text, created_at, None)
-                            writer.writerow(tup)
+                            outfile.write('\t'.join(tup) + '\n')
                         else:
                             for tag in tweet_tags:
                                 tup = (uid, tid, text, created_at, tag)
+                                outfile.write('\t'.join(tup) + '\n')
             print('Done with file {}!'.format(fname))
             break
