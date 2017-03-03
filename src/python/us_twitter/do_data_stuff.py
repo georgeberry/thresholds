@@ -117,6 +117,7 @@ if __name__ == '__main__':
 
     del ht_data
 
+    """
 
     # Insert edges #
 
@@ -136,10 +137,9 @@ if __name__ == '__main__':
                 print("Inserting {} edges!".format(count))
                 psql_insert_many(db, 'Edges', edge_data)
                 edge_data = []
+        psql_insert_many(db, 'Edges', edge_data)
 
     del edge_data
-
-    """
 
     # Insert tweets #
     print('Starting insert.')
