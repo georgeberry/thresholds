@@ -137,7 +137,6 @@ if __name__ == '__main__':
     cursor = db.cursor()
     placeholder = '(' + ','.join(['%s'] * 5) + ')'
     preamble = b'INSERT INTO ' + bytes('SuccessTweets', 'utf8') + b' VALUES '
-    cursor.execute(query)
 
     tweet_data = []
     count = 0
