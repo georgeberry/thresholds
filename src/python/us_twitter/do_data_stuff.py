@@ -169,7 +169,7 @@ if __name__ == '__main__':
                                 tid,
                                 text,
                                 created_at,
-                                None,
+                                "\N",
                             ]) + b'\n'
                             outfile.write(outline)
                         else:
@@ -179,8 +179,9 @@ if __name__ == '__main__':
                                     tid,
                                     text,
                                     created_at,
-                                    None,
+                                    "\N",
                                 ]) + b'\n'
                                 outfile.write(outline)
+                break
                 fcount += 1
                 print('Done with file {}!'.format(fcount))
