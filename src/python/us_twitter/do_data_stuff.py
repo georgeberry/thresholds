@@ -1,6 +1,6 @@
 import collections as coll
 import psycopg2
-import json
+import ujson as json
 import glob
 import bz2
 from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     del ht_data
 
-    """
+
 
     # Insert edges #
 
@@ -140,48 +140,42 @@ if __name__ == '__main__':
         psql_insert_many(db, 'Edges', edge_data)
 
     del edge_data
+    """
 
     # Insert tweets #
     print('Starting insert.')
 
-    tweet_data = []
-    count = 0
-
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    for fname in file_list:
-        with bz2.open(fname, 'r') as f:
-            for line in f:
-                uid, data_json = line.split(b'\t', 1)
-                uid = int(uid.strip(b'"'))
-                data = json.loads(data_json)
-                for tweet in data['tweets']:
-                    tweet_tags = set()
-                    tid = tweet['id_str']
-                    text = tweet['text']
-                    created_at = create_timestamp(tweet['created_at'])
-                    for tag in tweet['entities']['hashtags']:
-                        tweet_tags.add(tag['text'])
-                    if len(tweet_tags) == 0:
-                        tweet_data.append((
-                            uid,
-                            tid,
-                            text,
-                            created_at,
-                            None,
-                        ))
-                        count += 1
-                    else:
-                        for tag in tweet_tags:
-                            tweet_data.append((
+    with open(outfile_name, 'w') as outfile:
+        for fname in file_list:
+            with bz2.open(fname, 'r') as f:
+                for line in f:
+                    uid, data_json = line.split(b'\t', 1)
+                    uid = int(uid.strip(b'"'))
+                    data = json.loads(data_json)
+                    for tweet in data['tweets']:
+                        tweet_tags = set()
+                        tid = tweet['id_str']
+                        text = tweet['text']
+                        created_at = create_timestamp(tweet['created_at'])
+                        for tag in tweet['entities']['hashtags']:
+                            tweet_tags.add(tag['text'])
+                        if len(tweet_tags) == 0:
+                            outline = b'\t'.join([
                                 uid,
                                 tid,
                                 text,
                                 created_at,
-                                tag,
-                            ))
-                            count += 1
-                    if count > 50000:
-                        psql_insert_many(db, 'SuccessTweets', tweet_data)
-                        tweet_data = []
-                        count = 0
-                        print('Inserted another 50k!')
+                                None,
+                            ]) + b'\n'
+                            outfile.write(outline)
+                        else:
+                            for tag in tweet_tags:
+                                outline = b'\t'.join([
+                                    uid,
+                                    tid,
+                                    text,
+                                    created_at,
+                                    None,
+                                ]) + b'\n'
+                                outfile.write(outline)
