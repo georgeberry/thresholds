@@ -163,7 +163,7 @@ if __name__ == '__main__':
                         try:
                             tweet_tags = set()
                             tid = tweet['id_str']
-                            text = tweet['text']
+                            text = tweet['text'].replace(b'\t', b' ')
                             created_at = create_timestamp(tweet['created_at'])
                             for tag in tweet['entities']['hashtags']:
                                 tweet_tags.add(tag['text'])
