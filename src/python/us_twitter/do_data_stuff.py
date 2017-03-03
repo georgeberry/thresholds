@@ -147,9 +147,8 @@ if __name__ == '__main__':
     # Insert tweets #
     print('Starting insert.')
 
-    fcount = 0
-
-    cursor = db.cursor()
+    tweet_count = 0
+    tweet_list = []
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
     with open(OUTFILE_NAME, 'w') as outfile:
@@ -160,27 +159,25 @@ if __name__ == '__main__':
                     uid = int(uid.strip('"'))
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
-                        try:
-                            tweet_tags = set()
-                            tid = tweet['id_str']
-                            text = re.sub(r"\s+", " ", tweet['text'])
-                            created_at = create_timestamp(tweet['created_at'])
-                            if len(created_at) < 10:
-                                continue
-
-                            for tag in tweet['entities']['hashtags']:
-                                tweet_tags.add(tag['text'])
-                            if len(tweet_tags) == 0:
-                                tup = (str(uid), tid, text, created_at, '')
-                                outline = '\t'.join(tup) + '\n'
-                                outfile.write(outline)
-                            else:
-                                for tag in tweet_tags:
-                                    tup = (str(uid), tid, text, created_at, tag)
-                                    outline = '\t'.join(tup) + '\n'
-                                    outfile.write(outline)
-                        except:
-                            "Processing error for tweet!"
-                break
-                fcount += 1
-                print('Done with file {}!'.format(fcount))
+                        tweet_tags = set()
+                        tid = tweet['id_str']
+                        text = re.sub(r"\s+", " ", tweet['text'])
+                        created_at = create_timestamp(tweet['created_at'])
+                        if len(created_at) < 10:
+                            continue
+                        for tag in tweet['entities']['hashtags']:
+                            tweet_tags.add(tag['text'])
+                        if len(tweet_tags) == 0:
+                            tup = (uid, tid, text, created_at, None)
+                            tweet_list.append(tup)
+                            tweet_count += 1
+                        else:
+                            for tag in tweet_tags:
+                                tup = (uid, tid, text, created_at, tag)
+                                tweet_list.append(tup)
+                                tweet_count += 1
+                    if tweet_count >= 1000000:
+                        psql_insert_many(db, 'SuccessTweets', tweet_list)
+                        tweet_count = 0
+                        tweet_list = []
+                print('Done with file {}!'.format(fname))
