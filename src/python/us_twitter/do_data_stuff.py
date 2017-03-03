@@ -150,11 +150,13 @@ if __name__ == '__main__':
     print('Starting insert.')
 
     tweet_count = 0
-
+    placeholder = b'\t'.join(['%s'] * 5)
+    cursor = db.cursor()
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    with io.open(OUTFILE_NAME, 'w') as outfile:
+
+    with io.open(OUTFILE_NAME, 'wb') as outfile:
         for fname in file_list:
-            with bz2.open(fname, 'rt') as f:
+            with bz2.open(fname, 'r') as f:
                 for line in f:
                     uid, data_json = line.split('\t', 1)
                     uid = uid.strip('"')
@@ -162,8 +164,8 @@ if __name__ == '__main__':
                     for tweet in data['tweets']:
                         tweet_tags = set()
                         tid = tweet['id_str']
-                        text = re.sub(r'\s+', ' ', tweet['text'])
-                        text = re.sub(r'\\', r"\\\\", text) + ' '
+                        text = re.sub('\s+', ' ', tweet['text'])
+                        text = re.sub('\\', "\\\\", text)
                         created_at = create_timestamp(tweet['created_at'])
                         # Skip tweets without a creation time
                         if len(created_at) < 10:
@@ -172,9 +174,13 @@ if __name__ == '__main__':
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
                             tup = (uid, tid, text, created_at, "")
-                            outfile.write('\t'.join(tup) + '\n')
+                            outfile.write(
+                                cusor.mogrify(placeholder, tup) + b'\n'
+                            )
                         else:
                             for tag in tweet_tags:
                                 tup = (uid, tid, text, created_at, tag)
-                                outfile.write('\t'.join(tup) + '\n')
+                                outfile.write(
+                                    cusor.mogrify(placeholder, tup) + b'\n'
+                                )
             print('Done with file {}!'.format(fname))
