@@ -151,7 +151,7 @@ if __name__ == '__main__':
                 for tweet in data['tweets']:
                     tweet_tags = set()
                     tid = tweet['id_str']
-                    text = tweet['text']
+                    text = re.sub(r"\s+", " ", tweet['text']) + ' '
                     created_at = create_timestamp(tweet['created_at'])
                     for tag in tweet['entities']['hashtags']:
                         tweet_tags.add(tag['text'])
