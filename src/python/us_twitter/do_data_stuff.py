@@ -148,7 +148,7 @@ if __name__ == '__main__':
 
     fcount = 0
 
-    placeholder = '(' + ','.join(['%s'] * 5) + ')'
+    placeholder = b'\t'.join(['%s'] * 5)
     cursor = db.cursor()
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
@@ -168,7 +168,7 @@ if __name__ == '__main__':
                             for tag in tweet['entities']['hashtags']:
                                 tweet_tags.add(tag['text'])
                             if len(tweet_tags) == 0:
-                                tup = (uid, tid, text, created_at, None)
+                                tup = (uid, tid, text, created_at, b'')
                                 outline = cursor.mogrify(placeholder, tup) + b'\n'
                                 outfile.write(outline)
                             else:
