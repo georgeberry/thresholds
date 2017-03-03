@@ -150,7 +150,7 @@ if __name__ == '__main__':
     print('Starting insert.')
 
     tweet_count = 0
-    placeholder = b'\t'.join(['%s'] * 5)
+    placeholder = '\t'.join(['%s'] * 5)
     cursor = db.cursor()
     file_list = glob.glob(SUCCESS_USER_PATTERN)
 
