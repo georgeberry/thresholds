@@ -170,7 +170,7 @@ if __name__ == '__main__':
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
-                            tup = (uid, tid, text, created_at, None)
+                            tup = (uid, tid, text, created_at, "")
                             outfile.write('\t'.join(tup) + '\n')
                         else:
                             for tag in tweet_tags:
