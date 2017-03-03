@@ -162,7 +162,7 @@ if __name__ == '__main__':
                     for tweet in data['tweets']:
                         tweet_tags = set()
                         tid = bytes(tweet['id_str'], 'utf8')
-                        text = re.sub(b'\s+', b' ', bytes(tweet['text'], 'utf8'))
+                        text = re.sub(b'\s+', b' ', bytes(tweet['text'], 'utf8')) + b' '
                         created_at = bytes(create_timestamp(tweet['created_at']), 'utf8')
                         # Skip tweets without a creation time
                         if len(created_at) < 10:
