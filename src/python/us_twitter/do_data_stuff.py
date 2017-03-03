@@ -161,7 +161,7 @@ if __name__ == '__main__':
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         tweet_tags = set()
-                        tid = tweet['id_str']
+                        tid = bytes(tweet['id_str'], 'utf8')
                         text = re.sub(b'\s+', b' ', bytes(tweet['text'], 'utf8'))
                         created_at = create_timestamp(tweet['created_at'])
                         # Skip tweets without a creation time
@@ -174,7 +174,7 @@ if __name__ == '__main__':
                             outfile.write(b'\t'.join(tup) + b'\n')
                         else:
                             for tag in tweet_tags:
-                                tup = (uid, tid, text, created_at, tag)
+                                tup = (uid, tid, text, created_at, bytes(tag, 'utf8'))
                                 outfile.write(b'\t'.join(tup) + b'\n')
             print('Done with file {}!'.format(fname))
             break
