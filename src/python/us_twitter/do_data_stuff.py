@@ -148,9 +148,9 @@ if __name__ == '__main__':
     for fname in file_list:
         with bz2.open(fname, 'r') as f:
             for line in f:
-                # absolute_count += 1
-                # if absolute_count < start_at:
-                #     continue
+                absolute_count += 1
+                if absolute_count < start_at:
+                    continue
                 uid, data_json = line.split(b'\t', 1)
                 uid = int(uid.strip(b'"'))
                 data = json.loads(data_json)
