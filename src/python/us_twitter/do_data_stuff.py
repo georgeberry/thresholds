@@ -152,17 +152,17 @@ if __name__ == '__main__':
     tweet_count = 0
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    with io.open(OUTFILE_NAME, 'w') as outfile:
+    with io.open(OUTFILE_NAME, 'wb') as outfile:
         for fname in file_list:
-            with bz2.open(fname, 'rt') as f:
+            with bz2.open(fname, 'r') as f:
                 for line in f:
-                    uid, data_json = line.split('\t', 1)
-                    uid = uid.strip('"')
+                    uid, data_json = line.split(b'\t', 1)
+                    uid = uid.strip(b'"')
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         tweet_tags = set()
                         tid = tweet['id_str']
-                        text = re.sub(r'\s+', ' ', tweet['text'])
+                        text = re.sub(b'\s+', b' ', tweet['text'])
                         created_at = create_timestamp(tweet['created_at'])
                         # Skip tweets without a creation time
                         if len(created_at) < 10:
@@ -170,11 +170,11 @@ if __name__ == '__main__':
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
-                            tup = (uid, tid, text, created_at, "")
-                            outfile.write('\t'.join(tup) + '\n')
+                            tup = (uid, tid, text, created_at, b"")
+                            outfile.write(b'\t'.join(tup) + b'\n')
                         else:
                             for tag in tweet_tags:
                                 tup = (uid, tid, text, created_at, tag)
-                                outfile.write('\t'.join(tup) + '\n')
+                                outfile.write(b'\t'.join(tup) + b'\n')
             print('Done with file {}!'.format(fname))
             break
