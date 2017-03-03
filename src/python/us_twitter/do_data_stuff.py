@@ -178,4 +178,3 @@ if __name__ == '__main__':
                                 tup = (uid, tid, text, created_at, tag)
                                 outfile.write('\t'.join(tup) + '\n')
             print('Done with file {}!'.format(fname))
-            break
