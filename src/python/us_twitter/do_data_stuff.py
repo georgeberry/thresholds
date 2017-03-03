@@ -153,8 +153,8 @@ if __name__ == '__main__':
         for fname in file_list:
             with bz2.open(fname, 'r') as f:
                 for line in f:
-                    uid, data_json = line.split(b'\t', 1)
-                    uid = int(uid.strip(b'"'))
+                    uid, data_json = line.split('\t', 1)
+                    uid = int(uid.strip('"'))
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         tweet_tags = set()
@@ -164,23 +164,23 @@ if __name__ == '__main__':
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
-                            outline = b'\t'.join([
-                                uid,
+                            outline = '\t'.join([
+                                str(uid),
                                 tid,
                                 text,
                                 created_at,
-                                b"",
-                            ]) + b'\n'
+                                '',
+                            ]) + '\n'
                             outfile.write(outline)
                         else:
                             for tag in tweet_tags:
-                                outline = b'\t'.join([
-                                    uid,
+                                outline = '\t'.join([
+                                    str(uid),
                                     tid,
                                     text,
                                     created_at,
                                     tag,
-                                ]) + b'\n'
+                                ]) + '\n'
                                 outfile.write(outline)
                 break
                 fcount += 1
