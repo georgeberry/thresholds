@@ -3,6 +3,7 @@ import psycopg2
 import ujson as json
 import glob
 import bz2
+import re
 from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
 """
