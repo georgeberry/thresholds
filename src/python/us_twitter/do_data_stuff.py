@@ -134,6 +134,16 @@ if __name__ == '__main__':
     # Insert tweets #
     print('Starting insert.')
 
+    cursor = db.cursor()
+    placeholder = '(' + ','.join(['%s'] * 5) + ')'
+    preamble = b'INSERT INTO ' + bytes(table, 'utf8') + b' VALUES '
+
+
+    fmt_data = b','.join(fmt_list)
+    # create a big query string
+    query = preamble + fmt_data
+    cursor.execute(query)
+
     tweet_data = []
     count = 0
 
@@ -152,27 +162,27 @@ if __name__ == '__main__':
                     for tag in tweet['entities']['hashtags']:
                         tweet_tags.add(tag['text'])
                     if len(tweet_tags) == 0:
-                        tweet_data.append((
-                            uid,
-                            tid,
-                            text,
-                            created_at,
-                            None,
-                        ))
+                        try:
+                            tup = (uid, tid, text, created_at, None)
+                            tweet_data.append(cursor.mogrify(placeholder, tup))
+                        except:
+                            print('Mogrify error!')
                         count += 1
                     else:
                         for tag in tweet_tags:
-                            tweet_data.append((
-                                uid,
-                                tid,
-                                text,
-                                created_at,
-                                tag,
-                            ))
+                            try:
+                                tup = (uid, tid, text, created_at, tag)
+                                tweet_data.append(
+                                    cursor.mogrify(placeholder, tup)
+                                )
+                            except:
+                                print('Mogrify error!')
                             count += 1
-                    if count > 1000000:
-                        psql_insert_many(db, 'SuccessTweets', tweet_data)
+                    if count > 100000:
+                        query = preamble + b','.join(tweet_data)
+                        cursor.execute(query)
+                        db.commit()
                         tweet_data = []
                         count = 0
-                        print('Inserted another 1m!')
+                        print('Inserted another 100k!')
             print('Finished file {}!'.format(fname))
