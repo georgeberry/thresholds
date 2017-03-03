@@ -151,7 +151,7 @@ if __name__ == '__main__':
     file_list = glob.glob(SUCCESS_USER_PATTERN)
     with open(OUTFILE_NAME, 'w') as outfile:
         for fname in file_list:
-            with bz2.open(fname, 'r') as f:
+            with bz2.open(fname, 'rt') as f:
                 for line in f:
                     uid, data_json = line.split('\t', 1)
                     uid = int(uid.strip('"'))
