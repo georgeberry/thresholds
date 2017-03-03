@@ -4,6 +4,7 @@ import ujson as json
 import glob
 import bz2
 import re
+import csv
 from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
 """
@@ -148,10 +149,10 @@ if __name__ == '__main__':
     print('Starting insert.')
 
     tweet_count = 0
-    tweet_list = []
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
     with open(OUTFILE_NAME, 'w') as outfile:
+        writer = csv.writer(outfile)
         for fname in file_list:
             with bz2.open(fname, 'rt') as f:
                 for line in f:
@@ -163,21 +164,16 @@ if __name__ == '__main__':
                         tid = tweet['id_str']
                         text = re.sub(r"\s+", " ", tweet['text'])
                         created_at = create_timestamp(tweet['created_at'])
+                        # Skip tweets without a creation time
                         if len(created_at) < 10:
                             continue
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
                             tup = (uid, tid, text, created_at, None)
-                            tweet_list.append(tup)
-                            tweet_count += 1
+                            writer.writerow(tup)
                         else:
                             for tag in tweet_tags:
                                 tup = (uid, tid, text, created_at, tag)
-                                tweet_list.append(tup)
-                                tweet_count += 1
-                        if tweet_count >= 1000000:
-                            psql_insert_many(db, 'SuccessTweets', tweet_list)
-                            tweet_count = 0
-                            tweet_list = []
-                print('Done with file {}!'.format(fname))
+            print('Done with file {}!'.format(fname))
+            break
