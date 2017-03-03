@@ -171,10 +171,10 @@ if __name__ == '__main__':
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
                             tup = (uid, tid, text, created_at, "")
-                            outfile.write('\t'.join(tup) + '\n')
+                            outfile.write('\t'.join(tup)) + '\n'
                         else:
                             for tag in tweet_tags:
                                 tup = (uid, tid, text, created_at, tag)
-                                outfile.write('\t'.join(tup) + '\n')
+                                outfile.write('\t'.join(tup)) + '\n'
             print('Done with file {}!'.format(fname))
             break
