@@ -148,40 +148,36 @@ if __name__ == '__main__':
 
     fcount = 0
 
+    placeholder = '(' + ','.join(['%s'] * 5) + ')'
+    cursor = db.cursor()
+
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    with open(OUTFILE_NAME, 'w') as outfile:
+    with open(OUTFILE_NAME, 'wb') as outfile:
         for fname in file_list:
-            with bz2.open(fname, 'rt') as f:
+            with bz2.open(fname, 'r') as f:
                 for line in f:
-                    uid, data_json = line.split('\t', 1)
+                    uid, data_json = line.split(b'\t', 1)
                     uid = int(uid.strip('"'))
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
-                        tweet_tags = set()
-                        tid = tweet['id_str']
-                        text = tweet['text']
-                        created_at = create_timestamp(tweet['created_at'])
-                        for tag in tweet['entities']['hashtags']:
-                            tweet_tags.add(tag['text'])
-                        if len(tweet_tags) == 0:
-                            outline = '\t'.join([
-                                str(uid),
-                                tid,
-                                text,
-                                created_at,
-                                '',
-                            ]) + '\n'
-                            outfile.write(outline)
-                        else:
-                            for tag in tweet_tags:
-                                outline = '\t'.join([
-                                    str(uid),
-                                    tid,
-                                    text,
-                                    created_at,
-                                    tag,
-                                ]) + '\n'
+                        try:
+                            tweet_tags = set()
+                            tid = tweet['id_str']
+                            text = tweet['text']
+                            created_at = create_timestamp(tweet['created_at'])
+                            for tag in tweet['entities']['hashtags']:
+                                tweet_tags.add(tag['text'])
+                            if len(tweet_tags) == 0:
+                                tup = (uid, tid, text, created_at, None)
+                                outline = cursor.mogrify(placeholder, tup) + b'\n'
                                 outfile.write(outline)
+                            else:
+                                for tag in tweet_tags:
+                                    tup = (uid, tid, text, created_at, tag)
+                                    outline = cursor.mogrify(placeholder, tup) + b'\n'
+                                    outfile.write(outline)
+                        except:
+                            "Processing error for tweet!"
                 break
                 fcount += 1
                 print('Done with file {}!'.format(fcount))
