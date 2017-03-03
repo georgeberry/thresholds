@@ -157,7 +157,7 @@ if __name__ == '__main__':
             with bz2.open(fname, 'r') as f:
                 for line in f:
                     uid, data_json = line.split(b'\t', 1)
-                    uid = int(uid.strip('"'))
+                    uid = int(uid.strip('b"'))
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         try:
