@@ -6,7 +6,7 @@ create table if not exists Hashtags (
 create table if not exists SuccessTweets (
     uid bigint,
     tid varchar(22),
-    raw_text text,
+    raw_text varchar(160),
     created_at timestamp,
     hashtag varchar(140)
 );
@@ -14,7 +14,7 @@ create table if not exists SuccessTweets (
 create table if not exists NeighborTweets (
   uid bigint,
   tid varchar(22),
-  raw_text text,
+  raw_text varchar(160),
   created_at timestamp,
   hashtag varchar(140)
 );
