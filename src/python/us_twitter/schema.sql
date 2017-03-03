@@ -3,20 +3,23 @@ create table if not exists Hashtags (
     count bigint
 );
 
-create table if not exists Tweets (
-    userid bigint,
+create table if not exists SuccessTweets (
+    uid bigint,
+    tid varchar(22),
     raw_text text,
     created_at timestamp,
-    hashtag varchar(140) -- binary json, contains array
+    hashtag varchar(140)
 );
 
-create table if not exists RawEdges(
+create table if not exists NeighborTweets (
+  uid bigint,
+  tid varchar(22),
+  raw_text text,
+  created_at timestamp,
+  hashtag varchar(140)
+);
+
+create table if not exists Edges(
     src bigint,
     dst bigint
-);
-
-create table if not exists TimestampEdges(
-    src bigint,
-    dst bigint,
-    create_time timestamp
 );
