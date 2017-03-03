@@ -152,29 +152,29 @@ if __name__ == '__main__':
     tweet_count = 0
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    with io.open(OUTFILE_NAME, 'wb') as outfile:
+    with io.open(OUTFILE_NAME, 'w') as outfile:
         for fname in file_list:
-            with bz2.open(fname, 'r') as f:
+            with bz2.open(fname, 'rt') as f:
                 for line in f:
-                    uid, data_json = line.split(b'\t', 1)
-                    uid = uid.strip(b'"')
+                    uid, data_json = line.split('\t', 1)
+                    uid = uid.strip('"')
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         tweet_tags = set()
-                        tid = bytes(tweet['id_str'], 'utf8')
-                        text = re.sub(b'\s+', b' ', bytes(tweet['text'], 'utf8')) + b' '
-                        created_at = bytes(create_timestamp(tweet['created_at']), 'utf8')
+                        tid = tweet['id_str']
+                        text = re.sub('\s+', ' ', tweet['text']) + ' '
+                        created_at = create_timestamp(tweet['created_at'])
                         # Skip tweets without a creation time
                         if len(created_at) < 10:
                             continue
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
-                            tup = (uid, tid, text, created_at, b"")
-                            outfile.write(b'\t'.join(tup) + b'\n')
+                            tup = (uid, tid, text, created_at, "")
+                            outfile.write('\t'.join(tup) + '\n')
                         else:
                             for tag in tweet_tags:
-                                tup = (uid, tid, text, created_at, bytes(tag, 'utf8'))
-                                outfile.write(b'\t'.join(tup) + b'\n')
+                                tup = (uid, tid, text, created_at, tag)
+                                outfile.write('\t'.join(tup) + '\n')
             print('Done with file {}!'.format(fname))
             break
