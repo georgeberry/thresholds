@@ -38,6 +38,7 @@ with open('config.json', 'r') as f:
     # TIMELINE_FOLDER =
     EDGELIST_FILE = j['edgelist']
     SUCCESS_USER_PATTERN = j['success_pattern']
+    OUTFILE_NAME = j['output_file']
 
 # Postgres functions
 
@@ -148,7 +149,7 @@ if __name__ == '__main__':
     fcount = 0
 
     file_list = glob.glob(SUCCESS_USER_PATTERN)
-    with open(outfile_name, 'w') as outfile:
+    with open(OUTFILE_NAME, 'w') as outfile:
         for fname in file_list:
             with bz2.open(fname, 'r') as f:
                 for line in f:
