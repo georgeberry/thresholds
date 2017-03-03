@@ -176,8 +176,8 @@ if __name__ == '__main__':
                                 tup = (uid, tid, text, created_at, tag)
                                 tweet_list.append(tup)
                                 tweet_count += 1
-                    if tweet_count >= 1000000:
-                        psql_insert_many(db, 'SuccessTweets', tweet_list)
-                        tweet_count = 0
-                        tweet_list = []
+                        if tweet_count >= 1000000:
+                            psql_insert_many(db, 'SuccessTweets', tweet_list)
+                            tweet_count = 0
+                            tweet_list = []
                 print('Done with file {}!'.format(fname))
