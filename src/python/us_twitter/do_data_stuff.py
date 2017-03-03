@@ -175,12 +175,12 @@ if __name__ == '__main__':
                         if len(tweet_tags) == 0:
                             tup = (uid, tid, text, created_at, "")
                             outfile.write(
-                                cusor.mogrify(placeholder, tup) + b'\n'
+                                cursor.mogrify(placeholder, tup) + b'\n'
                             )
                         else:
                             for tag in tweet_tags:
                                 tup = (uid, tid, text, created_at, tag)
                                 outfile.write(
-                                    cusor.mogrify(placeholder, tup) + b'\n'
+                                    cursor.mogrify(placeholder, tup) + b'\n'
                                 )
             print('Done with file {}!'.format(fname))
