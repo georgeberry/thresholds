@@ -150,10 +150,8 @@ if __name__ == '__main__':
     print('Starting insert.')
 
     tweet_count = 0
-    placeholder = '\t'.join(['%s'] * 5)
-    cursor = db.cursor()
-    file_list = glob.glob(SUCCESS_USER_PATTERN)
 
+    file_list = glob.glob(SUCCESS_USER_PATTERN)
     with io.open(OUTFILE_NAME, 'wb') as outfile:
         for fname in file_list:
             with bz2.open(fname, 'r') as f:
@@ -163,9 +161,9 @@ if __name__ == '__main__':
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         tweet_tags = set()
-                        tid = tweet['id_str']
-                        text = re.sub(r'\s+', r' ', tweet['text'])
-                        text = re.sub(r'\\', r"\\\\", text) + ' '
+                        tid = bytes(tweet['id_str'], 'utf8')
+                        text = re.sub(b'\s+', b' ', bytes(tweet['text'], 'utf8'))
+                        text = re.sub(b'\\', b"\\\\", text)
                         created_at = create_timestamp(tweet['created_at'])
                         # Skip tweets without a creation time
                         if len(created_at) < 10:
@@ -173,14 +171,10 @@ if __name__ == '__main__':
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
-                            tup = (uid, tid, text, created_at, "")
-                            outfile.write(
-                                cursor.mogrify(placeholder, tup) + b'\n'
-                            )
+                            tup = (uid, tid, text, created_at, b"")
+                            outfile.write(b'\t'.join(tup) + b'\n')
                         else:
                             for tag in tweet_tags:
                                 tup = (uid, tid, text, created_at, tag)
-                                outfile.write(
-                                    cursor.mogrify(placeholder, tup) + b'\n'
-                                )
+                                outfile.write(b'\t'.join(tup) + b'\n')
             print('Done with file {}!'.format(fname))
