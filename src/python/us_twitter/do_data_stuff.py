@@ -144,30 +144,32 @@ if __name__ == '__main__':
     count = 0
     file_list = glob.glob(SUCCESS_USER_PATTERN)
 
-    with open(OUTPUT_FILE, 'w') as outfile:
+    with open(OUTPUT_FILE, 'wb') as outfile:
         for fname in file_list:
-            with bz2.open(fname, 'rt') as f:
+            with bz2.open(fname, 'r') as f:
                 for line in f:
-                    uid, data_json = line.split('\t', 1)
-                    uid = uid.strip('"')
+                    uid, data_json = line.split(b'\t', 1)
+                    uid = uid.strip(b'"')
                     data = json.loads(data_json)
                     for tweet in data['tweets']:
                         tweet_tags = set()
                         tid = tweet['id_str']
-                        text = re.sub(r"\s+", " ", tweet['text'])
+                        text = re.sub(r"\s+", r" ", tweet['text'])
                         text = re.sub(r"\\", r"\\\\", text) + ' '
                         created_at = create_timestamp(tweet['created_at'])
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
-                            outfile.write('\t'.join(
-                                [uid, tid, text, created_at, ""]
-                            ) + '\n')
+                            outfile.write(b'\t'.join(
+                                [bytes(x, 'utf8' for x in
+                                [uid, tid, text, created_at, ""]]
+                            ) + b'\n')
                         else:
                             for tag in tweet_tags:
-                                outfile.write('\t'.join(
-                                    [uid, tid, text, created_at, tag]
-                                ) + '\n')
+                                outfile.write(b'\t'.join(
+                                    [bytes(x, 'utf8' for x in
+                                    [uid, tid, text, created_at, tag]]
+                                ) + b'\n')
                     count += 1
                     print(count)
                 print('Finished file {}!'.format(fname))
