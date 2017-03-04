@@ -168,6 +168,8 @@ if __name__ == '__main__':
                                 outfile.write('\t'.join(
                                     [uid, tid, text, created_at, tag]
                                 ))
+                    count += 1
+                    print(count)
                 print('Finished file {}!'.format(fname))
             break
 
