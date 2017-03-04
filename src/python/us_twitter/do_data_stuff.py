@@ -162,7 +162,7 @@ if __name__ == '__main__':
                         if len(tweet_tags) == 0:
                             b_out = (
                                 uid,
-                                tid,
+                                bytes(tid, 'utf8'),
                                 bytes(text, 'utf8'),
                                 bytes(created_at, 'utf8'),
                                 b"",
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                             for tag in tweet_tags:
                                 b_out = (
                                     uid,
-                                    tid,
+                                    bytes(tid, 'utf8'),
                                     bytes(text, 'utf8'),
                                     bytes(created_at, 'utf8'),
                                     bytes(tag, 'utf8'),
