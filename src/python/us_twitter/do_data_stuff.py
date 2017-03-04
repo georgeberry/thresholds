@@ -36,6 +36,7 @@ with open('config.json', 'r') as f:
     # TIMELINE_FOLDER =
     EDGELIST_FILE = j['edgelist']
     SUCCESS_USER_PATTERN = j['success_pattern']
+    OUTPUT_FILE = j['output_file']
 
 # Postgres functions
 
@@ -141,8 +142,36 @@ if __name__ == '__main__':
 
     tweet_data = []
     count = 0
-
     file_list = glob.glob(SUCCESS_USER_PATTERN)
+
+    with open(OUTPUT_FILE, 'w') as outfile:
+        for fname in file_list:
+            with bz2.open(fname, 'rt') as f:
+                for line in f:
+                    uid, data_json = line.split('\t', 1)
+                    uid = uid.strip('"')
+                    data = json.loads(data_json)
+                    for tweet in data['tweets']:
+                        tweet_tags = set()
+                        tid = tweet['id_str']
+                        text = re.sub(r"\s+", " ", tweet['text'])
+                        text = re.sub(r"\\", r"\\\\", text) + ' '
+                        created_at = create_timestamp(tweet['created_at'])
+                        for tag in tweet['entities']['hashtags']:
+                            tweet_tags.add(tag['text'])
+                        if len(tweet_tags) == 0:
+                            outfile.write('\t'.join(
+                                [uid, tid, text, created_at, ""]
+                            ))
+                        else:
+                            for tag in tweet_tags:
+                                outfile.write('\t'.join(
+                                    [uid, tid, text, created_at, tag]
+                                ))
+                print('Finished file {}!'.format(fname))
+                break
+
+    """
     for fname in file_list:
         with bz2.open(fname, 'r') as f:
             for line in f:
@@ -181,3 +210,5 @@ if __name__ == '__main__':
                         count = 0
                         print('Inserted another 100k!')
             print('Finished file {}!'.format(fname))
+            break
+    """
