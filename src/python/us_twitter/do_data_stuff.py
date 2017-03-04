@@ -161,13 +161,13 @@ if __name__ == '__main__':
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
                             outfile.write(b'\t'.join(
-                                [bytes(x, 'utf8' for x in
+                                [bytes(x, 'utf8') for x in
                                 [uid, tid, text, created_at, ""]]
                             ) + b'\n')
                         else:
                             for tag in tweet_tags:
                                 outfile.write(b'\t'.join(
-                                    [bytes(x, 'utf8' for x in
+                                    [bytes(x, 'utf8') for x in
                                     [uid, tid, text, created_at, tag]]
                                 ) + b'\n')
                     count += 1
