@@ -169,7 +169,7 @@ if __name__ == '__main__':
                                     [uid, tid, text, created_at, tag]
                                 ))
                 print('Finished file {}!'.format(fname))
-                break
+            break
 
     """
     for fname in file_list:
