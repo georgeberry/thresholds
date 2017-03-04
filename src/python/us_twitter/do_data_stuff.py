@@ -144,46 +144,6 @@ if __name__ == '__main__':
     count = 0
     file_list = glob.glob(SUCCESS_USER_PATTERN)
 
-    with open(OUTPUT_FILE, 'wb') as outfile:
-        for fname in file_list:
-            with bz2.open(fname, 'r') as f:
-                for line in f:
-                    uid, data_json = line.split(b'\t', 1)
-                    uid = uid.strip(b'"')
-                    data = json.loads(data_json)
-                    for tweet in data['tweets']:
-                        tweet_tags = set()
-                        tid = tweet['id_str']
-                        text = re.sub(r"\s+", r" ", tweet['text'])
-                        text = re.sub(r"\\", r"\\\\", text) + ' '
-                        created_at = create_timestamp(tweet['created_at'])
-                        for tag in tweet['entities']['hashtags']:
-                            tweet_tags.add(tag['text'])
-                        if len(tweet_tags) == 0:
-                            b_out = (
-                                uid,
-                                bytes(tid, 'utf8'),
-                                bytes(text, 'utf8'),
-                                bytes(created_at, 'utf8'),
-                                b"",
-                            )
-                            outfile.write(b'\t'.join(b_out) + b'\n')
-                        else:
-                            for tag in tweet_tags:
-                                b_out = (
-                                    uid,
-                                    bytes(tid, 'utf8'),
-                                    bytes(text, 'utf8'),
-                                    bytes(created_at, 'utf8'),
-                                    bytes(tag, 'utf8'),
-                                )
-                                outfile.write(b'\t'.join(b_out) + b'\n')
-                    count += 1
-                    print(count)
-                print('Finished file {}!'.format(fname))
-            break
-
-    """
     for fname in file_list:
         with bz2.open(fname, 'r') as f:
             for line in f:
@@ -223,4 +183,3 @@ if __name__ == '__main__':
                         print('Inserted another 100k!')
             print('Finished file {}!'.format(fname))
             break
-    """
