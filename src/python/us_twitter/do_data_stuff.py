@@ -160,13 +160,23 @@ if __name__ == '__main__':
                         for tag in tweet['entities']['hashtags']:
                             tweet_tags.add(tag['text'])
                         if len(tweet_tags) == 0:
-                            tup = (uid, tid, text, created_at, b"")
-                            b_out = [bytes(x, 'utf8') for x in tup]
+                            b_out = (
+                                uid,
+                                tid,
+                                bytes(text, 'utf8'),
+                                bytes(created_at, 'utf8'),
+                                b"",
+                            )
                             outfile.write(b'\t'.join(b_out) + b'\n')
                         else:
                             for tag in tweet_tags:
-                                tup = (uid, tid, text, created_at, tag)
-                                b_out = [bytes(x, 'utf8') for x in tup]
+                                b_out = (
+                                    uid,
+                                    tid,
+                                    bytes(text, 'utf8'),
+                                    bytes(created_at, 'utf8'),
+                                    bytes(tag, 'utf8'),
+                                )
                                 outfile.write(b'\t'.join(b_out) + b'\n')
                     count += 1
                     print(count)
