@@ -191,4 +191,3 @@ if __name__ == '__main__':
                         count = 0
                         print('Inserted another 100k!')
             print('Finished file {}!'.format(fname))
-            break
