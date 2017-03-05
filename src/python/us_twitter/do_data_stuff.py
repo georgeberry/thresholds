@@ -148,6 +148,7 @@ if __name__ == '__main__':
     start_idx, stop_idx = int(sys.argv[1]), int(sys.argv[2])
 
     effective_flist = file_list[start_idx:stop_idx]
+    print(len(effective_flist))
 
     # 301 - 1424, 0-indexed
     # 301 - 863, 863 - 1424
