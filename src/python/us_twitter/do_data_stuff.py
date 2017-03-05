@@ -4,6 +4,7 @@ import ujson as json
 import glob
 import bz2
 import re
+import sys
 from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
 """
@@ -144,7 +145,14 @@ if __name__ == '__main__':
     count = 0
     file_list = glob.glob(SUCCESS_USER_PATTERN)
 
-    for fname in file_list:
+    start_idx, stop_idx = int(sys.argv[1]), int(sys.argv[2])
+
+    effective_flist = file_list[start_idx, stop_idx]
+
+    # 301 - 1424, 0-indexed
+    # 301 - 863, 863 - 1424
+
+    for fname in effective_flist:
         with bz2.open(fname, 'r') as f:
             for line in f:
                 uid, data_json = line.split(b'\t', 1)
@@ -153,7 +161,7 @@ if __name__ == '__main__':
                 for tweet in data['tweets']:
                     tweet_tags = set()
                     tid = tweet['id_str']
-                    text = re.sub(r"\s+", " ", tweet['text']) + ' '
+                    text = re.sub(r"\s+", r" ", tweet['text']) + ' '
                     created_at = create_timestamp(tweet['created_at'])
                     for tag in tweet['entities']['hashtags']:
                         tweet_tags.add(tag['text'])
