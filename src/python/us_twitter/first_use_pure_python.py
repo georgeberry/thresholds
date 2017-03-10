@@ -5,7 +5,9 @@ from helpers import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 from helpers import psql_connect, psql_insert_many
 
 """
-find /Volumes/Starbuck/class/twitter_data/jq_filtered/part-000**.bz2.tsv -print0 | xargs -0 -n1 -P4 -- bash -c 'python3 ~/first_use_pure_python.py "$0"'
+Parallelize this
+
+find /Volumes/Starbuck/class/twitter_data/jq_filtered/part-000**.bz2.tsv -print0 | xargs -0 -n1 -P1 -- bash -c 'python3 first_use_pure_python.py "$0"'
 """
 
 FNAME = sys.argv[1]
@@ -49,3 +51,5 @@ for key, val in first_use_dict.items():
 
 psql_insert_many(db, "NeighborTags", to_write)
 to_write = []
+
+print('Finished file {}!'.format(FNAME))
