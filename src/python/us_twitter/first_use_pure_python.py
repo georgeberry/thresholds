@@ -3,7 +3,6 @@ from helpers import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 from helpers import psql_connect, psql_insert_many
 
 FNAME = '/Volumes/Starbuck/class/twitter_data/jq_filtered/part-00000.bz2.tsv'
-OUTFILE = 'test.tsv'
 
 # (uid, htag): (first_use, tid)
 first_use_dict = {}
@@ -36,6 +35,7 @@ for key, val in first_use_dict.items():
     count += 1
     if count > 100000:
         psql_insert_many(db, "NeighborTags", to_write)
+        print('Inserted another 100k!')
         to_write = []
         count = 0
 
