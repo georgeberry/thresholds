@@ -25,4 +25,4 @@ with open(OUTFILE, 'w') as g:
     for key, val in first_use_dict.items():
         uid, hashtag = key
         created_at, tid = val
-        g.write('\t'.join(uid, tid, created_at, hashtag) + '\n')
+        g.write('\t'.join([uid, tid, created_at, hashtag]) + '\n')
