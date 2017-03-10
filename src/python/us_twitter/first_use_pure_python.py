@@ -11,7 +11,7 @@ with open(FNAME, 'r') as f:
     for line in f:
         hashtag, uid, tid, created_at = line.strip().split('\t')
         created_at = dt.datetime.strptime(created_at, TW_DATE_FMT)
-        key = (uid, htag)
+        key = (uid, hashtag)
         val = (created_at, tid)
         if key not in first_use_dict:
             first_use_dict[key] = val
