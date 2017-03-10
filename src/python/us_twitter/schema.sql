@@ -14,14 +14,13 @@ create table if not exists SuccessTweets (
 create index succtwt_htag_idx on SuccessTweets (hashtag);
 
 create table if not exists NeighborTags (
-  uid bigint not null,
-  tid varchar(22) not null,
-  created_at timestamp not null,
-  hashtag varchar(140) not null,
-  constraint nbr_constraint unique (uid, hashtag)
+  uid bigint,
+  tid varchar(22),
+  created_at timestamp,
+  hashtag varchar(140)
 );
 
-create index nbr_htag_idx on NeighborTags (hashtag);
+create index nbrtag_htag_idx on NeighborTags (hashtag);
 
 create table if not exists Edges(
     src bigint,

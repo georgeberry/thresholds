@@ -7,7 +7,7 @@ from helpers import psql_connect, psql_insert_many
 """
 Parallelize this
 
-find /Volumes/Starbuck/class/twitter_data/jq_filtered/part-000**.bz2.tsv -print0 | xargs -0 -n1 -P1 -- bash -c 'python3 first_use_pure_python.py "$0"'
+find /Volumes/Starbuck/class/twitter_data/jq_filtered/part-*.bz2.tsv -print0 | xargs -0 -n1 -P5 -- bash -c 'python3 first_use_pure_python.py "$0"'
 """
 
 FNAME = sys.argv[1]
