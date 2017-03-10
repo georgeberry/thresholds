@@ -9,7 +9,7 @@ first_use_dict = {}
 
 with open(FNAME, 'r') as f:
     for line in f:
-        hashtag, uid, tid, created_at = line.split('\t')
+        hashtag, uid, tid, created_at = line.strip().split('\t')
         created_at = dt.datetime.strptime(created_at, TW_DATE_FMT)
         key = (uid, htag)
         val = (created_at, tid)
