@@ -1,6 +1,7 @@
 from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
-FNAME = ''
+FNAME = '/Volumes/Starbuck/class/twitter_data/jq_filtered'
+OUTFILE = 'test.tsv'
 
 # (uid, htag): (first_use, tid)
 first_use_dict = {}
