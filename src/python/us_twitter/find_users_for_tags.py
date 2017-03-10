@@ -1,14 +1,10 @@
 #!/usr/local/bin/python3
-
 import bz2
 import io
 import json
 import click
 import os
-import datetime as dt
-
-TW_DATE_FMT = "%a %b %d %H:%M:%S %z %Y"
-PS_DATE_FMT = "%Y-%m-%d %H:%M:%S%z"
+from helpers import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
 def load_watch_tags():
     infile_name = '/Volumes/Starbuck/class/twitter_data/utags_by_user/tags_watched.tsv'
@@ -51,15 +47,6 @@ def get_tweets_for_hashtags_from_bz2_file(infile_name, outfile_name, tag_set, us
 def write_entry(out, header_vals, outfile):
     out_str = '\t'.join(out[x] for x in header_vals) + '\n'
     outfile.write(out_str)
-
-def create_timestamp(twitter_datestring):
-    """
-    Twitter gives format Mon Jul 28 14:29:09 +0000 2014
-    We need format 2014-07-28 14:29:09+00, where +00 is timezone
-    """
-    date = dt.datetime.strptime(twitter_datestring, TW_DATE_FMT)
-    # chop off last 2 characters of timezone for postgres
-    return date.strftime(PS_DATE_FMT)[:-2]
 
 @click.command()
 @click.argument('in_file_path', type=click.Path(exists=True))

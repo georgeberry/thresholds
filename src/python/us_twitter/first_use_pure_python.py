@@ -1,5 +1,6 @@
 import datetime as dt
-from find_users_for_tags import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
+from helpers import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
+from helpers import psql_connect, psql_insert_many
 
 FNAME = '/Volumes/Starbuck/class/twitter_data/jq_filtered/part-00000.bz2.tsv'
 OUTFILE = 'test.tsv'
@@ -20,10 +21,23 @@ with open(FNAME, 'r') as f:
             if created_at < prev_created_at:
                 first_use_dict[key] = val
 
+db = psql_connect()
+
+count = 0
+to_write = []
+
 # column ordering: uid, tid, created_at, hashtag
-with open(OUTFILE, 'w') as g:
-    for key, val in first_use_dict.items():
-        uid, hashtag = key
-        created_at, tid = val
-        created_at = created_at.strftime(PS_DATE_FMT)[:-2]
-        g.write('\t'.join([uid, tid, created_at, hashtag]) + '\n')
+for key, val in first_use_dict.items():
+    uid, hashtag = key
+    created_at, tid = val
+    created_at = created_at.strftime(PS_DATE_FMT)[:-2]
+    tup = (uid, tid, created_at, hashtag)
+    to_write.append(tup)
+    count += 1
+    if count > 100000:
+        psql_insert_many(db, "NeighborTags", to_write)
+        to_write = []
+        count = 0
+
+psql_insert_many(db, "NeighborTags", to_write)
+to_write = []
