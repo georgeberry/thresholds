@@ -15,13 +15,13 @@ def load_watch_tags():
     with open(infile_name) as infile:
         tag_set = set(json.load(infile))
     return tag_set
-    
-def load_users():    
+
+def load_users():
     json_out = '/Volumes/pci_ssd/twitter_patrick/bidirected_us_edges/success_plus_users.json'
     with open(json_out) as outfile:
         user_set = set(json.load(outfile))
     return user_set
-    
+
 def get_tweets_for_hashtags_from_bz2_file(infile_name, outfile_name, tag_set, user_set):
     header_vals = ['uid', 'tid', 'raw_text', 'created_at', 'hashtag']
     with bz2.open(infile_name) as infile, io.open(outfile_name, 'w') as outfile:
@@ -33,7 +33,7 @@ def get_tweets_for_hashtags_from_bz2_file(infile_name, outfile_name, tag_set, us
             if not uid[1:-1].decode('utf8') in user_set:
                 continue
             data = json.loads(data_json)
-            try: 
+            try:
                 for tweet in data['tweets']:
                     for tag in tweet['entities']['hashtags']:
                         if tag['text'] in tag_set:
@@ -65,18 +65,16 @@ def create_timestamp(twitter_datestring):
 @click.argument('in_file_path', type=click.Path(exists=True))
 def main(in_file_path):
     #print('run')
-    out_file_path = '/Volumes/Starbuck/class/twitter_data/tweets_by_tag/' 
+    out_file_path = '/Volumes/Starbuck/class/twitter_data/tweets_by_tag/'
     in_name = os.path.splitext(os.path.basename(in_file_path))[0]
     outfile_name = os.path.join(out_file_path, in_name+'.tsv')
     #print(in_file_path)
     print(outfile_name)
     tag_set = load_watch_tags()
     user_set = load_users()
-    get_tweets_for_hashtags_from_bz2_file(in_file_path, outfile_name, tag_set, user_set)    
+    get_tweets_for_hashtags_from_bz2_file(in_file_path, outfile_name, tag_set, user_set)
 
 if __name__ == '__main__':
     main()
 
 # find /Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-*.bz2 -print0 | xargs -0 -n1 -P6 -- bash -c '~/find_users_for_tags.py "$0"'
-
-
