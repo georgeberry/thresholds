@@ -34,17 +34,6 @@ if __name__ == '__main__':
     print('Setup successfully.')
 
     """
-    # List of tuples, (htag, count)
-    ht_data = []
-    with open(HTAG_COUNT_FILE, 'r') as f:
-        for line in f:
-            htag, count = line.strip('\n').split('\t')
-            ht_data.append((str(htag), int(count)))
-    print('Here\'s what the data looks like')
-    print(ht_data[:10])
-    psql_insert_many(db, 'Hashtags', ht_data)
-    print('Inserted hashtags successfully!')
-    del ht_data
 
 
     # Insert edges #

@@ -1,7 +1,12 @@
+-- We have large tables. Partitions on hashtags will probably be ineffective
+-- because there are just too many of them.
+
 create table if not exists Hashtags (
     hashtag varchar(140),
     count bigint
 );
+
+-- create index htag_idx on Hashtags (hashtag);
 
 create table if not exists SuccessTweets (
     uid bigint,
@@ -11,7 +16,7 @@ create table if not exists SuccessTweets (
     hashtag varchar(140)
 );
 
-create index succtwt_htag_idx on SuccessTweets (hashtag);
+-- create index succtwt_htag_idx on SuccessTweets (hashtag);
 
 create table if not exists NeighborTags (
   uid bigint,
@@ -20,9 +25,11 @@ create table if not exists NeighborTags (
   hashtag varchar(140)
 );
 
-create index nbrtag_htag_idx on NeighborTags (hashtag);
+-- create index nbrtag_htag_idx on NeighborTags (hashtag);
 
 create table if not exists Edges(
     src bigint,
     dst bigint
 );
+
+-- create index edge_idx on Edges (src);
