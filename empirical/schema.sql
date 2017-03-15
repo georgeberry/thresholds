@@ -17,6 +17,7 @@ create table if not exists SuccessTweets (
 );
 
 -- create index succtwt_htag_idx on SuccessTweets (hashtag);
+-- create index succtwt_uid_idx on SuccessTweets (uid);
 
 create table if not exists NeighborTags (
   uid bigint,
@@ -29,8 +30,8 @@ create table if not exists NeighborTags (
 
 create table if not exists Edges(
     src bigint,
-    dst bigint,
-    UNIQUE (src, dst)
+    dst bigint
 );
 
 -- create index edge_idx on Edges (src);
+-- alter table edges add constraint unique (src, dst)
