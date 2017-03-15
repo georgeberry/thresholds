@@ -7,6 +7,8 @@ with open('config.json', 'r') as f:
 
 # Insert edges #
 
+db = psql_connect()
+
 count = 0
 edge_data = []
 
