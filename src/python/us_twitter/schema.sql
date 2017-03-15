@@ -29,7 +29,8 @@ create table if not exists NeighborTags (
 
 create table if not exists Edges(
     src bigint,
-    dst bigint
+    dst bigint,
+    UNIQUE (src, dst)
 );
 
 -- create index edge_idx on Edges (src);

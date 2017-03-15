@@ -6,8 +6,6 @@ import re
 import sys
 from helpers import TW_DATE_FMT, PS_DATE_FMT, create_timestamp
 
-
-
 # List of tuples, (htag, count)
 ht_data = []
 with open(HTAG_COUNT_FILE, 'r') as f:

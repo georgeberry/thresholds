@@ -46,7 +46,7 @@ def psql_setup(db):
         db.cursor().execute(f.read())
         db.commit()
 
-def psql_insert_many(db, table, data):
+def psql_insert_many(db, table, data, ignore_conflict=False):
     """
     cursor: psycopg2 cursor
     table: tablename
@@ -73,6 +73,8 @@ def psql_insert_many(db, table, data):
         except:
             'Mogrify error!'
     fmt_data = b','.join(fmt_list)
+    if ignore_conflict:
+        fmt_data = fmt_data + b' ON CONFLICT DO NOTHING'
     # create a big query string
     query = preamble + fmt_data
     cursor.execute(query)
