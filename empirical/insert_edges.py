@@ -10,6 +10,7 @@ with open('config.json', 'r') as f:
 db = psql_connect()
 
 edge_data = set()
+count = 0
 
 print('Reading edges.')
 
@@ -18,6 +19,9 @@ with open(EDGELIST_FILE, 'r') as f:
         n1, n2 = [int(x) for x in line.strip('\n').split('\t')]
         edge_data.add((n1, n2))
         edge_data.add((n2, n1))
+        count += 2
+        if count % 1000000 == 0:
+            print('{} edges read in!'.format(count))
 
 print('Beginning edge insertion.')
 
@@ -32,4 +36,5 @@ for edge in edge_data:
         print("Inserting {} edges!".format(count))
         psql_insert_many(db, 'Edges', edge_list)
         edge_list = []
+        count = 0
 psql_insert_many(db, 'Edges', edge_list)
