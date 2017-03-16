@@ -16,17 +16,20 @@ create table if not exists SuccessTweets (
     hashtag varchar(140)
 );
 
--- create index succtwt_htag_idx on SuccessTweets (hashtag);
+-- create index succtwt_idx on SuccessTweets (uid, hashtag);
 -- create index succtwt_uid_idx on SuccessTweets (uid);
+-- cluster verbose SuccessTweets using succtwt_uid_idx;
 
 create table if not exists NeighborTags (
   uid bigint,
   tid varchar(22),
   created_at timestamp,
   hashtag varchar(140)
-);
+);esta
 
 -- create index nbrtag_htag_idx on NeighborTags (hashtag);
+-- create index nbrtag_uid_idx on NeighborTags (uid);
+-- cluster verbose Neighbortags using nbrtag_uid_idx;
 
 create table if not exists Edges(
     src bigint,
