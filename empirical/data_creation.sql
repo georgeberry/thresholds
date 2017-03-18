@@ -9,26 +9,44 @@ We need to
 */
 
 
--- Get relevant hashtags
+-- 1. Get relevant hashtags
 
--- Get windows
+-- 2. Get windows for first usage of relevant hashtags
+-- To speed this up, store tweets by htag_users sorted by uid, created_at desc
 with htag_users as (
-  select distinct uid from successtweets where hashtag = 'TeamUSA'
-)
+  select distinct uid from successtweets where hashtag = 'xfiles'
+), update_tweets as (
 select
   uid,
   tid,
   created_at,
-  lag(created_at, 1) over (partition by uid order by created_at asc) prev_update
+  hashtag,
+  -- Takes up to 11 rows (10 intervals)
+  -- Gives json array with up to 11 items in descending time order
+  jsonb_agg(created_at) over (
+    partition by uid
+    order by created_at desc
+    rows between current row and 10 following
+  ) as prev_update
 from successtweets
-where uid in (select uid from htag_users);
+where uid in (select uid from htag_users)
+)
+select
+  uid,
+  first_value(tid),
+  first_value(created_at),
+  hashtag,
+  first_value(prev_update)
+from update_tweets
+where hashtag = 'xfiles'
+window as w (
+  partition by uid, hashtag
+  order by created_at asc
+);
 
-
-
-
--- Get all alter usages of relevant hashtags
+-- 3. Get all alter usages of relevant hashtags
 with htag_users as (
-  select distinct uid from successtweets where hashtag = 'TeamUSA'
+  select distinct uid from successtweets where hashtag = 'xfiles'
 ), htag_edges as (
   select src, dst from edges where src in (select uid from htag_users)
 ), first_usages as (
@@ -37,8 +55,8 @@ with htag_users as (
     first_value(created_at) over w AS first_use,
     hashtag
   from neighbortags
+  where hashtag = 'xfiles'
   window w as (partition by uid, hashtag order by created_at asc)
-  where hashtag = 'TeamUSA'
 )
 select
   a.src,
@@ -51,4 +69,7 @@ on
   a.dst = b.nid
 order by src, first_use asc;
 
---
+-- 4 & 5.
+
+-- go through each interval in query 2., count number of tweets from query 3.
+-- are in that interval. if > 0, bail out and return number, if 0, keep going
