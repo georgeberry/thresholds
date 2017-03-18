@@ -1,7 +1,6 @@
 #include "postgres.h"
 #include <string.h>
 #include "fmgr.h"
-#include "array.h"
 #include "utils/timestamp.h"
 
 #ifdef PG_MODULE_MAGIC
