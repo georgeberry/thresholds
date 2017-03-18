@@ -1,3 +1,3 @@
-MODULES = example
+MODULES = func_example
 PGXS := $(shell pg_config --pgxs)
 include $(PGXS)
