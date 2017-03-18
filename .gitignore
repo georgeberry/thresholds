@@ -13,3 +13,4 @@ data/test_replicants
 data/graphml_graphs
 config.json
 __pycache__
+a.out
