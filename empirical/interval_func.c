@@ -10,22 +10,18 @@ PG_MODULE_MAGIC;
 
 
 /*
-File located at https://github.com/postgres/postgres/blob/c29aff959dc64f7321062e7f33d8c6ec23db53d3/src/include/datatype/timestamp.h
+Important! You must sort both incoming arrays in descending order.
 
-// helpful: http://stackoverflow.com/questions/16992339/why-is-postgresql-array-access-so-much-faster-in-c-than-in-pl-pgsql
+Check file located at https://github.com/postgres/postgres/blob/c29aff959dc64f7321062e7f33d8c6ec23db53d3/src/include/datatype/timestamp.h
 
 
-Goal of function: take two arrays of timestamps
-  - ego_update_arr
-  - alt_htag_arr
-
-Go through pairs of elements in ego_update_arr
-See how many elements in alt_htag_arr are in each interval
-If > 0, bail out and return the number
+Helpful:
+http://stackoverflow.com/questions/16992339/why-is-postgresql-array-access-so-much-faster-in-c-than-in-pl-pgsql
+http://stackoverflow.com/questions/23796712/how-to-sum-two-float4-arrays-values-into-a-datum-array-c-function-in-postgres
 */
 
 /*
-How to register this with postgres
+// How to register this with postgres
 
 create or replace function
   activations_in_interval(timestamp[], timestamp[])
@@ -33,15 +29,13 @@ returns int
 as 'interval_func.so', 'activations_in_interval'
 language c strict;
 
-How to test
-
+// How to test
 
 create table timestamp_test (d timestamp, e timestamp);
 
 insert into timestamp_test values ('2004-10-19 10:23:56', '2004-10-19 10:23:55'), ('2004-10-19 10:23:54', '2004-10-19 10:23:53');
 
 select activations_in_interval(array_agg(d), array_agg(e)) from timestamp_test;
-
 */
 
 Datum activations_in_interval(PG_FUNCTION_ARGS);
@@ -51,7 +45,7 @@ Datum
 activations_in_interval(PG_FUNCTION_ARGS)
 {
 
-  /* This block is extracted with deconstruct_array */
+  /* We do about 50 lines of processing to translate Postgres arrays to C */
   // Array objects
   ArrayType *ego_arr, *alt_arr;
   // Array element types
@@ -116,26 +110,11 @@ activations_in_interval(PG_FUNCTION_ARGS)
   (e.g. descending)
 
   Then we want to go through pairs of items in the ego time array and check if
-  any items in the alter time array are in the interval. If yes, return how many,
-  if no, return a 0
+  any items in the alter time array are in the interval. If yes, return how many
+  are in the *first* such interval, if no, return NULL
 
-
-  Pseudocode
-
-
-
-
-  alt_usage_idx = 0
-  counter = 0
-
-  for intervals in zip(ego_update_arr[:-1], ego_update_arr[1:])
-    t1, t2 = intervals # t1 > t2
-    for alt_usage in alt_htag_arr
-      if t1 > alt_usage > t2
-        counter += 1
-      if t2 > alt_usage # interval has ended
-        if counter > 0
-          return counter
+  Probably want to extend this to also return the total number of alter usages
+  before ego first activation.
   */
 
   // Ego array too small
