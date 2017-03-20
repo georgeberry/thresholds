@@ -44,3 +44,26 @@ create table if not exists Edges(
 --------------------------- END OF BASIC DATA TABLES ---------------------------
 
 ----------- These data tables can be freely modified and overwritten -----------
+
+drop table TestEgoUpdates;
+create table if not exists TestEgoUpdates (
+  uid bigint,
+  created_at timestamp,
+  hashtag varchar(140),
+  prev_updates timestamp[]
+);
+
+drop table TestAlterUsages;
+create table if not exists TestAlterUsages (
+  src bigint,
+  hashtag varchar(140),
+  first_usages timestamp[]
+);
+
+drop table TestUpdateTimes;
+create table if not exists TestUpdateTimes (
+  src bigint,
+  hashtag varchar(140),
+  ego_updates timestamp[],
+  alter_first_usages timestamp[]
+);

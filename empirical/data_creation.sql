@@ -16,30 +16,30 @@ We need to
 with htag_users as (
   select distinct uid from successtweets where hashtag = 'xfiles'
 ), update_tweets as (
-select
+select distinct
   uid,
-  tid,
   created_at,
   hashtag,
   -- Takes up to 11 rows (10 intervals)
   -- Gives json array with up to 11 items in descending time order
-  jsonb_agg(created_at) over (
+  array_agg(created_at) over (
     partition by uid
     order by created_at desc
     rows between current row and 10 following
-  ) as prev_update
+  ) as prev_updates
 from successtweets
 where uid in (select uid from htag_users)
+-- Can't do a where hashtag = 'tag' here because where is applied before window
 )
-select
+insert into TestEgoUpdates
+select distinct on (uid) -- if ties, pick an arbitrary one
   uid,
-  first_value(tid),
-  first_value(created_at),
+  first_value(created_at) over w,
   hashtag,
-  first_value(prev_update)
+  first_value(prev_updates) over w
 from update_tweets
-where hashtag = 'xfiles'
-window as w (
+where hashtag = 'xfiles' -- This is the correct place for this filter
+window w as (
   partition by uid, hashtag
   order by created_at asc
 );
@@ -49,25 +49,64 @@ with htag_users as (
   select distinct uid from successtweets where hashtag = 'xfiles'
 ), htag_edges as (
   select src, dst from edges where src in (select uid from htag_users)
-), first_usages as (
+), alter_first_usages as (
   select
     uid AS nid,
-    first_value(created_at) over w AS first_use,
+    first_value(created_at) over w AS first_usage,
     hashtag
   from neighbortags
   where hashtag = 'xfiles'
+    and uid in (select distinct dst from htag_edges)
   window w as (partition by uid, hashtag order by created_at asc)
-)
+), edges_with_alter_usages as (
 select
   a.src,
   a.dst,
   b.hashtag,
-  b.first_use
+  b.first_usage
 from htag_edges a
-inner join first_usages b
+inner join alter_first_usages b
 on
   a.dst = b.nid
-order by src, first_use asc;
+order by src, first_usage desc
+)
+insert into TestAlterUsages
+select
+  src,
+  hashtag,
+  array_agg(first_usage)
+from edges_with_alter_usages
+group by src, hashtag;
+
+
+/*
+with htag_users as (
+  select distinct uid from successtweets where hashtag = 'xfiles'
+), htag_edges as (
+  select src, dst from edges where src in (select uid from htag_users)
+), first_usages as (
+  select
+    uid AS nid,
+    first_value(created_at) over w AS first_usages,
+    hashtag
+  from neighbortags
+  where hashtag = 'xfiles'
+    and uid in (select distinct dst from htag_edges)
+  window w as (partition by uid, hashtag order by created_at asc)
+)
+select * from first_usages;
+ */
+
+-- Interlude: combine the previous two queries into one table
+insert into TestUpdateTimes
+select
+  a.uid,
+  a.hashtag,
+  a.prev_updates as ego_updates,
+  b.first_usages as alter_first_usages
+from TestEgoUpdates a
+inner join TestAlterUsages b
+on a.uid = b.src;
 
 -- 4 & 5.
 
