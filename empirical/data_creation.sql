@@ -14,7 +14,7 @@ We need to
 -- 2. Get windows for first usage of relevant hashtags
 -- To speed this up, store tweets by htag_users sorted by uid, created_at desc
 with htag_users as (
-  select distinct uid from successtweets where hashtag = 'xfiles'
+  select distinct uid from successtweets where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
 ), update_tweets as (
 select distinct
   uid,
@@ -38,7 +38,7 @@ select distinct on (uid) -- if ties, pick an arbitrary one
   hashtag,
   first_value(prev_updates) over w
 from update_tweets
-where hashtag = 'xfiles' -- This is the correct place for this filter
+where hashtag = 'NationalTellAGirlSheIsBeautifulDay' -- This is the correct place for this filter
 window w as (
   partition by uid, hashtag
   order by created_at asc
@@ -46,7 +46,7 @@ window w as (
 
 -- 3. Get all alter usages of relevant hashtags
 with htag_users as (
-  select distinct uid from successtweets where hashtag = 'xfiles'
+  select distinct uid from successtweets where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
 ), htag_edges as (
   select src, dst from edges where src in (select uid from htag_users)
 ), alter_first_usages as (
@@ -55,7 +55,7 @@ with htag_users as (
     first_value(created_at) over w AS first_usage,
     hashtag
   from neighbortags
-  where hashtag = 'xfiles'
+  where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
     and uid in (select distinct dst from htag_edges)
   window w as (partition by uid, hashtag order by created_at asc)
 ), edges_with_alter_usages as (
@@ -78,25 +78,6 @@ select
 from edges_with_alter_usages
 group by src, hashtag;
 
-
-/*
-with htag_users as (
-  select distinct uid from successtweets where hashtag = 'xfiles'
-), htag_edges as (
-  select src, dst from edges where src in (select uid from htag_users)
-), first_usages as (
-  select
-    uid AS nid,
-    first_value(created_at) over w AS first_usages,
-    hashtag
-  from neighbortags
-  where hashtag = 'xfiles'
-    and uid in (select distinct dst from htag_edges)
-  window w as (partition by uid, hashtag order by created_at asc)
-)
-select * from first_usages;
- */
-
 -- Interlude: combine the previous two queries into one table
 insert into TestUpdateTimes
 select
@@ -107,6 +88,26 @@ select
 from TestEgoUpdates a
 inner join TestAlterUsages b
 on a.uid = b.src;
+
+/*
+with htag_users as (
+  select distinct uid from successtweets where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
+), htag_edges as (
+  select src, dst from edges where src in (select uid from htag_users)
+), first_usages as (
+  select
+    uid AS nid,
+    first_value(created_at) over w AS first_usages,
+    hashtag
+  from neighbortags
+  where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
+    and uid in (select distinct dst from htag_edges)
+  window w as (partition by uid, hashtag order by created_at asc)
+)
+select * from first_usages;
+ */
+
+
 
 -- 4 & 5.
 
