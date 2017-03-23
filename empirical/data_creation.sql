@@ -11,10 +11,27 @@ We need to
 
 -- 1. Get relevant hashtags
 
+with ordered_hashtags as (
+  select
+    hashtag,
+    count
+  from hashtags
+  order by count desc
+)
+insert into TestRelevantHashtags
+select
+  hashtag
+from
+  ordered_hashtags
+where
+  count < 10000
+limit 50;
+
 -- 2. Get windows for first usage of relevant hashtags
 -- To speed this up, store tweets by htag_users sorted by uid, created_at desc
 with htag_users as (
-  select distinct uid from successtweets where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
+  select distinct uid from successtweets
+  where hashtag in (select hashtag from TestRelevantHashtags)
 ), update_tweets as (
 select distinct
   uid,
@@ -38,7 +55,8 @@ select distinct on (uid) -- if ties, pick an arbitrary one
   hashtag,
   first_value(prev_updates) over w
 from update_tweets
-where hashtag = 'NationalTellAGirlSheIsBeautifulDay' -- This is the correct place for this filter
+-- This is the correct place for this filter
+where hashtag in (select hashtag from TestRelevantHashtags)
 window w as (
   partition by uid, hashtag
   order by created_at asc
@@ -46,7 +64,8 @@ window w as (
 
 -- 3. Get all alter usages of relevant hashtags
 with htag_users as (
-  select distinct uid from successtweets where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
+  select distinct uid from successtweets
+  where hashtag in (select hashtag from TestRelevantHashtags)
 ), htag_edges as (
   select src, dst from edges where src in (select uid from htag_users)
 ), alter_first_usages as (
@@ -55,7 +74,7 @@ with htag_users as (
     first_value(created_at) over w AS first_usage,
     hashtag
   from neighbortags
-  where hashtag = 'NationalTellAGirlSheIsBeautifulDay'
+  where hashtag in (select hashtag from TestRelevantHashtags)
     and uid in (select distinct dst from htag_edges)
   window w as (partition by uid, hashtag order by created_at asc)
 ), edges_with_alter_usages as (

@@ -45,6 +45,11 @@ create table if not exists Edges(
 
 ----------- These data tables can be freely modified and overwritten -----------
 
+drop table TestRelevantHashtags;
+create table if not exists TestRelevantHashtags (
+  hashtag varchar(140)
+);
+
 drop table TestEgoUpdates;
 create table if not exists TestEgoUpdates (
   uid bigint,
