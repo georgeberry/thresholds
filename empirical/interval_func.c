@@ -104,6 +104,15 @@ activations_in_interval(PG_FUNCTION_ARGS)
     &alt_arr_length
   );
 
+  /*
+   */
+
+  // Declare output array of OID type INT4OID
+  // OIDs are here
+  // https://github.com/postgres/postgres/blob/
+  // 9e3755ecb2d058f7d123dd35a2e1784006190962/src/
+  // interfaces/ecpg/ecpglib/typename.c
+
   // Actual algorithm begins
   /*
   Intuition: assume both arrays are sorted by time, newest element first
@@ -144,7 +153,7 @@ activations_in_interval(PG_FUNCTION_ARGS)
       }
       // If no elements in interval and lower end of interval is greater than
       // alt_timestamp, go to next interval. Don't update alt_idx, so we start
-      // in the next interval with the same alt_timestamp.
+      // in the next interval with the sa2``me alt_timestamp.
       if (interval_min >= alt_timestamp && count == 0){
         break;
       }
