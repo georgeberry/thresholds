@@ -49,7 +49,7 @@ from (
     array_agg(created_at) over (
       partition by uid
       order by created_at desc
-      rows between current row and 200 following
+      rows between current row and 100 following
     ) as prev_updates
   from successtweets
   where uid in (select uid from htag_users)

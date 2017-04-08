@@ -11,4 +11,4 @@ import networkx as nx
 from networkx.generators.atlas import *
 
 
-a = nx.graph_atlas_g()
+a = graph_atlas_g()
