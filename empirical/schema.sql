@@ -41,7 +41,63 @@ create table if not exists Edges(
 -- create index src_idx on Edges (src);
 -- alter table edges add constraint unique (src, dst);
 
+
 --------------------------- END OF BASIC DATA TABLES ---------------------------
+
+----------- These rely on the basic data tables but should persist -------------
+
+drop table RelevantHashtags;
+create table if not exists RelevantHashtags (
+  hashtag varchar(140)
+);
+
+drop table RelevantHashtagEgos;
+create table if not exists RelevantHashtagEgos (
+  uid bigint,
+  hashtag varchar(140)
+);
+
+drop table EgoUpdates;
+create table if not exists EgoUpdates (
+  uid bigint,
+  ego_updates timestamp[]
+);
+
+drop table EgoFirstUsages;
+create table if not exists EgoFirstUsages (
+  uid bigint,
+  hashtag varchar(140),
+  created_at timestamp
+);
+
+drop table RelevantEdges;
+create table if not exists RelevantEdges (
+  src bigint,
+  dst bigint
+);
+
+drop table AlterFirstUsages;
+create table if not exists AlterFirstUsages (
+  uid bigint,
+  hashtag varchar(140),
+  created_at timestamp
+);
+
+drop table EdgeHashtagTimes;
+create table if not exists EdgeHashtagTimes (
+  src bigint,
+  dst bigint,
+  hashtag varchar(140),
+  created_at timestamp
+);
+
+drop table EdgeFirstUsages;
+create table if not exists EdgeFirstUsages (
+  src bigint,
+  hashtag varchar(140),
+  created_at timestamp[]
+);
+
 
 ----------- These data tables can be freely modified and overwritten -----------
 
