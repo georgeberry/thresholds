@@ -1,5 +1,5 @@
 
---------------------------- BEGIN BASIC DATA TABLES ----------------------------
+--------------------------- BEGIN BASIC DATA TABLES ---------------------------
 
 --- These data tables that should not be altered after creation and indexing ---
 
@@ -48,24 +48,24 @@ create table if not exists Edges(
 
 drop table RelevantHashtags;
 create table if not exists RelevantHashtags (
-  hashtag varchar(140)
+  hashtag varchar(140) unique
 );
 
 drop table RelevantHashtagEgos;
 create table if not exists RelevantHashtagEgos (
-  uid bigint,
+  src bigint,
   hashtag varchar(140)
 );
 
 drop table EgoUpdates;
 create table if not exists EgoUpdates (
-  uid bigint,
+  src bigint,
   ego_updates timestamp[]
 );
 
 drop table EgoFirstUsages;
 create table if not exists EgoFirstUsages (
-  uid bigint,
+  src bigint,
   hashtag varchar(140),
   created_at timestamp
 );
@@ -78,7 +78,7 @@ create table if not exists RelevantEdges (
 
 drop table AlterFirstUsages;
 create table if not exists AlterFirstUsages (
-  uid bigint,
+  dst bigint unique,
   hashtag varchar(140),
   created_at timestamp
 );
@@ -91,13 +91,20 @@ create table if not exists EdgeHashtagTimes (
   created_at timestamp
 );
 
-drop table EdgeFirstUsages;
-create table if not exists EdgeFirstUsages (
+drop table EdgeWithAlterUsages;
+create table if not exists EdgeWithAlterUsages (
   src bigint,
   hashtag varchar(140),
-  created_at timestamp[]
+  first_usages timestamp[]
 );
 
+drop table AggregatedFirstUsages;
+create table if not exists AggregatedFirstUsages (
+  src bigint,
+  hashtag varchar(140),
+  ego_activation timestamp,
+  alter_usages timestamp[]
+);
 
 ----------- These data tables can be freely modified and overwritten -----------
 

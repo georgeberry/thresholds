@@ -5,6 +5,11 @@
  * 3. Get alter first usages of relevant hashtags
  */
 
+CREATE OR REPLACE FUNCTION array_sort (ANYARRAY)
+RETURNS ANYARRAY LANGUAGE SQL
+AS $$
+SELECT ARRAY(SELECT unnest($1) ORDER BY 1 DESC)
+$$;
 
 -- Preprocessing: get relevant hashtags
 with ordered_hashtags as (
@@ -20,41 +25,43 @@ select
 from
   ordered_hashtags
 where
-  count < 10000
-limit 10;
+  count < 100000
+limit 100;
 
 -- Preprocessing: list of egos that used hashtags
 
 -- req: RelevantHashtags
 insert into RelevantHashtagEgos
 select distinct
-  uid
+  uid as src
 from SuccessTweets
 where hashtag in (select hashtag from RelevantHashtags);
 
 -- 1. Get *all* updates for each ego
 
 -- req: RelevantHashtags, RelevantHashtagEgos
+-- don't need again till final step
 insert into EgoUpdates
 select
-  uid,
-  array_agg(created_at)
+  uid as src,
+  array_sort(array_agg(created_at))
 from SuccessTweets
-where uid in (select uid from RelevantHashtagEgos)
+where uid in (select src from RelevantHashtagEgos)
 group by uid;
 
 -- 2. Get ego first usage of all relevant hashtags
 
 -- req: RelevantHashtags, RelevantHashtagEgos
+-- don't need again till final step
 insert into EgoFirstUsages
 select
-  uid,
+  src,
   hashtag,
   created_at
 from NeighborTags
 where
   hashtag in (select hashtag from RelevantHashtags) and
-  uid in (select uid from RelevantHashtagEgos);
+  src in (select src from RelevantHashtagEgos);
 
 -- 3. Get alter first usages of relevant hashtags
 
@@ -64,12 +71,12 @@ select
   src,
   dst
 from Edges
-where src in (select uid from RelevantHashtagEgos);
+where src in (select src from RelevantHashtagEgos);
 
 -- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges
 insert into AlterFirstUsages
 select
-  a.dst AS uid,
+  a.dst,
   b.hashtag,
   b.created_at
 from (select distinct dst from RelevantEdges) a
@@ -86,10 +93,10 @@ select
   b.created_at
 from RelevantEdges a
 inner join AlterFirstUsages b
-on a.dst = b.uid;
+on a.dst = b.dst;
 
 -- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges, AlterFirstUsages, EdgeHashtagTimes
-insert into EdgeFirstUsages
+insert into EdgeWithAlterUsages
 select
   src,
   hashtag,
@@ -98,3 +105,19 @@ from EdgeHashtagTimes
 group by src, hashtag;
 
 -- 4. aggregate
+
+-- read off the EgoUpdate table when needed, don't store it repeatedly
+insert into AggregatedFirstUsages
+select
+  a.src,
+  a.hashtag,
+  a.created_at AS ego_activation,
+  array_sort(b.first_usages) AS alter_usages
+from EgoFirstUsages a
+join EdgeWithAlterUsages b
+on
+  a.src = b.src and
+  a.hashtag = b.hashtag;
+
+
+-- 5. analyze
