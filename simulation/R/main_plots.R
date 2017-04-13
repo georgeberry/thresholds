@@ -2,8 +2,8 @@ library(ggplot2)
 library(reshape)
 library(dplyr)
 
-RMSE_PATH = '/Users/g/Drive/projects-current/project-thresholds/data/sim_rmse_df.csv'
-K_PATH = '/Users/g/Drive/projects-current/project-thresholds/data/sim_k_df.csv'
+RMSE_PATH = '/Users/g/Drive/project-thresholds/data/sim_rmse_df.csv'
+K_PATH = '/Users/g/Drive/project-thresholds/data/sim_k_df.csv'
 
 #### diagnostics ##############################################################
 
@@ -108,4 +108,3 @@ ggsave("/Users/g/Documents/num_activated_at_first_k.png",
        p4,
        height=3,
        width=7)
-

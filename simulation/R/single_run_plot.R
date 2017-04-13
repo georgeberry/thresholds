@@ -2,7 +2,7 @@ library(ggplot2)
 library(dplyr)
 library(xtable)
 
-PATH = '/Users/g/Drive/projects-current/project-thresholds/data/one_off_df.csv'
+PATH = '/Users/g/Drive/project-thresholds/data/one_off_df.csv'
 
 df_rmse = read.csv(PATH)
 
