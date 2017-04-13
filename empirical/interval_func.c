@@ -44,6 +44,17 @@ PG_FUNCTION_INFO_V1(activations_in_interval);
 Datum
 activations_in_interval(PG_FUNCTION_ARGS)
 {
+  /*
+  Inputs:
+    ego_first_usage: timestamp
+    ego_updates: timestamp[]
+    alter_updates: timestamp[]
+
+  Outputs:
+    n_in_most_recent_interval
+    exposure_at_activation
+
+  */
 
   /* We do about 50 lines of processing to translate Postgres arrays to C */
   // Array objects

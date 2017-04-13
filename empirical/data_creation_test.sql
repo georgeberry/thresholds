@@ -19,103 +19,101 @@ with ordered_hashtags as (
   from hashtags
   order by count desc
 )
-insert into RelevantHashtags
+insert into TestRelevantHashtags
 select
   hashtag
 from
   ordered_hashtags
 where
-  count < 100000
-limit 100;
+  count < 15000
+limit 10;
 
 -- Preprocessing: list of egos that used hashtags
 
--- req: RelevantHashtags
-insert into RelevantHashtagEgos
+-- req: TestRelevantHashtags
+insert into TestRelevantHashtagEgos
 select distinct
   uid as src
 from SuccessTweets
-where hashtag in (select hashtag from RelevantHashtags);
+where hashtag in (select hashtag from TestRelevantHashtags);
 
 -- 1. Get *all* updates for each ego
 
--- req: RelevantHashtags, RelevantHashtagEgos
+-- req: TestRelevantHashtags, TestRelevantHashtagEgos
 -- don't need again till final step
-insert into EgoUpdates
+insert into TestEgoUpdates
 select
   uid as src,
   array_sort(array_agg(created_at))
 from SuccessTweets
-where uid in (select src from RelevantHashtagEgos)
+where uid in (select src from TestRelevantHashtagEgos)
 group by uid;
 
 -- 2. Get ego first usage of all relevant hashtags
 
--- req: RelevantHashtags, RelevantHashtagEgos
+-- req: TestRelevantHashtags, TestRelevantHashtagEgos
 -- don't need again till final step
-insert into EgoFirstUsages
+insert into TestEgoFirstUsages
 select
   uid as src,
   hashtag,
   created_at
 from NeighborTags
 where
-  hashtag in (select hashtag from RelevantHashtags) and
-  uid in (select src from RelevantHashtagEgos);
+  hashtag in (select hashtag from TestRelevantHashtags) and
+  uid in (select src from TestRelevantHashtagEgos);
 
 -- 3. Get alter first usages of relevant hashtags
 
--- req: RelevantHashtags, RelevantHashtagEgos
-insert into RelevantEdges
+-- req: TestRelevantHashtags, TestRelevantHashtagEgos
+insert into TestRelevantEdges
 select
   src,
   dst
 from Edges
-where src in (select src from RelevantHashtagEgos);
+where src in (select src from TestRelevantHashtagEgos);
 
--- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges
-insert into AlterFirstUsages
+-- req: TestRelevantHashtags, TestRelevantHashtagEgos, TestRelevantEdges
+insert into TestAlterFirstUsages
 select
   a.dst,
   b.hashtag,
   b.created_at
-from (select distinct dst from RelevantEdges) a
+from (select distinct dst from TestRelevantEdges) a
 left join NeighborTags b
 on a.dst = b.uid
-where b.hashtag in (select hashtag from RelevantHashtags);
+where b.hashtag in (select hashtag from TestRelevantHashtags);
 
--- need to uniqify
-
--- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges, AlterFirstUsages
-insert into EdgeHashtagTimes
+-- req: TestRelevantHashtags, TestRelevantHashtagEgos, TestRelevantEdges, TestAlterFirstUsages
+insert into TestEdgeHashtagTimes
 select
   a.src,
   a.dst,
   b.hashtag,
   b.created_at
-from RelevantEdges a
-inner join AlterFirstUsages b
+from TestRelevantEdges a
+inner join TestAlterFirstUsages b
 on a.dst = b.dst;
 
--- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges, AlterFirstUsages, EdgeHashtagTimes
+-- req: TestRelevantHashtags, TestRelevantHashtagEgos, TestRelevantEdges, TestAlterFirstUsages, TestEdgeHashtagTimes
 insert into EdgeWithAlterUsages
 select
   src,
   hashtag,
   array_agg(created_at) AS first_usages
-from EdgeHashtagTimes
+from TestEdgeHashtagTimes
 group by src, hashtag;
 
 -- 4. aggregate
 
 -- read off the EgoUpdate table when needed, don't store it repeatedly
-insert into AggregatedFirstUsages
+insert into TestAggregatedFirstUsages
 select
   a.src,
   a.hashtag,
   a.created_at AS ego_activation,
   array_sort(b.first_usages) AS alter_usages
-from EgoFirstUsages a
+from TestEgoFirstUsages a
 join EdgeWithAlterUsages b
 on
   a.src = b.src and

@@ -16,3 +16,7 @@ __pycache__
 *.out
 *.o
 *.so
+.ipynb_checkpoints
+.ipynb_checkpoints/
+
+*.ipynb

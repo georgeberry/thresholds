@@ -78,7 +78,7 @@ create table if not exists RelevantEdges (
 
 drop table AlterFirstUsages;
 create table if not exists AlterFirstUsages (
-  dst bigint unique,
+  dst bigint,
   hashtag varchar(140),
   created_at timestamp
 );
@@ -110,28 +110,60 @@ create table if not exists AggregatedFirstUsages (
 
 drop table TestRelevantHashtags;
 create table if not exists TestRelevantHashtags (
+  hashtag varchar(140) unique
+);
+
+drop table TestRelevantHashtagEgos;
+create table if not exists TestRelevantHashtagEgos (
+  src bigint,
   hashtag varchar(140)
 );
 
 drop table TestEgoUpdates;
 create table if not exists TestEgoUpdates (
-  uid bigint,
-  created_at timestamp,
-  hashtag varchar(140),
-  prev_updates timestamp[]
+  src bigint,
+  ego_updates timestamp[]
 );
 
-drop table TestAlterUsages;
-create table if not exists TestAlterUsages (
+drop table TestEgoFirstUsages;
+create table if not exists TestEgoFirstUsages (
+  src bigint,
+  hashtag varchar(140),
+  created_at timestamp
+);
+
+drop table TestRelevantEdges;
+create table if not exists TestRelevantEdges (
+  src bigint,
+  dst bigint
+);
+
+drop table TestAlterFirstUsages;
+create table if not exists TestAlterFirstUsages (
+  dst bigint unique,
+  hashtag varchar(140),
+  created_at timestamp
+);
+
+drop table TestEdgeHashtagTimes;
+create table if not exists TestEdgeHashtagTimes (
+  src bigint,
+  dst bigint,
+  hashtag varchar(140),
+  created_at timestamp
+);
+
+drop table TestEdgeWithAlterUsages;
+create table if not exists TestEdgeWithAlterUsages (
   src bigint,
   hashtag varchar(140),
   first_usages timestamp[]
 );
 
-drop table TestUpdateTimes;
-create table if not exists TestUpdateTimes (
+drop table TestAggregatedFirstUsages;
+create table if not exists TestAggregatedFirstUsages (
   src bigint,
   hashtag varchar(140),
-  ego_updates timestamp[],
-  alter_first_usages timestamp[]
+  ego_activation timestamp,
+  alter_usages timestamp[]
 );

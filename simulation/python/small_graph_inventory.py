@@ -14,6 +14,9 @@ from networkx.generators.atlas import *
 a = graph_atlas_g()
 
 
+print(a[0])
+
+print('hi \n hi \n hi')
 
 import networkx as nx
 
