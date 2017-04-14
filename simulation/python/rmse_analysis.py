@@ -1,15 +1,98 @@
 """
-This takes simulation runs and makes two output files
+The raw data in sim.csv contains 4+gb of node-level data
+e.g. 1 row for each node in each simulation run
 
-rmse_df:
-df_k
+Due to legacy terminology, "observed" here means "correctly measured"
 
-activated,activation_order,after_activation_alters,before_activation_alters,constant,constant_dist_coef,constant_dist_mean,constant_dist_sd,degree,epsilon,epsilon_dist_coef,epsilon_dist_mean,epsilon_dist_sd,name,observed,rand_string,threshold,var1,var1_dist_coef,var1_dist_mean,var1_dist_sd
 
+## Input/output table schemas ##
+
+Input:
+
+sim.csv
+    activated
+    activation_order
+    after_activation_alters
+    before_activation_alters
+    cluster_prob
+    constant
+    constant_dist_coef
+    constant_dist_mean
+    constant_dist_sd
+    degree
+    epsilon
+    epsilon_dist_coef
+    epsilon_dist_mean
+    epsilon_dist_sd
+    graph_size
+    graph_type
+    mean_deg
+    node
+    observed
+    rand_string
+    rewire_prob
+    threshold
+    var1
+    var1_dist_coef
+    var1_dist_mean
+    var1_dist_sd
+
+
+Outputs:
+
+rmse_df.csv
+    (unnamed row index)
+    cluster_prob
+    constant
+    epislon_mean_true
+    epsilon_dist_mean
+    epsilon_dist_sd
+    epsilon_mean_activated
+    epsilon_mean_measured
+    graph_size
+    graph_type
+    mean_deg
+    num_activated
+    num_all
+    num_measured
+    r2_activated_ols
+    r2_measured_ols
+    r2_true
+    rand_string
+    rewire_prob
+    rmse_activated_activated
+    rmse_activated_naive
+    rmse_activated_ols
+    rmse_measured_activated
+    rmse_measured_ols
+    rmse_true
+    var1_dist_mean
+    var1_dist_sd
+
+
+sim_k_df.csv
+    (unnamed row indexx)
+    cluster_prob
+    constant
+    epsilon_dist_mean
+    epsilon_dist_sd
+    graph_size
+    graph_type
+    k
+    mean_deg
+    num_activated
+    rand_string
+    rewire_prob
+    rmse_at_k
+    rmse_naive
+    rmse_true
+    var1_dist_mean
+    var1_dist_sd
 """
 import os
 import csv
 import sys
+import math
 import itertools
 import pandas as pd
 from math import sqrt
@@ -17,9 +100,10 @@ from sklearn import linear_model
 from sklearn.metrics import mean_squared_error
 from constants import *
 
-def yield_sim_records(path):
+def yield_sim_records():
     """
-    Yields one run of the simulation
+    Yields one run of simulation
+    e.g. an entire diffusion process on graph x params
     """
     with open(SIM_PATH, 'r') as f:
         dict_reader = csv.DictReader(f)
@@ -79,19 +163,9 @@ def process_rmse(df_sim, var_list=['var1'], sim_params=None):
     Note: there may be multiple variables at the end
     The rest of the columns are fixed
     """
-    all_vars = ['constant'] + var_list
 
-    df_sim['constant'] = 1
-    X_all = df_sim[all_vars]
-    y_all_true = df_sim['threshold']
-    # these are cols we keep when chopping up df_sim
-    relevant_cols = [
-        'threshold',
-        'after_activation_alters',
-        *all_vars,
-        'epsilon',
-    ]
-
+    # returns in-sample r2
+    # returns rmse of model-based prediction for all nodes
     def calc_r2_rmse(X_subset, y_subset, X_all, y_all_true):
         ols = linear_model.LinearRegression(fit_intercept=False)
         ols.fit(X_subset, y_subset)
@@ -104,6 +178,19 @@ def process_rmse(df_sim, var_list=['var1'], sim_params=None):
             )
         )
         return r2, rmse
+
+    all_vars = ['constant'] + var_list
+
+    df_sim['constant'] = 1
+    X_all = df_sim[all_vars]
+    y_all_true = df_sim['threshold']
+    # these are cols we keep when chopping up df_sim
+    relevant_cols = [
+        'threshold',
+        'after_activation_alters',
+        *all_vars,
+        'epsilon',
+    ]
 
     df_measured = df_sim.loc[df_sim['observed'] == 1, relevant_cols]
     X_measured = df_measured[all_vars]
@@ -273,6 +360,48 @@ def process_k(df_sim, var_list=['var1'], sim_params=None):
         run_k_list.append(k_dict)
     return run_k_list
 
+def process_counts(df_sim, var_list=['var1'], sim_params=None):
+    """
+    For each run, for each integer, we need true threshold counts and exposure at
+    activation time counts
+        then average by params
+
+    For each run, for each integer, we need true threshold counts and correctly
+    measured counts
+        then average by params
+
+    counts_df.csv
+        *params
+        true_threshold
+        expsoure_at_activation_time
+        correctly_measured
+        measurement_error
+    """
+    df_sim['constant'] = 1
+    all_vars = ['constant'] + var_list
+    relevant_cols = [
+        *all_vars,
+        'threshold',
+        'after_activation_alters',
+        'observed',
+    ]
+    count_df = df_sim.loc[:,relevant_cols]
+    count_df['after_activation_alters'] = pd.to_numeric(
+        count_df['after_activation_alters']
+    )
+
+    count_df['threshold'] = count_df['threshold'].apply(math.ceil)
+
+    # what will happen if after activation alters = None?
+    count_df['measurement_error'] = count_df['after_activation_alters'] -\
+        count_df['threshold']
+
+    for param, val in sim_params.items():
+        count_df[param] = val
+
+    return count_df.to_dict('records')
+
+
 def bail_out(df_sim):
     if sum(df_sim['activated'] == 1) < 1:
         print('bailed out')
@@ -284,28 +413,42 @@ if __name__ == '__main__':
     k_records = []
     counter = 0
 
-    for df_sim, sim_params in yield_sim_records(SIM_PATH):
-        if bail_out(df_sim):
+    with open(COUNT_DF_PATH, 'w') as f:
+        writer = None
+
+        for df_sim, sim_params in yield_sim_records():
+            if bail_out(df_sim):
+                counter += 1
+                continue
+            # if sim_params['rand_string'] == 'xl454inc':
+            #     df_sim.to_csv(ONE_OFF_DF_PATH)
+            # rmse_dict = process_rmse(df_sim, sim_params=sim_params)
+            # k_list = process_k(df_sim, sim_params=sim_params)
+            count_df_dicts = process_counts(df_sim, sim_params=sim_params)
+
+            if not writer:
+                fieldnames = count_df_dicts[0].keys()
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+
+            for d in count_df_dicts:
+                writer.writerow(d)
+
+            # rmse_records.append(rmse_dict)
+            # k_records.extend(k_list)
             counter += 1
-            continue
-        if sim_params['rand_string'] == 'xl454inc':
-            df_sim.to_csv(ONE_OFF_DF_PATH)
-        rmse_dict = process_rmse(df_sim, sim_params=sim_params)
-        k_list = process_k(df_sim, sim_params=sim_params)
 
-        rmse_records.append(rmse_dict)
-        k_records.extend(k_list)
-        counter += 1
+            if counter % 1000 == 0:
+                print('Processed {} runs!'.format(counter))
 
-        if counter % 1000 == 0:
-            print('Processed {} runs!'.format(counter))
 
-        if sys.argv[1].lower() == 'test':
-            print(rmse_dict)
-            print(k_list)
-            break
 
-    df_rmse = pd.DataFrame(rmse_records)
-    df_rmse.to_csv(SIM_RMSE_DF_PATH)
-    df_k = pd.DataFrame(k_records)
-    df_k.to_csv(SIM_K_DF_PATH)
+            # if sys.argv[1].lower() == 'test':
+            #     print(rmse_dict)
+            #     print(k_list)
+            #     break
+
+        # df_rmse = pd.DataFrame(rmse_records)
+        # df_rmse.to_csv(SIM_RMSE_DF_PATH)
+        # df_k = pd.DataFrame(k_records)
+        # df_k.to_csv(SIM_K_DF_PATH)

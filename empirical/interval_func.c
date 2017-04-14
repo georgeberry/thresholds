@@ -24,7 +24,7 @@ http://stackoverflow.com/questions/23796712/how-to-sum-two-float4-arrays-values-
 // How to register this with postgres
 
 create or replace function
-  activations_in_interval(timestamp[], timestamp[])
+  activations_in_interval(timestamp, timestamp[], timestamp[])
 returns int
 as 'interval_func.so', 'activations_in_interval'
 language c strict;
@@ -57,6 +57,14 @@ activations_in_interval(PG_FUNCTION_ARGS)
   */
 
   /* We do about 50 lines of processing to translate Postgres arrays to C */
+  // timestamp object
+  Timestamp ego_update = PG_GETARG_TIMESTAMP(0);
+
+  // output is a 2-array
+  // vals[0] = total exposure at activation time
+  // vals[1] =
+  Datum *vals = (Datum *) palloc(sizeof(Datum) * 2);
+
   // Array objects
   ArrayType *ego_arr, *alt_arr;
   // Array element types
@@ -74,8 +82,8 @@ activations_in_interval(PG_FUNCTION_ARGS)
   int ego_arr_length, alt_arr_length;
 
   // Pull out the arrays from input
-  ego_arr = PG_GETARG_ARRAYTYPE_P(0);
-  alt_arr = PG_GETARG_ARRAYTYPE_P(1);
+  ego_arr = PG_GETARG_ARRAYTYPE_P(1);
+  alt_arr = PG_GETARG_ARRAYTYPE_P(2);
 
   // Preprocess and fill in variables above
   ego_arr_elem_type = ARR_ELEMTYPE(ego_arr);
@@ -142,40 +150,63 @@ activations_in_interval(PG_FUNCTION_ARGS)
     PG_RETURN_NULL();
   }
 
-  Timestamp interval_min, interval_max, alt_timestamp;
+  Timestamp interval_min;
 
-  int count, alt_idx;
+  int exposure, in_interval;
+  int ego_idx, alt_idx;
   int i, j;
+
   count = 0;
+  ego_idx = 0;
   alt_idx = 0;
+  in_interval = 0;
 
-  for (i = 0; i < ego_arr_length; i++){
-    // Sorted in desc order, first element is newest
-    interval_max = ego_arr_content[i];
-    interval_min = ego_arr_content[i + 1];
+  // Move ego_idx to the first ego tag usage
+  while (ego_arr_content[ego_idx] > ego_update) {
+    ego_idx++;
+    if (ego_idx == ego_arr_len) {
+      PG_RETURN_NULL();
+    }
+  }
 
-    for (j = alt_idx; j < alt_arr_length + 1; j++){
+  // Move alt_idx to the first ego tag usage
+  while (alt_arr_content[alt_idx] > ego_update) {
+    alt_idx++;
+    if (alt_idx == alt_arr_len) {
+      PG_RETURN_NULL();
+    }
+  }
+
+  exposure = alt_arr_len - alt_idx;
+
+  for (i = ego_idx; i < ego_arr_length; i++){
+    // Only care about interval min
+    // We know that all alter usages are before ego first usage
+    // Check if in_interval == 0 to go to next
+    interval_min = ego_arr_content[i];
+
+    for (j = alt_idx; j < alt_arr_length; j++){
       alt_timestamp = alt_arr_content[j];
-      // If no elements are in interval and upper end of interval is less than
-      // alt_timestamp, increment the counter and go to next interval
-      if (alt_timestamp >= interval_max && count == 0){
-        alt_idx++;
+
+      // increment
+      if (alt_timestamp > interval_min) {
+        in_interval++;
+        continue;
+      }
+
+      // If there was at least one activation, but we have moved past the window
+      if (in_interval > 0 && interval_min > alt_timestamp) {
+        vals[0] = exposure;
+        vals[1] = in_interval;
+        result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
+        PG_RETURN_ARRAYTYPE_P(result)
+      }
+
+      // if no activations in interval, and alter usage is before interval min
+      // update interval min
+      if (in_interval == 0 && interval_min > alt_timestamp) {
+        alt_idx = j + 1;
         break;
-      }
-      // If no elements in interval and lower end of interval is greater than
-      // alt_timestamp, go to next interval. Don't update alt_idx, so we start
-      // in the next interval with the sa2``me alt_timestamp.
-      if (interval_min >= alt_timestamp && count == 0){
-        break;
-      }
-      // If we're in the interval, increment both counters
-      if (interval_max > alt_timestamp && alt_timestamp > interval_min){
-        count++;
-        alt_idx++;
-      }
-      // We have traversed all items in the interval, return the count
-      if (count > 0 && interval_min >= alt_timestamp) {
-        PG_RETURN_INT64(count);
       }
     }
   }

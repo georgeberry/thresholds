@@ -1,13 +1,14 @@
 library(ggplot2)
 library(reshape)
 library(dplyr)
+library(data.table)
 
-RMSE_PATH = '/Users/g/Drive/project-thresholds/data/sim_rmse_df.csv'
-K_PATH = '/Users/g/Drive/project-thresholds/data/sim_k_df.csv'
+RMSE_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/sim_rmse_df.csv'
+K_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/sim_k_df.csv'
 
 #### diagnostics ##############################################################
 
-df_rmse = read.csv(RMSE_PATH)
+df_rmse = fread(RMSE_PATH)
 
 df_rmse %>%
   filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1.0) %>%
@@ -23,7 +24,7 @@ df_rmse %>%
 # - rmse_activated_ols
 # - rmse_activated_naive
 
-df_rmse = read.csv(RMSE_PATH)
+df_rmse = fread(RMSE_PATH)
 
 m = melt(df_rmse,
          measure.vars=c('rmse_measured_ols',
@@ -51,7 +52,7 @@ mm$variable = ordered(factor(mm$variable),
                                'meas2'))
 
 p2 = mm %>%
-  filter(epsilon_dist_sd==1.0, graph_type=='plc') %>%
+  filter(epsilon_dist_sd==1.0, graph_type=='plc', !variable %in% c('act2', 'meas2')) %>%
   ggplot(.) +
     geom_violin(aes(y=value,
                     x=factor(mean_deg),
@@ -59,14 +60,12 @@ p2 = mm %>%
                 scale="width",
                 position=position_dodge(width=0.6),
                 alpha=0.4) +
-    scale_fill_grey() +
-    scale_shape(solid=FALSE) +
     geom_hline(aes(yintercept=1, color='True RMSE'), linetype='dashed') +
     labs(x='Mean degree', y='Root mean squared error') +
     scale_y_continuous(breaks=c(0,2,4,6,8,10), limits=c(0,10)) +
     theme_bw() +
     scale_color_manual(values=c("True RMSE"="black")) +
-    guides(color=guide_legend(title=NULL), fill=guide_legend(title='Category')) +
+    guides(color=guide_legend(title=NULL), fill=guide_legend(title='Category'))
 
 ggsave("/Users/g/Documents/rmse_by_degree.png",
        p2,
@@ -75,7 +74,7 @@ ggsave("/Users/g/Documents/rmse_by_degree.png",
 
 #### k-df processing ###########################################################
 
-df_k = read.csv(K_PATH)
+df_k = fread(K_PATH)
 
 p3 = df_k %>%
   filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1, k<=100) %>%
@@ -87,8 +86,7 @@ p3 = df_k %>%
     lims(y=c(0,5.5)) +
     theme_bw() +
     guides(color=guide_legend(title='Benchmarks')) +
-    labs(x='First k correctly measured', y='Root mean squared error') +
-    scale_color_grey()
+    labs(x='First k correctly measured', y='Root mean squared error')
 
 ggsave("/Users/g/Documents/model_vs_true.png",
        p3,

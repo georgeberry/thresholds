@@ -2,7 +2,7 @@ library(ggplot2)
 library(dplyr)
 library(xtable)
 
-PATH = '/Users/g/Drive/project-thresholds/data/one_off_df.csv'
+PATH = '/Users/g/Drive/project-thresholds/thresholds/data/one_off_df.csv'
 
 df_rmse = read.csv(PATH)
 
@@ -152,7 +152,6 @@ df_rmse %>%
 
 
 #### one run summary plots ####################################################
-
 
 PATH = '/Users/g/Drive/projects-current/project-thresholds/data/one_off_sim.csv'
 
