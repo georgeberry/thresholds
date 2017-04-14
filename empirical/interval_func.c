@@ -3,6 +3,7 @@
 #include <fmgr.h>
 #include <utils/timestamp.h>
 #include <utils/array.h>
+#include <catalog/pg_type.h>
 
 #ifdef PG_MODULE_MAGIC
 PG_MODULE_MAGIC;
@@ -23,9 +24,13 @@ http://stackoverflow.com/questions/23796712/how-to-sum-two-float4-arrays-values-
 /*
 // How to register this with postgres
 
+make, make install
+
+then:
+
 create or replace function
   activations_in_interval(timestamp, timestamp[], timestamp[])
-returns int
+returns int[]
 as 'interval_func.so', 'activations_in_interval'
 language c strict;
 
@@ -36,6 +41,28 @@ create table timestamp_test (d timestamp, e timestamp);
 insert into timestamp_test values ('2004-10-19 10:23:56', '2004-10-19 10:23:55'), ('2004-10-19 10:23:54', '2004-10-19 10:23:53');
 
 select activations_in_interval(array_agg(d), array_agg(e)) from timestamp_test;
+
+// Real world test
+
+select
+  a.src,
+  activations_in_interval(a.ego_activation, b.ego_updates, a.alter_usages)
+from AggregatedFirstUsages a
+join EgoUpdates b
+on a.src = b.src
+where a.src in ARRAY[22167545, 23270835, 23349470, 27107246, 27578762, 30310944, 32480116, 33148717, 33700456, 33846841];
+
+
+select
+  a.src,
+  a.ego_activation,
+  array_length(b.ego_updates, 1),
+  a.alter_usages
+from AggregatedFirstUsages a
+join EgoUpdates b
+on a.src = b.src
+limit 10;
+
 */
 
 Datum activations_in_interval(PG_FUNCTION_ARGS);
@@ -59,6 +86,7 @@ activations_in_interval(PG_FUNCTION_ARGS)
   /* We do about 50 lines of processing to translate Postgres arrays to C */
   // timestamp object
   Timestamp ego_update = PG_GETARG_TIMESTAMP(0);
+  typedef int int4;
 
   // output is a 2-array
   // vals[0] = total exposure at activation time
@@ -66,7 +94,7 @@ activations_in_interval(PG_FUNCTION_ARGS)
   Datum *vals = (Datum *) palloc(sizeof(Datum) * 2);
 
   // Array objects
-  ArrayType *ego_arr, *alt_arr;
+  ArrayType *ego_arr, *alt_arr, *result;
   // Array element types
   Oid ego_arr_elem_type, alt_arr_elem_type;
   // Array element type widths
@@ -147,16 +175,17 @@ activations_in_interval(PG_FUNCTION_ARGS)
 
   // Ego array too small
   if (ego_arr_length < 2) {
-    PG_RETURN_NULL();
+    vals[0] = -4;
+    vals[1] = -4;
+    result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
+    PG_RETURN_ARRAYTYPE_P(result);
   }
 
   Timestamp interval_min;
-
   int exposure, in_interval;
   int ego_idx, alt_idx;
   int i, j;
 
-  count = 0;
   ego_idx = 0;
   alt_idx = 0;
   in_interval = 0;
@@ -164,20 +193,26 @@ activations_in_interval(PG_FUNCTION_ARGS)
   // Move ego_idx to the first ego tag usage
   while (ego_arr_content[ego_idx] > ego_update) {
     ego_idx++;
-    if (ego_idx == ego_arr_len) {
-      PG_RETURN_NULL();
+    if (ego_idx == ego_arr_length) {
+      vals[0] = -1;
+      vals[1] = -1;
+      result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
+      PG_RETURN_ARRAYTYPE_P(result);
     }
   }
 
   // Move alt_idx to the first ego tag usage
   while (alt_arr_content[alt_idx] > ego_update) {
     alt_idx++;
-    if (alt_idx == alt_arr_len) {
-      PG_RETURN_NULL();
+    if (alt_idx == alt_arr_length) {
+      vals[0] = -2;
+      vals[1] = -2;
+      result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
+      PG_RETURN_ARRAYTYPE_P(result);
     }
   }
 
-  exposure = alt_arr_len - alt_idx;
+  exposure = alt_arr_length - alt_idx;
 
   for (i = ego_idx; i < ego_arr_length; i++){
     // Only care about interval min
@@ -186,29 +221,31 @@ activations_in_interval(PG_FUNCTION_ARGS)
     interval_min = ego_arr_content[i];
 
     for (j = alt_idx; j < alt_arr_length; j++){
-      alt_timestamp = alt_arr_content[j];
 
       // increment
-      if (alt_timestamp > interval_min) {
+      if (alt_arr_content[j] > interval_min) {
         in_interval++;
         continue;
       }
 
       // If there was at least one activation, but we have moved past the window
-      if (in_interval > 0 && interval_min > alt_timestamp) {
+      if (in_interval > 0 && interval_min > alt_arr_content[j]) {
         vals[0] = exposure;
         vals[1] = in_interval;
         result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
-        PG_RETURN_ARRAYTYPE_P(result)
+        PG_RETURN_ARRAYTYPE_P(result);
       }
 
       // if no activations in interval, and alter usage is before interval min
       // update interval min
-      if (in_interval == 0 && interval_min > alt_timestamp) {
-        alt_idx = j + 1;
+      if (in_interval == 0 && interval_min > alt_arr_content[j]) {
+        alt_idx = j;
         break;
       }
     }
   }
-  PG_RETURN_NULL();
+  vals[0] = -3;
+  vals[1] = -3;
+  result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
+  PG_RETURN_ARRAYTYPE_P(result);
 }
