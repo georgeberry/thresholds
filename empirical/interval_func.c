@@ -46,6 +46,7 @@ select activations_in_interval(array_agg(d), array_agg(e)) from timestamp_test;
 
 select
   a.src,
+  a.hashtag,
   activations_in_interval(a.ego_activation, b.ego_updates, a.alter_usages)
 from AggregatedFirstUsages a
 join EgoUpdates b
@@ -227,6 +228,7 @@ activations_in_interval(PG_FUNCTION_ARGS)
       // increment
       if (alt_arr_content[j] > interval_min) {
         in_interval++;
+        // So we don't repeatedly start at j if there's only 1 alter usage
         alt_idx = j + 1;
         continue;
       }
