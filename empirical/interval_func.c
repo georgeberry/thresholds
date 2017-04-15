@@ -50,7 +50,8 @@ select
 from AggregatedFirstUsages a
 join EgoUpdates b
 on a.src = b.src
-where a.src in ARRAY[22167545, 23270835, 23349470, 27107246, 27578762, 30310944, 32480116, 33148717, 33700456, 33846841];
+where a.src in (22167545, 23270835, 23349470, 27107246, 27578762, 30310944, 32480116, 33148717, 33700456, 33846841)
+order by a.src asc;
 
 
 select
@@ -191,7 +192,7 @@ activations_in_interval(PG_FUNCTION_ARGS)
   in_interval = 0;
 
   // Move ego_idx to the first ego tag usage
-  while (ego_arr_content[ego_idx] > ego_update) {
+  while (ego_arr_content[ego_idx] >= ego_update) {
     ego_idx++;
     if (ego_idx == ego_arr_length) {
       vals[0] = -1;
@@ -202,11 +203,12 @@ activations_in_interval(PG_FUNCTION_ARGS)
   }
 
   // Move alt_idx to the first ego tag usage
-  while (alt_arr_content[alt_idx] > ego_update) {
+  while (alt_arr_content[alt_idx] >= ego_update) {
     alt_idx++;
+    // ego is early adopter
     if (alt_idx == alt_arr_length) {
-      vals[0] = -2;
-      vals[1] = -2;
+      vals[0] = 0;
+      vals[1] = 0;
       result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
       PG_RETURN_ARRAYTYPE_P(result);
     }
@@ -225,6 +227,7 @@ activations_in_interval(PG_FUNCTION_ARGS)
       // increment
       if (alt_arr_content[j] > interval_min) {
         in_interval++;
+        alt_idx = j + 1;
         continue;
       }
 
@@ -244,8 +247,8 @@ activations_in_interval(PG_FUNCTION_ARGS)
       }
     }
   }
-  vals[0] = -3;
-  vals[1] = -3;
+  vals[0] = exposure;
+  vals[1] = in_interval;
   result = construct_array(vals, 2, INT4OID, sizeof(int4), true, 'i');
   PG_RETURN_ARRAYTYPE_P(result);
 }

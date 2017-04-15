@@ -102,7 +102,7 @@ insert into EdgeWithAlterUsages
 select
   src,
   hashtag,
-  array_agg(created_at) AS first_usages
+  array_sort(array_agg(created_at)) AS first_usages
 from EdgeHashtagTimes
 group by src, hashtag;
 
@@ -114,7 +114,7 @@ select
   a.src,
   a.hashtag,
   a.created_at AS ego_activation,
-  array_sort(b.first_usages) AS alter_usages
+  b.first_usages AS alter_usages
 from EgoFirstUsages a
 join EdgeWithAlterUsages b
 on
