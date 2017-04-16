@@ -6,9 +6,9 @@ PATH = '/Users/g/Drive/project-thresholds/thresholds/data/count_df.csv'
 df = fread(PATH) %>%
   filter(graph_type=='plc', epsilon_dist_sd==1.0) %>%
   mutate(after_activation_alters = ifelse(
-           after_activation_alters > 40, 41, after_activation_alters),
+           after_activation_alters > 40, 40, after_activation_alters),
          measurement_error = ifelse(
-           measurement_error > 25, 26, measurement_error))
+           measurement_error > 25, 25, measurement_error))
 
 #### density of true vs expsoure-at-activation #################################
 
@@ -55,20 +55,6 @@ ggplot() +
                      color='Exposure'),
                  stat="identity")
 
-# density
-ggplot() +
-  theme_bw() +
-  geom_line(data=thresh_df,
-            aes(x=threshold,
-                y=thresh_density,
-                color='True'),
-            stat="identity") +
-  geom_line(data=exposure_df,
-            aes(x=after_activation_alters,
-                y=exposure_density,
-                color='Exposure'),
-            stat="identity")
-
 ggplot() +
   theme_bw() +
   geom_density(data=df,
@@ -101,14 +87,90 @@ cm_df = df %>%
   mutate(thresh_frac = thresh_count / sum(thresh_count),
          cm_frac = cm_count / sum(thresh_count))
 
-ggplot() +
+
+
+
+#### goplots ####################################################################
+
+# can we incorporate w-s in these plots as well?
+
+# density of True vs Exposure-at-activation-time
+p1 = ggplot() +
+  theme_bw() +
+  theme(axis.ticks=element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(.95, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  guides(color = guide_legend(override.aes = list(shape = c(17,15)))) +
+  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.15)) +
+  labs(x='Threshold',
+       y='Proportion',
+       color=element_blank()) +
+  geom_line(data=thresh_df,
+            aes(x=threshold,
+                y=thresh_density,
+                color='True'),
+            stat="identity") +
+  geom_point(data=thresh_df,
+            aes(x=threshold,
+                y=thresh_density,
+                color='True'),
+            shape=15,
+            size=1) +
+  geom_line(data=exposure_df,
+            aes(x=after_activation_alters,
+                y=exposure_density,
+                color='Exposure at\nactivation'),
+            stat="identity") +
+  geom_point(data=exposure_df,
+            aes(x=after_activation_alters,
+                y=exposure_density,
+                color='Exposure at\nactivation'),
+            shape=17,
+            size=1)
+
+ggsave('p1.pdf', p1, device = "pdf", path='/Users/g/Desktop',
+       height=4, width=6)
+
+p2 = ggplot() +
+  theme_bw() +
+  theme(axis.ticks=element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(.95, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  guides(color = guide_legend(override.aes = list(shape = c(17,15)))) +
+  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.15)) +
+  labs(x='Threshold',
+       y='Proportion',
+       color=element_blank()) +
+  geom_line(data=cm_df,
+            aes(x=threshold,
+                y=cm_frac,
+                color='Correctly\nmeasured'),
+            stat="identity") +
+  geom_point(data=cm_df,
+             aes(x=threshold,
+                 y=cm_frac,
+                 color='Correctly\nmeasured'),
+             shape=17,
+             size=1) +
   geom_line(data=cm_df,
             aes(x=threshold,
                 y=thresh_frac,
                 color='True'),
             stat="identity") +
-  geom_line(data=cm_df,
-            aes(x=threshold,
-                y=cm_frac,
-                color='CM'),
-            stat="identity")
+  geom_point(data=cm_df,
+             aes(x=threshold,
+                 y=thresh_frac,
+                 color='True'),
+             shape=15,
+             size=1)
+
+ggsave('p2.pdf', p2, device = "pdf", path='/Users/g/Desktop',
+       height=4, width=6)

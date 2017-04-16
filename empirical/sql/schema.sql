@@ -106,6 +106,15 @@ create table if not exists AggregatedFirstUsages (
   alter_usages timestamp[]
 );
 
+drop table ThresholdTable;
+create table if not exists ThresholdTable (
+  src bigint,
+  hashtag varchar(140),
+  exposure int,
+  in_interval int,
+  ego_update_count int
+);
+
 ----------- These data tables can be freely modified and overwritten -----------
 
 drop table TestRelevantHashtags;

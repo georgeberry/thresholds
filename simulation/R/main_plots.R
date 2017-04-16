@@ -51,13 +51,13 @@ mm$variable = ordered(factor(mm$variable),
                                'act2',
                                'meas2'))
 
-p2 = mm %>%
+p3 = mm %>%
   filter(epsilon_dist_sd==1.0, graph_type=='plc', !variable %in% c('act2', 'meas2')) %>%
   ggplot(.) +
-    geom_violin(aes(y=value,
+    geom_boxplot(aes(y=value,
                     x=factor(mean_deg),
                     fill=variable),
-                scale="width",
+                # scale="width",
                 position=position_dodge(width=0.6),
                 alpha=0.4) +
     geom_hline(aes(yintercept=1, color='True RMSE'), linetype='dashed') +
@@ -67,20 +67,21 @@ p2 = mm %>%
     scale_color_manual(values=c("True RMSE"="black")) +
     guides(color=guide_legend(title=NULL), fill=guide_legend(title='Category'))
 
-ggsave("/Users/g/Documents/rmse_by_degree.png",
-       p2,
-       width=7,
-       height=3)
+ggsave("/Users/g/Desktop/p3.pdf",
+       p3,
+       device="pdf",
+       width=6,
+       height=4)
 
 #### k-df processing ###########################################################
 
 df_k = fread(K_PATH)
 
-p3 = df_k %>%
+p4 = df_k %>%
   filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1, k<=100) %>%
   ungroup() %>%
   ggplot(.) +
-    geom_violin(aes(x=factor(k), y=rmse_at_k)) +
+    geom_boxplot(aes(x=factor(k), y=rmse_at_k)) +
     geom_hline(aes(yintercept=mean(rmse_naive), color='Naive RMSE'), linetype='dashed') +
     geom_hline(aes(yintercept=mean(rmse_true), color='True RMSE'), linetype='dashed') +
     lims(y=c(0,5.5)) +
@@ -88,21 +89,23 @@ p3 = df_k %>%
     guides(color=guide_legend(title='Benchmarks')) +
     labs(x='First k correctly measured', y='Root mean squared error')
 
-ggsave("/Users/g/Documents/model_vs_true.png",
-       p3,
-       height=3,
-       width=7)
+ggsave("/Users/g/Desktop/p4.pdf",
+       p4,
+       device="pdf",
+       height=4,
+       width=6)
 
-p4 = df_k %>%
+p5 = df_k %>%
   filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1, k<=100) %>%
   ungroup() %>%
     ggplot(.) +
-  geom_violin(aes(x=factor(k), y=num_activated)) +
+  geom_boxplot(aes(x=factor(k), y=num_activated)) +
     lims(y=c(0,850)) +
     theme_bw() +
     labs(x='First k correctly measured', y='Total activations')
 
-ggsave("/Users/g/Documents/num_activated_at_first_k.png",
-       p4,
-       height=3,
-       width=7)
+ggsave("/Users/g/Desktop/p5.pdf",
+       p5,
+       device="pdf",
+       height=4,
+       width=6)

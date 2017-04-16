@@ -121,5 +121,25 @@ on
   a.src = b.src and
   a.hashtag = b.hashtag;
 
-
 -- 5. analyze
+
+insert into ThresholdTable
+select
+  c.src,
+  c.hashtag,
+  c.arr[1] as exposure,
+  c.arr[2] as in_interval,
+  c.ego_update_count
+from (
+  select
+    a.src,
+    a.hashtag,
+    activations_in_interval(
+      a.ego_activation, b.ego_updates, a.alter_usages
+    ) as arr,
+    array_length(b.ego_updates, 1) as ego_update_count
+  from AggregatedFirstUsages a
+  inner join EgoUpdates b
+  on
+    a.src = b.src
+) c;

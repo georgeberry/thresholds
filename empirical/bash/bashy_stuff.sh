@@ -4,12 +4,9 @@ head -n1 ~/Expire/temp.json
 
 head -n1 ~/Expire/temp.json | jq '{ user: .user, tweets: [.tweets[] | select( .entities.hashtags | length > 0)| {text: .text, entities.hashtags: .entities.hashtags, id_str: .id_str, created_at: .created_at} ]}'
 
-
 head -n1 ~/Expire/temp.json | jq -r '. | .tweets[] | select( .entities.hashtags | length > 0) | "\(.id_str)\t\(.created_at)\t\(.entities.hashtags[].text)"'
 
 cat ~/Expire/temp.json | jq -r '"\(.tweets[].entities.hashtags[].text?)\t\(.user[0].id_str)\t\(.tweets[].created_at)\t\(.tweets[].id_str)"' > ~/Expire/test.tsv
-
-
 
 cat ~/Expire/temp.json | jq -r '. | .user[0].id_str as $uid | .tweets[] | select( .entities.hashtags | length > 0) | "\(.entities.hashtags[].text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > ~/Expire/test.tsv
 
@@ -25,7 +22,7 @@ echo du $$1
 echo BASEN
 
 
-bzcat $1 | jq -r '. | .user[0].id_str as $uid | .tweets[] | select( .entities.hashtags | length > 0) | "\(.entities.hashtags[].text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > 
+bzcat $1 | jq -r '. | .user[0].id_str as $uid | .tweets[] | select( .entities.hashtags | length > 0) | "\(.entities.hashtags[].text)\t\($uid)\t\(.id_str)\t\(.created_at)"' >
 
 $BASEN
 
@@ -57,15 +54,15 @@ $1=a[$1]                  # re-assign column one's value to be the value held
 
 1                         # The 1 on the end simply enables default printing. It
                           # would be like saying: $1 in a { $1=a[$1]; print $0 }'
-                          
-                          
-awk 'BEGIN { FS = "\t" } ; FNR==NR { uid[$1]=1; next } $1 in uid { print }' /Volumes/pci_ssd/twitter_patrick/bidirected_us_edges/success_plus_users.txt ~/Expire/first1000.txt 
+
+
+awk 'BEGIN { FS = "\t" } ; FNR==NR { uid[$1]=1; next } $1 in uid { print }' /Volumes/pci_ssd/twitter_patrick/bidirected_us_edges/success_plus_users.txt ~/Expire/first1000.txt
 
 
 
  bzcat /Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-01424.bz2 | head -n100 | awk 'BEGIN { FS = "\t" } ; FNR==NR { uid[$1]=1; next } $1 in uid { print $1 }' /Volumes/pci_ssd/twitter_patrick/bidirected_us_edges/success_plus_users.txt -
- 
- 
+
+
 awk 'BEGIN { FS = "\t" } ; FNR==NR { uid[$1]=1; next } $1 in uid { print $1 }' /Volumes/pci_ssd/twitter_patrick/bidirected_us_edges/success_plus_users.txt $(bzcat /Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-01424.bz2 | head -n1000)
 
 

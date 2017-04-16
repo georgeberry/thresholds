@@ -34,13 +34,13 @@ returns int[]
 as 'interval_func.so', 'activations_in_interval'
 language c strict;
 
-// How to test
+// Toy example
 
-create table timestamp_test (d timestamp, e timestamp);
+create table timestamp_test (a timestamp, b timestamp[], c timestamp[]);
 
-insert into timestamp_test values ('2004-10-19 10:23:56', '2004-10-19 10:23:55'), ('2004-10-19 10:23:54', '2004-10-19 10:23:53');
+insert into timestamp_test values ('2004-10-19 10:23:57', '{"2004-10-19 10:23:59", "2004-10-19 10:23:57", "2004-10-19 10:23:53", "2004-10-19 10:23:51"}', '{"2004-10-19 10:23:58", "2004-10-19 10:23:56", "2004-10-19 10:23:56", "2004-10-19 10:23:56", "2004-10-19 10:23:54"}');
 
-select activations_in_interval(array_agg(d), array_agg(e)) from timestamp_test;
+select activations_in_interval(a, b, c) from timestamp_test;
 
 // Real world test
 
@@ -54,17 +54,31 @@ on a.src = b.src
 where a.src in (22167545, 23270835, 23349470, 27107246, 27578762, 30310944, 32480116, 33148717, 33700456, 33846841)
 order by a.src asc;
 
+// Speed test
 
 select
   a.src,
-  a.ego_activation,
-  array_length(b.ego_updates, 1),
-  a.alter_usages
+  a.hashtag,
+  activations_in_interval(a.ego_activation, b.ego_updates, a.alter_usages)
 from AggregatedFirstUsages a
 join EgoUpdates b
 on a.src = b.src
-limit 10;
+limit 1000;
 
+// Badness test
+
+select
+  count(*)
+from (
+  select
+    a.src,
+    a.hashtag,
+    activations_in_interval(a.ego_activation, b.ego_updates, a.alter_usages) AS arr
+  from AggregatedFirstUsages a
+  join EgoUpdates b
+  on a.src = b.src
+  limit 10000) a
+where a.arr[2] > 1;
 */
 
 Datum activations_in_interval(PG_FUNCTION_ARGS);
