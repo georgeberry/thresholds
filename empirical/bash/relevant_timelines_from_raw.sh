@@ -18,32 +18,77 @@ cat test1.json | jq '.tweets[] | select(.entities.hashtags[].text | contains("Lo
 
 
 
-# Timelines where any tweet contains
-# TODO: Need to add hashtags
+# Timelines where at least one tweet contains a hashtag in the list
+# Best candidate
 cat test1.json | jq '.
 | .user[0].id_str as $uid
-| select(.tweets[].entities.hashtags[].text | contains("LongRun"))
-| .tweets[]
-| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > test1.tsv
-
-cat test1.json | jq '.
-| .user[0].id_str as $uid
-| select([.tweets[].entities.hashtags[].text == "LongRun"] | any)
-| .tweets[]
-| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > test1.tsv
-
-cat test1.json | jq '.
-| .user[0].id_str as $uid
-| select(.tweets[].entities.hashtags[].text as $values
-  | ["blue", "yellow"]
-  | map([$values[] == .] | any)
-  | all)
+| select(
+  [.tweets[].entities.hashtags[].text | in({"nofilter": 1})]
+  | any)
 | .tweets[]
 | "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > test1.tsv
 
 
-# How many users have at least one tweet with the term?
-bzcat part-00000.bz2 | cut -f2 | jq '.
+
+
+
+
+
+## more testing ##
+
+cat test1.json | jq '.
 | .user[0].id_str as $uid
-| select(any(.tweets[].entities.hashtags[].text | contains("tbt")))
-| "\($uid)"' > ~/test2.tsv
+| .tweets[].entities.hashtags[].text
+| select(map(in({"nofilter": 1})) | any)
+| .tweets[]
+| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > test1.tsv
+
+# slower
+cat test1.json | jq '.
+| .user[0].id_str as $uid
+| .tweets[]
+| {uid: $uid, text: .text, created_at: .created_at, hashtag: .entities.hashtags[].text}
+| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > test1.tsv
+
+cat test1.json | jq '.
+| .user[0].id_str as $uid
+| select(
+  [.tweets[].entities.hashtags[].text | in({"nofilter": 1})]
+  | any)
+| .tweets[]
+| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > test1.tsv
+
+
+
+
+
+# 57s
+time bzcat part-00000.bz2 | head -n1000 | cut -f2 | jq '.
+| .user[0].id_str as $uid
+| select(
+  [.tweets[].entities.hashtags[].text | in({"nofilter": 1})]
+  | any)
+| .tweets[]
+| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > ~/test1.tsv
+
+time bzcat part-00000.bz2 | head -n1000 | cut -f2 | jq '.
+| .user[0].id_str as $uid
+| select(
+  [.tweets[].entities.hashtags[].text | in({"nofilter": 1})]
+  | any)' > ~/test1.tsv
+
+
+# 1m1s
+time bzcat part-00000.bz2 | head -n1000 | cut -f2 | jq '.
+| .user[0].id_str as $uid
+| .tweets[]
+| {uid: $uid, text: .text, created_at: .created_at, hashtag: .entities.hashtags[].text}
+| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > ~/test1.tsv
+
+
+# 1m1s
+time bzcat part-00000.bz2 | head -n1000 | cut -f2 | jq '.
+| .user[0].id_str as $uid
+| .tweets[]
+| {uid: $uid, text: .text, created_at: .created_at, hashtag: .entities.hashtags[].text}
+| "\(.text)\t\($uid)\t\(.id_str)\t\(.created_at)"' > ~/test1.tsv

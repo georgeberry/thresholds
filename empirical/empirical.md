@@ -28,6 +28,8 @@ Contains 1425 `.bz2`-zipped files. Each file has the format of:
 
 `"uid" <tab> "{'user': user_info, 'tweets': [{tweet_dict}, ...]}"`
 
+There are about 30m tweets per file, of which 10% or so have hashtag usages
+
 ## Intermediate data
 
 Decompressed & extracted from raw data
