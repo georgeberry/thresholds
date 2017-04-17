@@ -1,5 +1,8 @@
 #!/bin/bash
 
+
+# find /Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-0000*.bz2 -print0 | xargs -0 -n1 -P2 -- bash -c './timelines_from_raw.sh "$0"'
+
 BASEN=$(basename "$1")
 OUTB=${BASEN}
 OUTX=".tsv"
@@ -12,4 +15,4 @@ bzcat $1 | cut -f2 | jq -r '{"obama2012": 1, "election2012": 1, "kony2012": 1, "
   [.tweets[].entities.hashtags[].text | ascii_downcase | in($x)]
   | any)
 | .tweets[]
-| "\($uid)\t\(.created_at)\t\(.id_str)\t\(.text)\t\([.entities.hashtags[].text | ascii_downcase])"' > /Volumes/Starbuck/twitter_data/thresholds/$OUTN
+| "\($uid)\t\(.created_at)\t\(.id_str)\t\(.text)\t\([.entities.hashtags[].text | ascii_downcase])"' > /Volumes/Starbuck/class/twitter_data/thresholds/$OUTN
