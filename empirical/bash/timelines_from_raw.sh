@@ -1,7 +1,7 @@
 #!/bin/bash
 
 
-# find /Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-0000*.bz2 -print0 | xargs -0 -n1 -P2 -- bash -c './timelines_from_raw.sh "$0"'
+# find /Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-014*.bz2 -print0 | xargs -0 -n1 -P6 -- bash -c './timelines_from_raw.sh "$0"'
 
 BASEN=$(basename "$1")
 OUTB=${BASEN}

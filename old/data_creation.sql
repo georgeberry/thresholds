@@ -1,16 +1,17 @@
 /*
-We need to
-  1. get a set of hashtags
-  2. get ego windows for first usage of those hashtags
-  3. get all alter usages of those hashtags
-  4. compute how many alters used a hashtag in the window
-  5. compute total number of alters that used hashtag before ego first usage
+ * Distinct tasks:
+ * 1. Get all updates for each ego
+ * 2. Get ego first usage of relevant hashtags
+ * 3. Get alter first usages of relevant hashtags
+ */
 
-*/
+CREATE OR REPLACE FUNCTION array_sort (ANYARRAY)
+RETURNS ANYARRAY LANGUAGE SQL
+AS $$
+SELECT ARRAY(SELECT unnest($1) ORDER BY 1 DESC)
+$$;
 
-
--- 1. Get relevant hashtags
-
+-- Preprocessing: get relevant hashtags
 with ordered_hashtags as (
   select
     hashtag,
@@ -18,101 +19,127 @@ with ordered_hashtags as (
   from hashtags
   order by count desc
 )
-insert into TestRelevantHashtags
+insert into RelevantHashtags
 select
   hashtag
 from
   ordered_hashtags
 where
-  count < 10000
-limit 10;
+  count < 100000
+limit 100;
 
--- 2. Get windows for first usage of relevant hashtags
--- To speed this up, store tweets by htag_users sorted by uid, created_at desc
-with htag_users as (
-  select distinct uid from successtweets
-  where hashtag in (select hashtag from TestRelevantHashtags)
-)
-insert into TestEgoUpdates
-select distinct on (a.uid) -- if ties, pick an arbitrary one
-  a.uid,
-  first_value(a.created_at) over w,
+-- Preprocessing: list of egos that used hashtags
+
+-- req: RelevantHashtags
+insert into RelevantHashtagEgos
+select distinct
+  uid as src
+from SuccessTweets
+where hashtag in (select hashtag from RelevantHashtags);
+
+-- 1. Get *all* updates for each ego
+
+-- req: RelevantHashtags, RelevantHashtagEgos
+-- don't need again till final step
+insert into EgoUpdates
+select
+  uid as src,
+  array_sort(array_agg(created_at))
+from SuccessTweets
+where uid in (select src from RelevantHashtagEgos)
+group by uid;
+
+-- 2. Get ego first usage of all relevant hashtags
+
+-- req: RelevantHashtags, RelevantHashtagEgos
+-- don't need again till final step
+insert into EgoFirstUsages
+select
+  uid as src,
+  hashtag,
+  created_at
+from NeighborTags
+where
+  hashtag in (select hashtag from RelevantHashtags) and
+  uid in (select src from RelevantHashtagEgos);
+
+-- 3. Get alter first usages of relevant hashtags
+
+-- req: RelevantHashtags, RelevantHashtagEgos
+insert into RelevantEdges
+select
+  src,
+  dst
+from Edges
+where src in (select src from RelevantHashtagEgos);
+
+-- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges
+insert into AlterFirstUsages
+select
+  a.dst,
+  b.hashtag,
+  b.created_at
+from (select distinct dst from RelevantEdges) a
+left join NeighborTags b
+on a.dst = b.uid
+where b.hashtag in (select hashtag from RelevantHashtags);
+
+-- need to uniqify
+
+-- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges, AlterFirstUsages
+insert into EdgeHashtagTimes
+select
+  a.src,
+  a.dst,
+  b.hashtag,
+  b.created_at
+from RelevantEdges a
+inner join AlterFirstUsages b
+on a.dst = b.dst;
+
+-- req: RelevantHashtags, RelevantHashtagEgos, RelevantEdges, AlterFirstUsages, EdgeHashtagTimes
+insert into EdgeWithAlterUsages
+select
+  src,
+  hashtag,
+  array_sort(array_agg(created_at)) AS first_usages
+from EdgeHashtagTimes
+group by src, hashtag;
+
+-- 4. aggregate
+
+-- read off the EgoUpdate table when needed, don't store it repeatedly
+insert into AggregatedFirstUsages
+select
+  a.src,
   a.hashtag,
-  first_value(a.prev_updates) over w
-from (
-  select distinct
-    uid,
-    created_at,
-    hashtag,
-    -- Takes up to 11 rows (10 intervals)
-    -- Gives json array with up to 11 items in descending time order
-    array_agg(created_at) over (
-      partition by uid
-      order by created_at desc
-      rows between current row and 100 following
-    ) as prev_updates
-  from successtweets
-  where uid in (select uid from htag_users)
-  -- Can't do a where hashtag = 'tag' here because where is applied before window
-) a
--- This is the correct place for this filter
-where hashtag in (select hashtag from TestRelevantHashtags)
-window w as (
-  partition by uid, hashtag
-  order by created_at asc
-);
+  a.created_at AS ego_activation,
+  b.first_usages AS alter_usages
+from EgoFirstUsages a
+join EdgeWithAlterUsages b
+on
+  a.src = b.src and
+  a.hashtag = b.hashtag;
 
--- 3. Get all alter usages of relevant hashtags
-with htag_users as (
-  select distinct uid from successtweets
-  where hashtag in (select hashtag from TestRelevantHashtags)
-), htag_edges as (
-  select src, dst from edges where src in (select uid from htag_users)
-), distinct_alters as (
-  select distinct dst from htag_edges
-)
-insert into TestAlterUsages
+-- 5. analyze
+
+insert into ThresholdTable
 select
   c.src,
   c.hashtag,
-  array_agg(c.first_usage)
+  c.arr[1] as exposure,
+  c.arr[2] as in_interval,
+  c.ego_update_count
 from (
   select
     a.src,
-    a.dst,
-    b.hashtag,
-    b.first_usage
-  from htag_edges a
-  inner join (
-    -- selects neighbor id, first usage, hashtag
-    -- for all relevant hashtags used by neighbors
-    select
-      uid as nid,
-      first_value(created_at) over w as first_usage,
-      hashtag
-    from neighbortags
-    where uid in (select dst from distinct_alters)
-      and hashtag in (select hashtag from TestRelevantHashtags)
-    window w as (partition by uid, hashtag order by created_at asc)
-  ) b
+    a.hashtag,
+    activations_in_interval(
+      a.ego_activation, b.ego_updates, a.alter_usages
+    ) as arr,
+    array_length(b.ego_updates, 1) as ego_update_count
+  from AggregatedFirstUsages a
+  inner join EgoUpdates b
   on
-    a.dst = b.nid
-  order by src, first_usage desc
-) c
-group by src, hashtag;
-
--- 4.
-insert into TestUpdateTimes
-select
-  a.uid,
-  a.hashtag,
-  a.prev_updates as ego_updates,
-  b.first_usages as alter_first_usages
-from TestEgoUpdates a
-inner join TestAlterUsages b
-on a.uid = b.src and
-  a.hashtag = b.hashtag;
-
--- 5.
--- go through each interval in query 2., count number of tweets from query 3.
--- are in that interval. if > 0, bail out and return number, if 0, keep going
+    a.src = b.src
+) c;

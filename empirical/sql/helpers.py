@@ -33,7 +33,6 @@ def psql_connect():
         user=PSQL_USR,
         password=PSQL_PWD,
         host="localhost",
-        #port=port,
     )
     return db
 
@@ -48,7 +47,7 @@ def psql_setup(db):
 
 def psql_insert_many(db, table, data):
     """
-    cursor: psycopg2 cursor
+    db: psycopg2 cursor
     table: tablename
     data: a list of tuples containing data for the table
         CAUTION! data tuples must be in the correct order for the table

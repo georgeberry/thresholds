@@ -5,6 +5,7 @@
  * 3. Get alter first usages of relevant hashtags
  */
 
+-- Array sort function, sorts desc
 CREATE OR REPLACE FUNCTION array_sort (ANYARRAY)
 RETURNS ANYARRAY LANGUAGE SQL
 AS $$

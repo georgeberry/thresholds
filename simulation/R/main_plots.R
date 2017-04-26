@@ -51,21 +51,40 @@ mm$variable = ordered(factor(mm$variable),
                                'act2',
                                'meas2'))
 
-p3 = mm %>%
-  filter(epsilon_dist_sd==1.0, graph_type=='plc', !variable %in% c('act2', 'meas2')) %>%
+p3_df = mm %>%
+  filter(epsilon_dist_sd==1.0, graph_type=='plc', !variable %in% c('act2', 'meas2')) 
+
+
+p3 = p3_df %>%
   ggplot(.) +
-    geom_boxplot(aes(y=value,
-                    x=factor(mean_deg),
-                    fill=variable),
-                # scale="width",
-                position=position_dodge(width=0.6),
-                alpha=0.4) +
-    geom_hline(aes(yintercept=1, color='True RMSE'), linetype='dashed') +
-    labs(x='Mean degree', y='Root mean squared error') +
-    scale_y_continuous(breaks=c(0,2,4,6,8,10), limits=c(0,10)) +
     theme_bw() +
-    scale_color_manual(values=c("True RMSE"="black")) +
-    guides(color=guide_legend(title=NULL), fill=guide_legend(title='Category'))
+    theme(axis.ticks=element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.position = c(.22, .96),
+          legend.justification = c("right", "top"),
+          legend.box.just = "right",
+          legend.margin = margin(6, 6, 6, 6)) +
+  geom_hline(aes(yintercept=1), linetype='dashed', alpha=0.8) +
+    geom_violin(aes(y=value,
+                    x=factor(mean_deg),
+                    color=variable,
+                    fill=variable),
+                scale="area",
+                position=position_dodge(width=0.5),
+                alpha=0.1,
+                lwd=0.4) +
+    stat_summary(aes(y=value,
+                     x=factor(mean_deg),
+                     color=variable),
+                 fun.y="mean",
+                 geom="point",
+                 position=position_dodge(width=0.5),
+                 shape=3) +
+    labs(x='Mean degree', y='RMSE predicting threshold') +
+    scale_y_continuous(breaks=c(0,2,4,6,8,10), limits=c(0,10.5)) +
+    guides(color=guide_legend(title="Method"),
+           fill=guide_legend(title="Method"))
 
 ggsave("/Users/g/Desktop/p3.pdf",
        p3,
@@ -81,25 +100,34 @@ p4 = df_k %>%
   filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1, k<=100) %>%
   ungroup() %>%
   ggplot(.) +
-    geom_boxplot(aes(x=factor(k), y=rmse_at_k)) +
+    theme_bw() +
+    theme(axis.ticks=element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          legend.position = c(.95, .95),
+          legend.justification = c("right", "top"),
+          legend.box.just = "right",
+          legend.margin = margin(6, 6, 6, 6)) +
     geom_hline(aes(yintercept=mean(rmse_naive), color='Naive RMSE'), linetype='dashed') +
     geom_hline(aes(yintercept=mean(rmse_true), color='True RMSE'), linetype='dashed') +
-    lims(y=c(0,5.5)) +
-    theme_bw() +
+    stat_boxplot(aes(x=factor(k), y=rmse_at_k), geom = "errorbar", width = 0.2, lwd=0.3) +
+    geom_boxplot(aes(x=factor(k), y=rmse_at_k), width=.4, outlier.size=.4, lwd=0.4) +
+    lims(y=c(0,5)) +
     guides(color=guide_legend(title='Benchmarks')) +
-    labs(x='First k correctly measured', y='Root mean squared error')
+    labs(x='First k correctly measured', y='RMSE predicting threshold')
 
 ggsave("/Users/g/Desktop/p4.pdf",
        p4,
        device="pdf",
-       height=4,
-       width=6)
+       width=6,
+       height=4)
 
 p5 = df_k %>%
   filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1, k<=100) %>%
   ungroup() %>%
     ggplot(.) +
-  geom_boxplot(aes(x=factor(k), y=num_activated)) +
+  stat_boxplot(aes(x=factor(k), y=num_activated), geom = "errorbar", width = 0.2, lwd=0.3) +
+  geom_boxplot(aes(x=factor(k), y=num_activated), width=.4, outlier.size=.4, lwd=0.4) +
     lims(y=c(0,850)) +
     theme_bw() +
     labs(x='First k correctly measured', y='Total activations')
@@ -107,5 +135,5 @@ p5 = df_k %>%
 ggsave("/Users/g/Desktop/p5.pdf",
        p5,
        device="pdf",
-       height=4,
-       width=6)
+       width=6,
+       height=4)
