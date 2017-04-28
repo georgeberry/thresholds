@@ -28,9 +28,9 @@ def yield_batches(fname, batch_size=50000):
         each row is a tuple that fits into the Tweets table schema given above
     """
     current_batch = []
-    with bz2.open(fname, 'r') as f:
+    with bz2.open(fname, 'rt') as f:
         for line in f:
-            uid, tstamp_str, tid, text, htag_str = line.split(b'\t')
+            uid, tstamp_str, tid, text, htag_str = line.split('\t')
             timestsamp = create_timestamp(tstamp_str)
             if len(htag_str) > 2:
                 hashtags = json.loads(htag_str)
