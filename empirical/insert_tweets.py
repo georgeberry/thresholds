@@ -30,6 +30,7 @@ def yield_batches(fname, batch_size=50000):
     current_batch = []
     with bz2.open(fname, 'rt') as f:
         for line in f:
+            print(line)
             uid, tstamp_str, tid, text, htag_str = line.split('\t')
             timestsamp = create_timestamp(tstamp_str)
             if len(htag_str) > 2:
