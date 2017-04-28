@@ -30,7 +30,7 @@ def yield_batches(fname, batch_size=50000):
     current_batch = []
     with bz2.open(fname, 'r') as f:
         for line in f:
-            uid, tstamp_str, tid, text, htag_str = line.split('\t')
+            uid, tstamp_str, tid, text, htag_str = line.split(b'\t')
             timestsamp = create_timestamp(created_at)
             if len(htag_str) > 2:
                 hashtags = json.loads(htag_str)
