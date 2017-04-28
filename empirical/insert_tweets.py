@@ -29,9 +29,20 @@ def yield_batches(fname, batch_size=50000):
     """
     current_batch = []
     with bz2.open(fname, 'r') as f:
+        cache = b''
         for line in f:
-            print(line)
-            uid, tstamp_str, tid, text, htag_str = line.split(b'\t')
+            if len(cache) > 0:
+                try:
+                    uid, tstamp_str, tid, text, htag_str = cache.split(b'\t')
+                    print([uid, tstamp_str, tid, text, htag_str])
+                    cache = b''
+                except ValueError:
+                    cache += line
+            else:
+                try:
+                    uid, tstamp_str, tid, text, htag_str = line.split(b'\t')
+                except ValueError:
+                    cache += line
         """
             timestsamp = create_timestamp(tstamp_str)
             if len(htag_str) > 2:
