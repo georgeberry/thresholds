@@ -18,7 +18,8 @@ To test:
     python insert_tweets.py /Volumes/Vostok/class/twitter_data/thresholds/part-00000.tsv.bz2
 """
 
-def yield_batches(fname, batch_size=50000):
+
+def BatchYielder(object):
     """
     Inputs:
         fname: tsv.bz2 file to open
@@ -27,43 +28,72 @@ def yield_batches(fname, batch_size=50000):
         (row1, row2, row3, ... row_batch_size)
         each row is a tuple that fits into the Tweets table schema given above
     """
-    current_batch = []
-    with bz2.open(fname, 'r') as f:
-        cache = b''
-        for line in f:
-            if len(cache) > 0:
-                try:
-                    uid, tstamp_str, tid, text, htag_str = cache.split(b'\t')
-                    print([uid, tstamp_str, tid, text, htag_str])
-                    cache = b''
-                except ValueError:
-                    cache += line
-            else:
-                try:
-                    uid, tstamp_str, tid, text, htag_str = line.split(b'\t')
-                except ValueError:
-                    cache += line
+
+    def __init__(self, fname, batch_size=50000):
+        self.fname = fname
+        self.batch_size = batch_size
+        self.count = 0
+        self.cache = ''
+        self.current_batch = []
+
+    def process_full_line(self, uid, tstamp_str, tid, text, htag_str):
         """
-            timestsamp = create_timestamp(tstamp_str)
-            if len(htag_str) > 2:
-                hashtags = json.loads(htag_str)
-            else:
-                hashtags = [None]
-            for hashtag in hashtags:
-                current_batch.append((
-                    uid,
-                    tid,
-                    timestsamp,
-                    hashtag,
-                ))
-                if len(current_batch) >= batch_size:
-                    print('Yielding {}!'.format(batch_size))
-                    yield current_batch
-                    current_batch = []
+        If we know we have all 5 elements, process them and potentially yield
+        """
+        timestsamp = create_timestamp(tstamp_str)
+        if len(htag_str) > 2:
+            hashtags = json.loads(htag_str)
         else:
-            if len(current_batch) > 0:
-                yield current_batch
-                """
+            hashtags = [None]
+        self.count += 1
+        for hashtag in hashtags:
+            self.current_batch.append((
+                uid,
+                tid,
+                timestsamp,
+                hashtag,
+            ))
+
+    def __iter__(self):
+        with bz2.open(self.fname, 'rt') as infile:
+            for line in f:
+                # if cache > 0, try to tab split
+                # else add to cache
+                if len(self.cache) > 0:
+                    try:
+                        uid, tstamp_str, tid, text, htag_str = \
+                            self.cache.split('\t')
+                        self.process_full_line(
+                            uid,
+                            tstamp_str,
+                            tid,
+                            text,
+                            htag_str,
+                        )
+                        self.cache = b''
+                    except ValueError:
+                        self.cache += line
+                # if len(cache) == 0
+                # try to split
+                else:
+                    try:
+                        uid, tstamp_str, tid, text, htag_str = line.split('\t')
+                        self.process_full_line(
+                            uid,
+                            tstamp_str,
+                            tid,
+                            text,
+                            htag_str,
+                        )
+                    except ValueError:
+                        self.cache += line
+                # yield here
+                if len(self.current_batch) >= self.batch_size:
+                    print('Yielded {}!'.format(self.count))
+                    yield self.current_batch
+                    self.current_batch = []
+            else:
+                yield self.current_batch
 
 if __name__ == '__main__':
     db = psql_connect()
