@@ -56,7 +56,7 @@ class BatchYielder(object):
         if len(hashtags) == 0:
             hashtags = [None]
         self.count += 1
-        if self.count % 100000 == 0:
+        if self.count % 1000000 == 0:
             logging.info("Processed {} from {}".format(self.count, self.fname))
         for hashtag in hashtags:
             self.current_batch.append((
