@@ -4,6 +4,7 @@ create table if not exists Edges (
   src bigint,
   dst bigint
 );
+-- create index edge_idx on Tweets (src, dst);
 
 create table if not exists Tweets (
   src bigint,

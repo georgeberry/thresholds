@@ -36,25 +36,18 @@ def psql_connect():
     )
     return db
 
-def psql_setup(db):
-    """
-    Only need to run once, but since we don't do anything if a table exists
-    you won't blow the world up running it again
-    """
-    with open('schema.sql', 'r') as f:
-        db.cursor().execute(f.read())
-        db.commit()
-
 def psql_insert_many(db, table, data):
     """
-    db: psycopg2 cursor
-    table: tablename
-    data: a list of tuples containing data for the table
-        CAUTION! data tuples must be in the correct order for the table
-        ADVICE! You should correctly type your data before it reaches this point
+    Inputs:
+        db: psycopg2 cursor
+        table: tablename
+        data: a list of tuples containing data for the table
+    CAUTION! data tuples must be in the correct order for the table
+    ADVICE! You should correctly type your data before it reaches this point
     We mogrify in advance to get better speed
-    This will store your ENTIRE query in memory in python. This is NOT efficient,
-        so consider batching a higher level if you have a really giant query
+    This will store your ENTIRE query in memory in python. This is NOT memory
+        efficient.
+    Batching a higher level if you have a really giant query.
     Check here: http://stackoverflow.com/questions/8134602/
                 psycopg2-insert-multiple-rows-with-one-query
     """
