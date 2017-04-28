@@ -10,6 +10,7 @@ create table if not exists Tweets (
   src bigint,
   tid varchar(20),
   created_at timestamp,
+  tweet_text text,
   hashtag varchar(140)
 );
 -- create index twt_idx on Tweets (src, hashtag);

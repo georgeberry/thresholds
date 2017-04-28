@@ -18,7 +18,7 @@ To test:
 python insert_tweets.py /Volumes/Vostok/class/twitter_data/thresholds/part-00000.tsv.bz2
 
 
-# find /Volumes/Starbuck/class/twitter_data/thresholds/part-001*.bz2 -print0 | xargs -0 -n1 -P6 python3 insert_tweets.py
+# find /Volumes/Starbuck/class/twitter_data/thresholds/part-*.tsv.bz2 -print0 | xargs -0 -n1 -P6 python3 insert_tweets.py
 
 """
 
@@ -63,6 +63,7 @@ class BatchYielder(object):
                 uid,
                 tid,
                 timestamp,
+                text,
                 hashtag,
             ))
 
