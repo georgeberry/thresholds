@@ -28,10 +28,11 @@ def yield_batches(fname, batch_size=50000):
         each row is a tuple that fits into the Tweets table schema given above
     """
     current_batch = []
-    with bz2.open(fname, 'rt') as f:
+    with bz2.open(fname, 'r') as f:
         for line in f:
             print(line)
-            uid, tstamp_str, tid, text, htag_str = line.split('\t')
+            uid, tstamp_str, tid, text, htag_str = line.split(b'\t')
+        """
             timestsamp = create_timestamp(tstamp_str)
             if len(htag_str) > 2:
                 hashtags = json.loads(htag_str)
@@ -51,10 +52,12 @@ def yield_batches(fname, batch_size=50000):
         else:
             if len(current_batch) > 0:
                 yield current_batch
+                """
 
 if __name__ == '__main__':
     db = psql_connect()
     table = 'Tweets'
     fname = sys.argv[1]
     for batch in yield_batches(fname):
-        psql_insert_many(db, table, batch)
+        pass
+        # psql_insert_many(db, table, batch)
