@@ -99,6 +99,7 @@ if __name__ == '__main__':
     db = psql_connect()
     table = 'Tweets'
     fname = sys.argv[1]
-    for batch in yield_batches(fname):
+    by = BatchYielder(fname)
+    for batch in by:
         pass
         # psql_insert_many(db, table, batch)
