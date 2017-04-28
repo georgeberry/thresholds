@@ -13,6 +13,9 @@ Tweets table looks like this:
     tid varchar(20)
     created_at timestamp
     hashtag varchar(140)
+
+To test:
+    python insert_tweets.py /Volumes/Vostok/class/twitter_data/thresholds/part-00000.tsv.bz2
 """
 
 def yield_batches(fname, batch_size=50000):
