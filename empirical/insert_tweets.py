@@ -23,7 +23,7 @@ python insert_tweets.py /Volumes/Vostok/class/twitter_data/thresholds/part-00000
 """
 
 logging.basicConfig(
-    filename='/Volumes/Vostok/class/geb97/insert.log'
+    filename='/Volumes/Vostok/class/geb97/insert.log',
     format='%(asctime)s : %(levelname)s : %(message)s',
     level=logging.INFO,
 )
