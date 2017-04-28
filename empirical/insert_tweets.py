@@ -18,11 +18,12 @@ To test:
 python insert_tweets.py /Volumes/Vostok/class/twitter_data/thresholds/part-00000.tsv.bz2
 
 
-# find /Volumes/Starbuck/class/twitter_data/modified_essential/US_GB_CA_AU_NZ_SG/part-014*.bz2 -print0 | xargs -0 -n1 -P6 -- bash -c './timelines_from_raw.sh "$0"'
+# find /Volumes/Starbuck/class/twitter_data/thresholds/part-001*.bz2 -print0 | xargs -0 -n1 -P6 python3 insert_tweets.py
 
 """
 
 logging.basicConfig(
+    filename='/Volumes/Vostok/class/geb97/insert.log'
     format='%(asctime)s : %(levelname)s : %(message)s',
     level=logging.INFO,
 )
@@ -80,15 +81,23 @@ class BatchYielder(object):
                 valid_beginning = None
                 # assess whether we have a line beginning or not
                 try:
-                    timestamp = create_timestamp(line.split('\t')[1])
+                    timestamp = create_timestamp(line.split('\t', 2)[1])
                     valid_beginning = True
                 except (ValueError, IndexError, TypeError):
                     valid_beginning = False
 
                 # save previous line
                 if valid_beginning and len(self.cache) > 0:
-                    self.process_full_line(self.cache)
-                    self.cache = ''
+                    try:
+                        self.process_full_line(self.cache)
+                        self.cache = ''
+                    except:
+                        logging.error(
+                            'Line {} in file {} failed with error 1'.format(
+                                self.count,
+                                self.fname,
+                            )
+                        )
 
                 # we have a line beginning
                 # if we have a complete line, save it
@@ -104,7 +113,12 @@ class BatchYielder(object):
                     self.cache = ''.join([self.cache, line])
 
                 if not valid_beginning and len(self.cache) == 0:
-                    raise ValueError
+                    logging.error(
+                        'Line {} in file {} failed with error 2'.format(
+                            self.count,
+                            self.fname,
+                        )
+                    )
 
                 if len(self.current_batch) > self.batch_size:
                     yield self.current_batch
