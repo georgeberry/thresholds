@@ -19,7 +19,7 @@ To test:
 """
 
 
-def BatchYielder(object):
+class BatchYielder(object):
     """
     Inputs:
         fname: tsv.bz2 file to open
@@ -55,8 +55,16 @@ def BatchYielder(object):
             ))
 
     def __iter__(self):
-        with bz2.open(self.fname, 'rt') as infile:
-            for line in f:
+        with bz2.open(self.fname, 'r') as infile:
+            for line in infile:
+                self.count += 1
+                uid, tstamp_str, tid, text, htag_str = line.split(b'\t')
+                if self.count % 10000 == 0:
+                    print(self.count)
+
+
+            """
+            for line in infile:
                 # if cache > 0, try to tab split
                 # else add to cache
                 if len(self.cache) > 0:
@@ -70,7 +78,7 @@ def BatchYielder(object):
                             text,
                             htag_str,
                         )
-                        self.cache = b''
+                        self.cache = ''
                     except ValueError:
                         self.cache += line
                 # if len(cache) == 0
@@ -88,12 +96,18 @@ def BatchYielder(object):
                     except ValueError:
                         self.cache += line
                 # yield here
+                print(self.count)
                 if len(self.current_batch) >= self.batch_size:
                     print('Yielded {}!'.format(self.count))
                     yield self.current_batch
                     self.current_batch = []
             else:
                 yield self.current_batch
+            """
+
+by = BatchYielder(fname)
+for batch in by:
+    pass
 
 if __name__ == '__main__':
     db = psql_connect()
