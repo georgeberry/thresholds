@@ -3,7 +3,7 @@ import bz2
 import logging
 import ujson as json
 from helpers import create_timestamp
-from helpers import psql_connect, psql_setup, psql_insert_many
+from helpers import psql_connect, psql_insert_many
 
 """
 bz2 open one file, insert to the Tweets table
