@@ -99,6 +99,7 @@ class BatchYielder(object):
                                 self.fname,
                             )
                         )
+                        self.cache = ''
 
                 # we have a line beginning
                 # if we have a complete line, save it
