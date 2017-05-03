@@ -54,3 +54,4 @@ while len(edge_set) > 0:
         logging.info('Inserting {} million edges'.format(count))
         psql_insert_many(db, 'Edges', edge_batch)
         edge_batch = []
+psql_insert_many(db, 'Edges', edge_batch)
