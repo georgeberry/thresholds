@@ -7,7 +7,10 @@ logging.basicConfig(
 )
 
 ALL_USERS_FILE = '/Users/Shared/all_user_ids.tsv'
-EDGELIST_FILE = '/Volumes/Vostok/class/twitter_data/twitter_patrick/bidirected_us_edges/US_bidirected_edgelist.ncol'
+EDGELIST_FILE = (
+    '/Volumes/Vostok/class/twitter_data/twitter_patrick/'
+    'bidirected_us_edges/US_bidirected_edgelist.ncol'
+)
 
 
 #### load user set #############################################################
@@ -19,7 +22,7 @@ with open(ALL_USERS_FILE, 'r') as infile:
     for line in infile:
         count += 1
         if count % 100000 == 0:
-            logging.info('{}'.format(count))
+            logging.info('%d' % count)
         uid = line.strip()
         all_users_set.add(uid)
 
@@ -42,7 +45,6 @@ with open(EDGELIST_FILE, 'r') as infile:
 
 #### Insert edges ##############################################################
 
-
 db = psql_connect()
 
 edge_batch = []
@@ -51,7 +53,7 @@ while len(edge_set) > 0:
     edge_batch.append(edge_set.pop())
     if len(edge_batch) == 1000000:
         count += 1
-        logging.info('Inserting {} million edges'.format(count))
+        logging.info('Inserting %d million edges' % count)
         psql_insert_many(db, 'Edges', edge_batch)
         edge_batch = []
 psql_insert_many(db, 'Edges', edge_batch)

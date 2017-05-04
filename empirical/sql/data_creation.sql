@@ -30,7 +30,6 @@ where
 limit 100;
 
 -- Preprocessing: list of egos that used hashtags
-
 -- req: RelevantHashtags
 insert into RelevantHashtagEgos
 select distinct
