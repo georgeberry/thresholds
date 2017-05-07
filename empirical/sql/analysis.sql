@@ -19,7 +19,7 @@ create table if not exists Tweets (
 -- create index twt_htag_idx on Tweets (hashtag);
 
 create table if not exists FocalHashtags(
-  hasthag varchar(140)
+  hashtag varchar(140)
 );
 
 insert into FocalHashtags (hashtag)
@@ -116,21 +116,20 @@ create table if not exists FirstUsages(
 );
 
 insert into FirstUsages
-select distinct on (created_at) -- postgres magic to select first row
+select distinct on (src, hashtag) -- postgres magic, takes first row in group
   src,
   hashtag,
   created_at
 from Tweets
 where hashtag in (select hashtag from FocalHashtags)
-group by src, hashtag
-order by created_at desc;
+order by src, hashtag, created_at asc nulls last;
 
 -- Each edge by each src first usage of a focal hashtag
 create table if not exists FirstUsageEdges(
   src bigint,
   dst bigint,
   hashtag varchar(140),
-  src_first_usage timestamp,
+  src_first_usage timestamp
 );
 
 insert into FirstUsageEdges
@@ -155,7 +154,7 @@ create table if not exists FirstUsageEdgesPlusDst(
 insert into FirstUsageEdgesPlusDst
 select
   a.src,
-  b.dst,
+  a.dst,
   a.hashtag,
   a.src_first_usage,
   b.first_usage as dst_first_usage
@@ -176,13 +175,19 @@ create table if not exists AggregatedEdges(
 insert into AggregatedEdges
 select
   src,
-  hashtag
+  hashtag,
   src_first_usage,
   array_sort(array_agg(dst_first_usage))
 from FirstUsageEdgesPlusDst
-group by src, hashtag;
+group by src, hashtag, src_first_usage;
 
 -- Run the function
+create or replace function
+  activations_in_interval(timestamp, timestamp[], timestamp[])
+returns int[]
+as 'interval_func.so', 'activations_in_interval'
+language c strict;
+
 create table if not exists Measurements(
   src bigint,
   hashtag varchar(140),
@@ -191,6 +196,7 @@ create table if not exists Measurements(
   src_update_count int
 );
 
+insert into Measurements
 select
   c.src,
   c.hashtag,
@@ -202,11 +208,11 @@ from (
     a.src,
     a.hashtag,
     activations_in_interval(
-      a.ego_activation, b.ego_updates, a.alter_usages
+      a.src_first_usage, b.src_updates, a.dst_first_usage_arr
     ) as arr,
-    array_length(b.ego_updates, 1) as ego_update_count
+    array_length(b.src_updates, 1) as ego_update_count
   from AggregatedEdges a
-  inner join Updates b
+  join Updates b
   on
     a.src = b.src
 ) c;
