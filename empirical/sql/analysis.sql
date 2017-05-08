@@ -1,4 +1,4 @@
---------------------------- BEGIN BASIC DATA TABLES ---------------------------
+--------------------------- BEGIN BASIC DATA TABLES ----------------------------
 
 create table if not exists Edges (
   src bigint,
@@ -7,12 +7,12 @@ create table if not exists Edges (
 -- create index edge_idx on Edges (src, dst);
 -- cluster Edges using edge_idx;
 
+-- this table holds all the edges
 create table if not exists ExpandedEdges (
   src bigint,
   dst bigint
 );
--- create index exp_edge_idx on ExpandedEdges (src, dst);
--- cluster ExpandedEdges using exp_edge_idx;
+
 
 create table if not exists Tweets (
   src bigint,
@@ -223,3 +223,70 @@ from (
   on
     a.src = b.src
 ) c;
+
+------------------------- Some additional analyses -----------------------------
+
+-- distinctify the edges
+create table if not exists ExpandedEdgesDistinct (
+  src bigint,
+  dst bigint
+);
+-- create index exp_edge_idx on ExpandedEdges (src, dst);
+
+insert into ExpandedEdgesDistinct
+select
+  src,
+  dst
+from ExpandedEdges
+group by src, dst;
+
+-- all node degrees
+
+create table if not exists Degrees(
+  src bigint,
+  degree bigint
+);
+-- create index deg_idx on Degrees (src);
+
+insert into Degrees
+select
+  src,
+  count(*) as degree
+from ExpandedEdgesDistinct
+group by src;
+
+-- measurements by degree
+create table if not exists MeasurementsByDegrees(
+  src bigint,
+  hashtag varchar(140),
+  exposure int,
+  in_interval int,
+  src_update_count int,
+  src_degree int
+);
+
+insert into MeasurementsByDegrees
+select
+  a.src,
+  a.hashtag,
+  a.exposure,
+  a.in_interval,
+  a.src_update_count,
+  b.degree as src_degree
+from Measurements a
+join Degrees b
+on a.src = b.src;
+
+-- Simple question: are people who are correctly measured lower degree?
+select
+  exposure,
+  in_interval,
+  avg(src_degree),
+  count(*)
+from MeasurementsByDegrees
+where exposure >= 0
+and exposure < 20
+group by exposure, in_interval
+order by exposure, in_interval;
+
+-- Exposure table
