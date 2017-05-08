@@ -7,6 +7,13 @@ create table if not exists Edges (
 -- create index edge_idx on Edges (src, dst);
 -- cluster Edges using edge_idx;
 
+create table if not exists ExpandedEdges (
+  src bigint,
+  dst bigint
+);
+-- create index exp_edge_idx on ExpandedEdges (src, dst);
+-- cluster ExpandedEdges using exp_edge_idx;
+
 create table if not exists Tweets (
   src bigint,
   tid varchar(20),
