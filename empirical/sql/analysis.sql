@@ -13,7 +13,7 @@ create table if not exists ExpandedEdges (
   dst bigint
 );
 
-
+-- Has all tweets for people who used one of the 50 hashtags at least once
 create table if not exists Tweets (
   src bigint,
   tid varchar(20),
@@ -97,6 +97,7 @@ $$;
 create table if not exists AllSrcIds (
   src bigint
 );
+-- create index all_src_idx on AllSrcIds (src);
 
 insert into AllSrcIds
 select distinct src
@@ -130,6 +131,29 @@ select distinct on (src, hashtag) -- postgres magic, takes first row in group
 from Tweets
 where hashtag in (select hashtag from FocalHashtags)
 order by src, hashtag, created_at asc nulls last;
+
+/*
+Check that the magic works
+
+select
+  src,
+  hashtag,
+  created_at
+from Tweets
+where src = 16992416
+and hashtag = 'benghazi'
+order by created_at asc nulls last
+limit 1;
+
+select distinct on (src, hashtag)
+  src,
+  hashtag,
+  created_at
+from Tweets
+where src = 16992416
+and hashtag = 'benghazi'
+order by src, hashtag, created_at asc nulls last;
+ */
 
 -- Each edge by each src first usage of a focal hashtag
 create table if not exists FirstUsageEdges(
@@ -195,7 +219,7 @@ returns int[]
 as 'interval_func.so', 'activations_in_interval'
 language c strict;
 
-create table if not exists Measurements(
+create table if not exists Measurements (
   src bigint,
   hashtag varchar(140),
   exposure int,
@@ -224,7 +248,9 @@ from (
     a.src = b.src
 ) c;
 
-------------------------- Some additional analyses -----------------------------
+------------------------- SOME ADDITIONAL ANALYSES -----------------------------
+
+-- measurements by degree ------------------------------------------------------
 
 -- distinctify the edges
 create table if not exists ExpandedEdgesDistinct (
@@ -242,7 +268,7 @@ group by src, dst;
 
 -- all node degrees
 
-create table if not exists Degrees(
+create table if not exists Degrees (
   src bigint,
   degree bigint
 );
@@ -256,7 +282,7 @@ from ExpandedEdgesDistinct
 group by src;
 
 -- measurements by degree
-create table if not exists MeasurementsByDegrees(
+create table if not exists MeasurementsByDegrees (
   src bigint,
   hashtag varchar(140),
   exposure int,
@@ -289,4 +315,204 @@ and exposure < 20
 group by exposure, in_interval
 order by exposure, in_interval;
 
--- Exposure table
+
+-- Exposure table for pk curves ------------------------------------------------
+/*
+- Get edges where only dst has adopted
+- Count
+ */
+
+create table if not exists ExposedEdges (
+  src bigint,
+  dst bigint
+);
+
+insert into ExposedEdges
+-- src should be the neighbors of adopters
+-- dst should be adopters
+select -- filter out adopter srcs
+  c.src,
+  c.dst
+from (
+  select -- get all neighbors of adopters, dst are adopters
+    b.src,
+    b.dst
+  from AllSrcIds a
+  join ExpandedEdgesDistinct b
+  on a.src = b.dst) c
+left outer join AllSrcIds d on c.src = d.src -- fake an anti join
+where d.src is null; -- select cases where c.src isn't in d.src
+
+/*
+Check it
+
+select
+  *
+from (
+  select
+    src,
+    dst
+  from ExposedEdges
+  limit 10) a
+where a.dst in (select src from AllSrcIds);
+ */
+
+create table if not exists ExposureCounts (
+  src bigint,
+  hashtag varchar(140),
+  exposure int
+);
+
+insert into ExposureCounts
+select
+  c.src,
+  c.hashtag,
+  count(*) as exposure
+from (
+  select
+    a.src,
+    b.hashtag
+  from ExposedEdges a
+  join FirstUsages b
+  on a.dst = b.src) c
+group by c.src, c.hashtag;
+
+-- Exposures of inactive nodes
+create table if not exists AggregatedExposureCounts (
+  hashtag varchar(140),
+  exposure int,
+  freq int
+);
+
+insert into AggregatedExposureCounts
+select
+  hashtag,
+  exposure,
+  count(*) as freq
+from ExposureCounts
+group by hashtag, exposure
+order by hashtag, exposure;
+
+-- Exposures with activations
+/*
+Difficulty here is the cumsum in the exposures table
+
+For instance if I am marked as 3-exposed but not active, we make the (wrong but necessary) assumption that I was also, at some point, 0, 1 and 2 exposed
+
+We do this
+ */
+create table if not exists PkCurves (
+  hashtag varchar(140),
+  exposure int,
+  exposed int,
+  adopters int,
+  correctly_measured int
+);
+
+insert into PkCurves
+select
+  a.hashtag,
+  a.exposure,
+  a.exposed_inactive + b.adopters as exposed,
+  b.adopters as adopters,
+  b.correctly_measured as correctly_measured
+from (
+  select
+    hashtag,
+    exposure,
+    sum(freq) over (
+      partition by hashtag order by exposure desc
+    ) exposed_inactive
+  from AggregatedExposureCounts
+    order by hashtag, exposure asc) a
+inner join (
+  select
+    hashtag,
+    exposure,
+    count(case when in_interval = 1 then 1 end) as correctly_measured,
+    count(*) as adopters
+  from Measurements
+  group by hashtag, exposure
+) b
+on
+  a.hashtag = b.hashtag and
+  a.exposure = b.exposure;
+
+-- Adoptions per day for focal hashtags ----------------------------------------
+
+create table if not exists FirstUsagesByDay (
+  hashtag varchar(140),
+  day date,
+  count int
+);
+
+insert into FirstUsagesByDay
+select
+  hashtag,
+  first_usage::date as day,
+  count(*)
+from FirstUsages
+group by hashtag, first_usage::date
+order by hashtag, first_usage::date;
+
+-- Data for small graph inventory ----------------------------------------------
+/*
+We need the entire graph, and we've already calculated mismeasurements
+So we want to get
+  - all the edges of adopters for a tag
+  - node, hashtag, exposure at activation, interval
+ */
+
+create table if not exists HashtagEdges (
+  hashtag varchar(140),
+  src bigint,
+  src_first_usage timestamp,
+  dst bigint,
+  dst_first_usage timestamp
+);
+
+insert into HashtagEdges
+select
+  c.src_hashtag as hashtag,
+  c.src,
+  c.src_first_usage,
+  c.dst,
+  d.first_usage as dst_first_usage
+from (
+  select
+    a.src,
+    b.hashtag as src_hashtag,
+    b.first_usage as src_first_usage,
+    a.dst
+  from Edges a
+  join FirstUsages b
+  on a.src = b.src) c
+join FirstUsages d
+on
+  c.dst = d.src and
+  c.src_hashtag = d.hashtag
+order by hashtag; -- hashtag here is dst hashtag
+
+
+create table if not exists NodeDataForHashtagEdges (
+  src bigint,
+  hashtag varchar(140),
+  exposure int,
+  in_interval int,
+  src_update_count int
+);
+
+insert into NodeDataForHashtagEdges
+select
+  a.src,
+  b.hashtag,
+  b.exposure,
+  b.in_interval,
+  b.src_update_count
+from (
+  select distinct
+    src
+  from HashtagEdges) a
+join Measurements b
+on a.src = b.src
+order by hashtag, exposure;
