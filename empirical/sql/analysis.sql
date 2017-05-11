@@ -103,8 +103,22 @@ insert into AllSrcIds
 select distinct src
 from Tweets;
 
+-- total htag counts, not just first usages
+create table if not exists TotalHashtagCounts (
+  hashtag varchar(140),
+  count bigint
+);
+
+insert into TotalHashtagCounts
+select
+  hashtag,
+  count(*) as count
+from Tweets
+where hashtag in (select hashtag from FocalHashtags)
+group by hashtag;
+
 -- Build ego update vectors for everyone (entire timeline)
-create table if not exists Updates(
+create table if not exists Updates (
   src bigint,
   src_updates timestamp[]
 );
@@ -117,7 +131,7 @@ from Tweets
 group by src;
 
 -- Get first usages of focal hashtags for everyone
-create table if not exists FirstUsages(
+create table if not exists FirstUsages (
   src bigint,
   hashtag varchar(140),
   first_usage timestamp
@@ -131,6 +145,20 @@ select distinct on (src, hashtag) -- postgres magic, takes first row in group
 from Tweets
 where hashtag in (select hashtag from FocalHashtags)
 order by src, hashtag, created_at asc nulls last;
+
+-- Hashtag counts
+create table if not exists FirstUsageCounts (
+  hashtag varchar(140),
+  count bigint
+);
+
+insert into FirstUsageCounts
+select
+  hashtag,
+  count(*) as count
+from FirstUsages
+group by hashtag
+order by count desc;
 
 /*
 Check that the magic works
@@ -156,7 +184,7 @@ order by src, hashtag, created_at asc nulls last;
  */
 
 -- Each edge by each src first usage of a focal hashtag
-create table if not exists FirstUsageEdges(
+create table if not exists FirstUsageEdges (
   src bigint,
   dst bigint,
   hashtag varchar(140),
@@ -174,7 +202,7 @@ join Edges b
 on a.src = b.src;
 
 -- Add dst_first_usage to prevous table
-create table if not exists FirstUsageEdgesPlusDst(
+create table if not exists FirstUsageEdgesPlusDst (
   src bigint,
   dst bigint,
   hashtag varchar(140),
@@ -196,7 +224,7 @@ on
   a.hashtag = b.hashtag;
 
 -- Group dst activations by src, htag
-create table if not exists AggregatedEdges(
+create table if not exists AggregatedEdges (
   src bigint,
   hashtag varchar(140),
   src_first_usage timestamp,
@@ -247,6 +275,107 @@ from (
   on
     a.src = b.src
 ) c;
+
+
+-- count the isolates ----------------------------------------------------------
+
+create table if not exists Isolates (
+  src bigint,
+  hashtag varchar(140)
+);
+
+insert into Isolates
+select
+  a.src,
+  a.hashtag
+from FirstUsages a
+left outer join Measurements b
+on
+  a.src = b.src and
+  a.hashtag = b.hashtag
+where b.src is null;
+
+create table if not exists IsolatesCount (
+  hashtag varchar(140),
+  count int
+);
+
+insert into IsolatesCount
+select
+  hashtag,
+  count(*) as count
+from Isolates
+group by hashtag
+order by count desc;
+
+-- aggregate measurements, combine w isolates ----------------------------------
+
+create table MeasurementsWithIsolates (
+  src bigint,
+  hashtag varchar(140),
+  exposure int,
+  in_interval int,
+  src_update_count int
+);
+
+insert into MeasurementsWithIsolates
+select * from Measurements
+union
+select
+  c.src,
+  c.hashtag,
+  c.exposure,
+  c.in_interval,
+  c.src_update_count
+from (
+  select
+    a.src,
+    a.hashtag,
+    0 as exposure,
+    0 as in_interval,
+    array_length(b.src_updates, 1) as src_update_count
+  from Isolates a
+  join Updates b
+  on a.src = b.src
+) c;
+
+-- No combination w isolates
+create table if not exists AggMeasurementsNoIsolates (
+  hashtag varchar(140),
+  exposure int,
+  in_interval int,
+  count int
+);
+
+insert into AggMeasurementsNoIsolates
+select
+  hashtag,
+  exposure,
+  in_interval,
+  count(*) as count
+from Measurements
+group by hashtag, exposure, in_interval
+order by hashtag, exposure, in_interval asc;
+
+-- Here
+
+create table if not exists AggMeasurementsWithIsolates (
+  hashtag varchar(140),
+  exposure int,
+  in_interval int,
+  count int
+);
+
+insert into AggMeasurementsWithIsolates
+  select
+    hashtag,
+    exposure,
+    in_interval,
+    count(*) as count
+  from MeasurementsWithIsolates
+  group by hashtag, exposure, in_interval
+  order by hashtag, exposure, in_interval asc;
+
 
 ------------------------- SOME ADDITIONAL ANALYSES -----------------------------
 
