@@ -428,7 +428,7 @@ select
   a.in_interval,
   a.src_update_count,
   b.degree as src_degree
-from Measurements a
+from MeasurementsWithIsolates a
 join Degrees b
 on a.src = b.src;
 
@@ -507,65 +507,123 @@ from (
 group by c.src, c.hashtag;
 
 -- Exposures of inactive nodes
-create table if not exists AggregatedExposureCounts (
+create table if not exists InactiveExposureCounts (
   hashtag varchar(140),
   exposure int,
   freq int
 );
 
-insert into AggregatedExposureCounts
+insert into InactiveExposureCounts
 select
   hashtag,
   exposure,
   count(*) as freq
 from ExposureCounts
 group by hashtag, exposure
-order by hashtag, exposure;
+order by hashtag, exposure asc;
+
+-- Min for mismeasured nodes
+create table if not exists MinAssumptionThresholds (
+  hashtag varchar(140),
+  exposure int,
+  min_freq int
+);
+
+-- note we filter on > 1 here, since 0 intervals are also mismeasured
+with min_col_added as (
+  select
+    hashtag,
+    exposure - in_interval as exposure
+  from MeasurementsWithIsolates
+  where in_interval > 1
+)
+insert into MinAssumptionThresholds
+select
+  hashtag,
+  exposure,
+  count(*) as min_freq
+from min_col_added
+group by hashtag, exposure
+order by hashtag, exposure asc;
+
+-- Measured summary
+create table if not exists MeasuredSummary (
+  hashtag varchar(140),
+  exposure int,
+  max_adopters int, -- number of adopters without adjustment
+  min_adopters int -- correctly measured + min_freq
+);
+
+insert into MeasuredSummary
+select
+  a.hashtag,
+  a.exposure,
+  a.adopter_freq as max_adopters,
+  a.correctly_measured_freq + coalesce(b.min_freq, 0) as min_adopters
+from (
+  select
+    hashtag,
+    exposure,
+    count(case when in_interval = 1 then 1 end) as correctly_measured_freq,
+    count(*) as adopter_freq
+  from MeasurementsWithIsolates
+  group by hashtag, exposure) a
+join MinAssumptionThresholds b
+on
+  a.hashtag = b.hashtag and
+  a.exposure = b.exposure
+order by hashtag, exposure asc;
 
 -- Exposures with activations
 /*
-Difficulty here is the cumsum in the exposures table
-
-For instance if I am marked as 3-exposed but not active, we make the (wrong but necessary) assumption that I was also, at some point, 0, 1 and 2 exposed
-
-We do this
+Numerator = correctly measured + min/max assumption
+Denominator = (active >= k) + (inactive and exposure >= k)
  */
+
 create table if not exists PkCurves (
   hashtag varchar(140),
   exposure int,
-  exposed int,
-  adopters int,
-  correctly_measured int
+  cum_max_exposed int,
+  max_adopters int,
+  cum_min_exposed int,
+  min_adopters int
 );
 
 insert into PkCurves
 select
   a.hashtag,
   a.exposure,
-  a.exposed_inactive + b.adopters as exposed,
-  b.adopters as adopters,
-  b.correctly_measured as correctly_measured
+  a.cum_inactive_exposures + b.cum_max_adopters as cum_max_exposed,
+  b.max_adopters,
+  a.cum_inactive_exposures + b.cum_min_adopters as cum_min_exposed,
+  b.min_adopters
 from (
-  select
+  select -- cumulative sums for inactive exposures
     hashtag,
     exposure,
     sum(freq) over (
       partition by hashtag order by exposure desc
-    ) exposed_inactive
-  from AggregatedExposureCounts
-    order by hashtag, exposure asc) a
-inner join (
-  select
+    ) as cum_inactive_exposures
+  from InactiveExposureCounts
+) a
+join (
+  select -- cumulative sums for min/max exposures
     hashtag,
     exposure,
-    count(case when in_interval = 1 then 1 end) as correctly_measured,
-    count(*) as adopters
-  from Measurements
-  group by hashtag, exposure
+    max_adopters,
+    min_adopters,
+    sum(max_adopters) over (
+      partition by hashtag order by exposure desc
+    ) as cum_max_adopters,
+    sum(min_adopters) over (
+      partition by hashtag order by exposure desc
+    ) as cum_min_adopters
+  from MeasuredSummary
 ) b
 on
   a.hashtag = b.hashtag and
-  a.exposure = b.exposure;
+  a.exposure = b.exposure
+order by hashtag, exposure asc;
 
 -- Adoptions per day for focal hashtags ----------------------------------------
 
