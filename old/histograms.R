@@ -4,7 +4,7 @@ library(dplyr)
 
 PATH = '/Users/g/Drive/project-thresholds/thresholds/data/count_df.csv'
 df = fread(PATH) %>%
-  filter(graph_type=='plc', epsilon_dist_sd==1.0) %>%
+  filter(graph_type=='plc', epsilon_dist_sd==1.0, mean_deg==16) %>%
   mutate(after_activation_alters = ifelse(
            after_activation_alters > 40, 40, after_activation_alters),
          measurement_error = ifelse(
@@ -47,33 +47,6 @@ ws_exposure_df = ws_df %>%
   summarize(exposure_count = n()) %>%
   mutate(exposure_density = exposure_count / sum(exposure_count))
 
-
-# hist
-ggplot() +
-  geom_histogram(data=thresh_df,
-                 alpha=0.0,
-                 aes(x=threshold,
-                     y=thresh_density,
-                     color='True'),
-                 stat="identity") +
-  geom_histogram(data=exposure_df,
-                 alpha=0.0,
-                 aes(x=after_activation_alters,
-                     y=exposure_density,
-                     color='Exposure'),
-                 stat="identity")
-
-ggplot() +
-  theme_bw() +
-  geom_density(data=df,
-               aes(x=threshold, fill='True', color='True'),
-               alpha=0.2,
-               adjust=4) +
-  geom_density(data=df,
-               aes(x=after_activation_alters, fill='Exposure', color='Exposure'),
-               alpha=0.2,
-               adjust=4)
-
 #### errors #####################################################################
 
 error_at_thresh_df = df %>%
@@ -102,12 +75,6 @@ df %>%
   mutate(exposure_density = exposure_count / sum(exposure_count)) %>%
 ggplot(., aes(x=after_activation_alters, y=exposure_density, color=factor(mean_deg))) +
   geom_line()
-
-
-
-
-
-
 
 ws_df = fread(PATH) %>%
   filter(graph_type=='ws', epsilon_dist_sd==1.0) %>%
@@ -141,9 +108,9 @@ p1 = ggplot() +
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6)) +
   guides(color = guide_legend(override.aes = list(shape = c(17,15)))) +
-  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.15)) +
+  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.175)) +
   labs(x='Threshold',
-       y='Proportion',
+       y='Density',
        color=element_blank()) +
   geom_line(data=thresh_df,
             aes(x=threshold,
@@ -169,7 +136,7 @@ p1 = ggplot() +
             size=1)
 
 ggsave('p1.pdf', p1, device = "pdf", path='/Users/g/Desktop',
-       height=4, width=6)
+       height=2.5, width=5)
 
 p2 = ggplot() +
   theme_bw() +
@@ -183,7 +150,7 @@ p2 = ggplot() +
   guides(color = guide_legend(override.aes = list(shape = c(17,15)))) +
   scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.15)) +
   labs(x='Threshold',
-       y='Proportion',
+       y='Density',
        color=element_blank()) +
   geom_line(data=cm_df,
             aes(x=threshold,
@@ -209,45 +176,5 @@ p2 = ggplot() +
              size=1)
 
 ggsave('p2.pdf', p2, device = "pdf", path='/Users/g/Desktop',
-       height=4, width=6)
+       height=2.5, width=5)
 
-
-
-# ws #
-
-ggplot() +
-  theme_bw() +
-  theme(axis.ticks=element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = c(.95, .95),
-        legend.justification = c("right", "top"),
-        legend.box.just = "right",
-        legend.margin = margin(6, 6, 6, 6)) +
-  guides(color = guide_legend(override.aes = list(shape = c(17,15)))) +
-  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.15)) +
-  labs(x='Threshold',
-       y='Proportion',
-       color=element_blank()) +
-  geom_line(data=ws_thresh_df,
-            aes(x=threshold,
-                y=thresh_density,
-                color='True'),
-            stat="identity") +
-  geom_point(data=ws_thresh_df,
-             aes(x=threshold,
-                 y=thresh_density,
-                 color='True'),
-             shape=15,
-             size=1) +
-  geom_line(data=ws_exposure_df,
-            aes(x=after_activation_alters,
-                y=exposure_density,
-                color='Exposure at\nactivation'),
-            stat="identity") +
-  geom_point(data=ws_exposure_df,
-             aes(x=after_activation_alters,
-                 y=exposure_density,
-                 color='Exposure at\nactivation'),
-             shape=17,
-             size=1)

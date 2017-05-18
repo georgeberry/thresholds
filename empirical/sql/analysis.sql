@@ -533,7 +533,7 @@ create table if not exists MinAssumptionThresholds (
 with min_col_added as (
   select
     hashtag,
-    exposure - in_interval as exposure
+    exposure - (in_interval - 1) as exposure
   from MeasurementsWithIsolates
   where in_interval > 1
 )
@@ -542,6 +542,30 @@ select
   hashtag,
   exposure,
   count(*) as min_freq
+from min_col_added
+group by hashtag, exposure
+order by hashtag, exposure asc;
+
+-- Infimum for mismeasured nodes
+create table if not exists InfAssumptionThresholds (
+  hashtag varchar(140),
+  exposure int,
+  inf_freq int
+);
+
+-- note we filter on > 1 here, since 0 intervals are also mismeasured
+with min_col_added as (
+  select
+    hashtag,
+    exposure - in_interval as exposure
+  from MeasurementsWithIsolates
+  where in_interval > 1
+)
+insert into InfAssumptionThresholds
+select
+  hashtag,
+  exposure,
+  count(*) as inf_freq
 from min_col_added
 group by hashtag, exposure
 order by hashtag, exposure asc;
@@ -624,6 +648,19 @@ on
   a.hashtag = b.hashtag and
   a.exposure = b.exposure
 order by hashtag, exposure asc;
+
+/*
+Basic diagnostics
+
+select
+  hashtag,
+  exposure,
+  max_adopters::float / cum_max_exposed as max_prob,
+  min_adopters::float / cum_min_exposed min_prob
+from PkCurves
+where exposure <= 2;
+ */
+
 
 -- Adoptions per day for focal hashtags ----------------------------------------
 

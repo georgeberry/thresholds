@@ -11,7 +11,7 @@ K_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/sim_k_df.csv'
 df_rmse = fread(RMSE_PATH)
 
 df_rmse %>%
-  filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1.0) %>%
+  filter(graph_type=='plc', mean_deg==16, epsilon_dist_sd==1.0) %>%
   summarize(activated=mean(num_activated),
             measured=mean(num_measured),
             measured_sd=sd(num_measured),
@@ -46,7 +46,7 @@ mm$variable = ordered(factor(mm$variable),
                                'rmse_activated_activated',
                                'rmse_measured_activated'),
                       labels=c('Measured',
-                               'Activated',
+                               'Active',
                                'Naive',
                                'act2',
                                'meas2'))
@@ -65,7 +65,7 @@ p3 = p3_df %>%
           legend.justification = c("right", "top"),
           legend.box.just = "right",
           legend.margin = margin(6, 6, 6, 6)) +
-  geom_hline(aes(yintercept=1), linetype='dashed', alpha=0.8) +
+    geom_hline(aes(yintercept=1), linetype='dashed', alpha=0.8) +
     geom_violin(aes(y=value,
                     x=factor(mean_deg),
                     color=variable,
@@ -74,6 +74,8 @@ p3 = p3_df %>%
                 position=position_dodge(width=0.5),
                 alpha=0.1,
                 lwd=0.4) +
+    scale_color_manual(values=c('#00BFC4', '#C77CFF', '#F8766D')) +
+    scale_fill_manual(values=c('#00BFC4', '#C77CFF', '#F8766D')) +
     stat_summary(aes(y=value,
                      x=factor(mean_deg),
                      color=variable),
@@ -89,15 +91,15 @@ p3 = p3_df %>%
 ggsave("/Users/g/Desktop/p3.pdf",
        p3,
        device="pdf",
-       width=6,
-       height=4)
+       width=5.5,
+       height=3.5)
 
 #### k-df processing ###########################################################
 
 df_k = fread(K_PATH)
 
 p4 = df_k %>%
-  filter(graph_type=='plc', mean_deg==12, epsilon_dist_sd==1, k<=100) %>%
+  filter(graph_type=='plc', mean_deg==16, epsilon_dist_sd==1, k<=100) %>%
   ungroup() %>%
   ggplot(.) +
     theme_bw() +
@@ -137,3 +139,4 @@ ggsave("/Users/g/Desktop/p5.pdf",
        device="pdf",
        width=6,
        height=4)
+

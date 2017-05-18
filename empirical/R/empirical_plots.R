@@ -91,9 +91,9 @@ q3 = q[4] # bottom of 75th percentile
 
 df_q = df_mm %>%
   mutate(quartile = cut(cm_ratio,
-                         breaks=quantile(cm_ratio),
-                         include.lowest=TRUE,
-                         labels=c('Q4', 'Q3', 'Q2', 'Q1'))) %>%
+                        breaks=quantile(cm_ratio),
+                        include.lowest=TRUE,
+                        labels=c('Q1 Mean', 'Q2 Mean', 'Q3 Mean', 'Q4 Mean'))) %>%
   select(hashtag, quartile)
 
 df_net = fread('/Users/g/Desktop/net_stats.tsv', sep='\t')
@@ -112,11 +112,18 @@ df_net_q = df_net %>%
   mutate(quartile = cut(loc_tran,
                         breaks=quantile(loc_tran),
                         include.lowest=TRUE,
-                        labels=c('Q1', 'Q2', 'Q3', 'Q4'))) %>%
-  select(hashtag, quartile)
+                        labels=c('Clustering Q1 Mean',
+                                 'Clustering Q2 Mean',
+                                 'Clustering Q3 Mean',
+                                 'Clustering Q4 Mean'))) %>%
+  select(hashtag, quartile) %>%
+  mutate(quartile = factor(quartile, levels = c('Clustering Q4 Mean',
+                                                'Clustering Q3 Mean',
+                                                'Clustering Q2 Mean',
+                                                'Clustering Q1 Mean'))) 
 
 df_agg_one$hashtag = 'all'
-df_agg_one$quartile = 'Mean'
+df_agg_one$quartile = 'Overall Mean'
 df_p3 = df_disagg_one %>%
   left_join(df_q, by='hashtag') %>%
   rbind(., df_agg_one) %>%
@@ -127,8 +134,8 @@ df_p3 = df_disagg_one %>%
   ungroup()
 
 pt3 = df_p3 %>%
-  filter(quartile %in% c('Q1', 'Mean', 'Q4'), exposure <= 10) %>%
-  mutate(quartile = factor(quartile, levels = c('Q4', 'Mean', 'Q1'))) %>%
+  filter(quartile %in% c('Q1 Mean', 'Overall Mean', 'Q4 Mean'), exposure <= 10) %>%
+  mutate(quartile = factor(quartile, levels = c('Q4 Mean', 'Overall Mean', 'Q1 Mean'))) %>%
   ggplot(.) +
     theme_bw() +
     theme(panel.grid.major = element_blank(),
@@ -137,14 +144,15 @@ pt3 = df_p3 %>%
           legend.justification = c("right", "top"),
           legend.box.just = "right",
           legend.margin = margin(6, 6, 6, 6)) +
-    guides(color=guide_legend(title="Quartile")) +
+    guides(color=guide_legend(title="")) +
     scale_x_continuous(breaks=seq(1,10)) + 
-    scale_y_continuous(breaks=c(0.00, 0.10, 0.20, 0.30, 0.40, 0.50),
-                       limits=c(0,0.55)) + 
-    labs(y='Proportion incorrect',
+    scale_y_continuous(breaks=c(0.00, 0.25, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00),
+                       limits=c(0,1)) + 
+    labs(y='Proportion correctly measured',
          x='Exposure at activation') +
-    geom_line(aes(x=exposure, y=1-ratio, color=quartile)) +
-    geom_hline(yintercept=0, linetype="dashed")
+    geom_line(aes(x=exposure, y=ratio, color=quartile)) +
+    scale_color_manual(values=c('#00BFC4', '#C77CFF', '#F8766D')) +
+    geom_hline(yintercept=1, linetype="dashed")
 
 ggsave('/Users/g/Desktop/pt3.pdf', pt3, device='pdf', width=6, height=4)
 
@@ -258,18 +266,22 @@ pt7 = df_pk %>%
     theme_bw() +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
-          legend.position = c(.18, .25),
+          legend.position = c(.35, .22),
           legend.justification = c("right", "top"),
           legend.box.just = "right",
+          legend.box = "horizontal",
           legend.margin = margin(6, 6, 6, 6)) +
-    guides(color=guide_legend(title=element_blank())) +
+    guides(color=guide_legend(title=element_blank()),
+           linetype=guide_legend(title=element_blank())) +
     scale_x_continuous(breaks=seq(1,10)) + 
     scale_y_continuous(limits=c(0.0010,0.019),
                        breaks=c(0.005, 0.010, 0.015)) + 
+    scale_linetype_manual(values=c("Max p(k) curve"=1,"Min p(k) curve"=2),
+                          labels=c(expression(p[U](k)), expression(p[L](k)))) +
     labs(y='p(k)',
          x='Exposure') +
-    geom_line(aes(x=exposure, y=max_prob, color=dip), linetype='solid') +
-    geom_line(aes(x=exposure, y=min_prob, color=dip), linetype='dashed')
+    geom_line(aes(x=exposure, y=max_prob, color=dip, linetype='Max p(k) curve')) +
+    geom_line(aes(x=exposure, y=min_prob, color=dip, linetype='Min p(k) curve'))
 
 ggsave('/Users/g/Desktop/pt7.pdf', pt7, device='pdf', width=6, height=4)
 
@@ -280,22 +292,28 @@ pt8 = df_pk %>%
   group_by(quartile, exposure) %>%
   summarize(max_prob = sum(max_adopters) / sum(cum_max_exposed),
             min_prob = sum(min_adopters) / sum(cum_min_exposed)) %>%
-  filter(quartile %in% c('Q1', 'Q4')) %>%
+  ungroup() %>%
+  filter(quartile %in% c('Clustering Q1 Mean', 'Clustering Q4 Mean')) %>%
   ggplot(.) +
-    theme_bw() +
+  theme_bw() +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
-          legend.position = c(.18, .25),
+          legend.position = c(.5, .22),
           legend.justification = c("right", "top"),
           legend.box.just = "right",
+          legend.box = "horizontal",
           legend.margin = margin(6, 6, 6, 6)) +
-    guides(color=guide_legend(title="Clustering")) +
-    scale_x_continuous(breaks=seq(1,10)) +
-    scale_y_continuous(limits=c(0.0010,0.019)) +
-    labs(y='p(k)',
+    guides(color=guide_legend(title=element_blank()),
+           linetype=guide_legend(title=element_blank())) +
+    scale_x_continuous(breaks=seq(1,10)) + 
+    scale_y_continuous(limits=c(0.0010,0.019),
+                       breaks=c(0.005, 0.010, 0.015)) + 
+    scale_linetype_manual(values=c("Max p(k) curve"=1,"Min p(k) curve"=2),
+                          labels=c(expression(p[U](k)), expression(p[L](k)))) +
+    labs(y=expression(p(k)),
          x='Exposure') +
-    geom_line(aes(x=exposure, y=max_prob, color=as.character(quartile)), linetype='solid') +
-    geom_line(aes(x=exposure, y=min_prob, color=as.character(quartile)), linetype='dashed')
+    geom_line(aes(x=exposure, y=max_prob, color=as.character(quartile), linetype='Max p(k) curve')) +
+    geom_line(aes(x=exposure, y=min_prob, color=as.character(quartile), linetype='Min p(k) curve'))
 
 
 ggsave('/Users/g/Desktop/pt8.pdf', pt8, device='pdf', width=6, height=4)
