@@ -5,120 +5,276 @@ library(grid)
 library(grImport)
 library(reshape)
 
+#### boilerplate #################################################################
+
+gg_color_hue <- function(n, offset=0) {
+  hues = seq(15 + offset, 375 + offset, length = n + 1)
+  hcl(h = hues, l = 65, c = 100)[1:n]
+}
+
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
+  library(grid)
+  
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots==1) {
+    print(plots[[1]])
+    
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
 #### simulation plots ##########################################################
 
 COUNT_DF_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/count_df.csv'
 count_df = fread(COUNT_DF_PATH) %>%
-  filter(graph_type=='plc', epsilon_dist_sd==1.0, mean_deg==16) %>%
+  filter(graph_type=='plc', epsilon_dist_sd==1.0) %>%
   mutate(after_activation_alters = ifelse(
-    after_activation_alters > 40, 40, after_activation_alters),
+    after_activation_alters > 30, 30, after_activation_alters),
     measurement_error = ifelse(
       measurement_error > 25, 25, measurement_error))
 
 thresh_df = count_df %>%
-  group_by(threshold) %>%
+  group_by(threshold, mean_deg) %>%
   summarize(thresh_count = n()) %>%
+  group_by(mean_deg) %>%
   mutate(thresh_density = thresh_count / sum(thresh_count))
 
 exposure_df = count_df %>%
   filter(!is.na(after_activation_alters)) %>%
-  group_by(after_activation_alters) %>%
+  group_by(after_activation_alters, mean_deg) %>%
   summarize(exposure_count = n()) %>%
+  group_by(mean_deg) %>%
   mutate(exposure_density = exposure_count / sum(exposure_count))
 
-error_df = count_df %>%
-  filter(!is.na(measurement_error)) %>%
-  group_by(measurement_error) %>%
-  summarize(error_count = n()) %>%
-  mutate(error_density = error_count / sum(error_count))
-
 cm_df = count_df %>%
-  group_by(threshold) %>%
+  group_by(threshold, mean_deg) %>%
   summarize(thresh_count = n(),
             cm_count = sum(observed)) %>%
+  group_by(mean_deg) %>%
   mutate(thresh_frac = thresh_count / sum(thresh_count),
-         cm_frac = cm_count / sum(thresh_count))
+         cm_density = cm_count / sum(cm_count)) %>%
+  filter(cm_density > 0)
+
+cm_ratio_df = count_df %>%
+  group_by(threshold, mean_deg) %>%
+  summarize(thresh_count = n(),
+            cm_count = sum(observed)) %>%
+  group_by(mean_deg) %>%
+  mutate(cm_ratio = cm_count / thresh_count)
 
 #### plots #####################################################################
 
 # density of True vs Exposure-at-activation-time
 p1 = ggplot() +
   theme_bw() +
-  theme(axis.ticks=element_blank(),
+  theme(axis.ticks = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        legend.position = c(.95, .95),
+        legend.position = c(.97, .99),
         legend.justification = c("right", "top"),
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6)) +
-  guides(color = guide_legend(override.aes = list(shape = c(17,15)))) +
-  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.175)) +
-  labs(x='Threshold',
+  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15,0.20,0.25,0.30),
+                     limits=c(0.00, 0.30)) +
+  scale_color_manual(values=c("#619CFF","#00BA38", "#F8766D")) +
+  labs(x='Degree = 12',
        y='Density',
        color=element_blank()) +
-  geom_line(data=thresh_df,
+  geom_line(data=cm_df %>% filter(mean_deg==12),
+            aes(x=threshold,
+                y=cm_density,
+                color='Correctly measured'),
+            stat="identity") +
+  geom_point(data=cm_df %>% filter(mean_deg==12),
+             aes(x=threshold,
+                 y=cm_density,
+                 color='Correctly measured'),
+             shape=17,
+             size=1) +
+  geom_line(data=exposure_df %>% filter(mean_deg==12),
+            aes(x=after_activation_alters,
+                y=exposure_density,
+                color='Exposure at activation'),
+            stat="identity") +
+  geom_point(data=exposure_df %>% filter(mean_deg==12),
+             aes(x=after_activation_alters,
+                 y=exposure_density,
+                 color='Exposure at activation'),
+             shape=17,
+             size=1) +
+  geom_line(data=thresh_df %>% filter(mean_deg==12),
             aes(x=threshold,
                 y=thresh_density,
                 color='True'),
             stat="identity") +
-  geom_point(data=thresh_df,
+  geom_point(data=thresh_df %>% filter(mean_deg==12),
              aes(x=threshold,
                  y=thresh_density,
                  color='True'),
              shape=15,
-             size=1) +
-  geom_line(data=exposure_df,
-            aes(x=after_activation_alters,
-                y=exposure_density,
-                color='Exposure at\nactivation'),
-            stat="identity") +
-  geom_point(data=exposure_df,
-             aes(x=after_activation_alters,
-                 y=exposure_density,
-                 color='Exposure at\nactivation'),
-             shape=17,
              size=1)
 
 ggsave('p1.pdf', p1, device = "pdf", path='/Users/g/Desktop',
        height=2.5, width=5)
 
-# True vs correctly measured
 p2 = ggplot() +
   theme_bw() +
   theme(axis.ticks=element_blank(),
         panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        legend.position = c(.95, .95),
-        legend.justification = c("right", "top"),
-        legend.box.just = "right",
-        legend.margin = margin(6, 6, 6, 6)) +
-  guides(color = guide_legend(override.aes = list(shape = c(17,15)))) +
-  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15), limits=c(0, 0.15)) +
-  labs(x='Threshold',
-       y='Density',
-       color=element_blank()) +
-  geom_line(data=cm_df,
+        panel.grid.minor = element_blank()) +
+  guides(color = guide_legend(override.aes = list(shape = c(17,15,16)))) +
+  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15,0.20,0.25,0.30),
+                     limits=c(0.00, 0.30)) +
+  scale_color_manual(values=c("#619CFF","#00BA38", "#F8766D")) +
+  labs(x='Degree = 16',
+       y='') +
+  guides(color=FALSE, shape=FALSE) +
+  geom_line(data=cm_df %>% filter(mean_deg==16),
             aes(x=threshold,
-                y=cm_frac,
-                color='Correctly\nmeasured'),
+                y=cm_density,
+                color='Correctly measured'),
             stat="identity") +
-  geom_point(data=cm_df,
+  geom_point(data=cm_df %>% filter(mean_deg==16),
              aes(x=threshold,
-                 y=cm_frac,
-                 color='Correctly\nmeasured'),
+                 y=cm_density,
+                 color='Correctly measured'),
              shape=17,
              size=1) +
-  geom_line(data=cm_df,
+  geom_line(data=exposure_df %>% filter(mean_deg==16),
+            aes(x=after_activation_alters,
+                y=exposure_density,
+                color='Exposure at activation'),
+            stat="identity") +
+  geom_point(data=exposure_df %>% filter(mean_deg==16),
+             aes(x=after_activation_alters,
+                 y=exposure_density,
+                 color='Exposure at activation'),
+             shape=17,
+             size=1) +
+  geom_line(data=thresh_df %>% filter(mean_deg==16),
             aes(x=threshold,
-                y=thresh_frac,
+                y=thresh_density,
                 color='True'),
             stat="identity") +
-  geom_point(data=cm_df,
+  geom_point(data=thresh_df %>% filter(mean_deg==16),
              aes(x=threshold,
-                 y=thresh_frac,
+                 y=thresh_density,
                  color='True'),
              shape=15,
              size=1)
+
+ggsave('p2.pdf', p2, device = "pdf", path='/Users/g/Desktop',
+       height=2.5, width=5)
+
+p3 = ggplot() +
+  theme_bw() +
+  theme(axis.ticks=element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(.93, .93),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  guides(color = guide_legend(override.aes = list(shape = c(17,15,16)))) +
+  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15,0.20,0.25,0.30),
+                     limits=c(0.00, 0.30)) +
+  scale_color_manual(values=c("#619CFF","#00BA38", "#F8766D")) +
+  labs(x='Degree = 20',
+       y='') +
+  guides(color=FALSE, shape=FALSE) +
+  geom_line(data=cm_df %>% filter(mean_deg==20),
+            aes(x=threshold,
+                y=cm_density,
+                color='Correctly measured'),
+            stat="identity") +
+  geom_point(data=cm_df %>% filter(mean_deg==20),
+             aes(x=threshold,
+                 y=cm_density,
+                 color='Correctly measured'),
+             shape=17,
+             size=1) +
+  geom_line(data=exposure_df %>% filter(mean_deg==20),
+            aes(x=after_activation_alters,
+                y=exposure_density,
+                color='Exposure at activation'),
+            stat="identity") +
+  geom_point(data=exposure_df %>% filter(mean_deg==20),
+             aes(x=after_activation_alters,
+                 y=exposure_density,
+                 color='Exposure at activation'),
+             shape=17,
+             size=1) +
+  geom_line(data=thresh_df %>% filter(mean_deg==20),
+            aes(x=threshold,
+                y=thresh_density,
+                color='True'),
+            stat="identity") +
+  geom_point(data=thresh_df %>% filter(mean_deg==20),
+             aes(x=threshold,
+                 y=thresh_density,
+                 color='True'),
+             shape=15,
+             size=1)
+
+ggsave('p3.pdf', p3, device = "pdf", path='/Users/g/Desktop',
+       height=2.5, width=5)
+
+# 12 by 2.5
+multiplot(p1, p2, p3, cols=3)
+
+
+# True vs correctly measured
+p4 = ggplot() +
+  theme_bw() +
+  theme(axis.ticks=element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(.31, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  guides(color = guide_legend(override.aes = list(shape = c(17,15,16)))) +
+  scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15,0.20), limits=c(0, 0.25)) +
+  scale_color_manual(values=gg_color_hue(3, 90)) +
+  labs(x='Threshold',
+       y='Proportion correctly measured',
+       color='Mean degree',
+       shape='Mean degree') +
+  geom_line(data=cm_ratio_df,
+            aes(x=threshold,
+                y=cm_ratio,
+                color=factor(mean_deg)),
+            stat="identity") +
+  geom_point(data=cm_ratio_df,
+             aes(x=threshold,
+                 y=cm_ratio,
+                 color=factor(mean_deg),
+                 shape=factor(mean_deg)))
 
 ggsave('p2.pdf', p2, device = "pdf", path='/Users/g/Desktop',
        height=2.5, width=5)
@@ -157,20 +313,22 @@ mm$variable = ordered(factor(mm$variable),
                                'act2',
                                'meas2'))
 
-p3_df = mm %>%
+p5_df = mm %>%
   filter(epsilon_dist_sd==1.0, graph_type=='plc', !variable %in% c('act2', 'meas2'))
 
 # violin plot of rmse
-p3 = p3_df %>%
+p5 = p5_df %>%
   ggplot(.) +
   theme_bw() +
   theme(axis.ticks=element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        legend.position = c(.22, .96),
+        legend.position = c(.28, .96),
         legend.justification = c("right", "top"),
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6)) +
+  scale_color_manual(values=c("#619CFF","#00BA38", "#F8766D")) +
+  scale_fill_manual(values=c("#619CFF","#00BA38", "#F8766D")) +
   geom_hline(aes(yintercept=1), linetype='dashed', alpha=0.8) +
   geom_violin(aes(y=value,
                   x=factor(mean_deg),
@@ -180,8 +338,6 @@ p3 = p3_df %>%
               position=position_dodge(width=0.5),
               alpha=0.1,
               lwd=0.4) +
-  scale_color_manual(values=c('#00BFC4', '#C77CFF', '#F8766D')) +
-  scale_fill_manual(values=c('#00BFC4', '#C77CFF', '#F8766D')) +
   stat_summary(aes(y=value,
                    x=factor(mean_deg),
                    color=variable),
@@ -194,8 +350,12 @@ p3 = p3_df %>%
   guides(color=guide_legend(title="Method"),
          fill=guide_legend(title="Method"))
 
-ggsave("/Users/g/Desktop/p3.pdf",
-       p3,
+# mp2
+multiplot(p4, p5, cols=1)
+
+
+ggsave("/Users/g/Desktop/p5.pdf",
+       p5,
        device="pdf",
        width=5.5,
        height=3.5)
