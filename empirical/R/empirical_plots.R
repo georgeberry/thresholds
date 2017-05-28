@@ -95,6 +95,20 @@ ggsave('/Users/g/Desktop/pt2.pdf', pt2, device='pdf', width=8, height = 6)
 df_disagg = fread('/Users/g/Desktop/test1.tsv', sep='\t', header=FALSE)
 colnames(df_disagg) = c('in_interval', 'exposure', 'hashtag', 'count')
 
+# val
+z = df_disagg %>%
+  filter(exposure >= 1) %>%
+  group_by(hashtag) %>%
+  mutate(htag_sum = sum(count)) %>%
+  filter(in_interval == 1) %>%
+  summarize(ratio = sum(count) / mean(htag_sum)) %>%
+  arrange(-ratio)
+
+
+df_disagg %>%
+  filter(exposure >= 1) %>%
+  summarize(sum(ifelse(in_interval == 1, count, 0)) / sum(count))
+
 # measurement rates by tag by exposure
 df_disagg_one = df_disagg %>%
   filter(exposure <= 20) %>%
@@ -175,6 +189,12 @@ df_p3 = df_disagg_one %>%
             ratio=count/total) %>%
   ungroup()
 
+# val
+df_p3 %>%
+  group_by(quartile, exposure) %>%
+  summarize(mean(ratio)) %>%
+  filter(exposure <= 2)
+
 pt3 = df_p3 %>%
   filter(quartile %in% c('Q1 Mean', 'Overall Mean', 'Q4 Mean'), exposure <= 10) %>%
   mutate(quartile = factor(quartile, levels = c('Q4 Mean', 'Overall Mean', 'Q1 Mean'))) %>%
@@ -188,7 +208,7 @@ pt3 = df_p3 %>%
           legend.margin = margin(6, 6, 6, 6)) +
     guides(color=guide_legend(title="")) +
     scale_x_continuous(breaks=seq(1,10)) +
-    scale_y_continuous(breaks=c(0.00, 0.25, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00),
+    scale_y_continuous(breaks=c(0.00, 0.2, 0.4, 0.6, 0.8, 1.00),
                        limits=c(0,1)) +
     labs(y='Proportion correctly measured',
          x='Exposure at activation') +
@@ -289,9 +309,9 @@ df_exp_two = df_pk %>%
 
 df_dip = df_exp_one %>%
   left_join(df_exp_two, by='hashtag') %>%
-  mutate(dip = ifelse(min_prob_one - min_prob_two > 0, 'Dip', 'No dip')) %>%
+  mutate(dip = ifelse(min_prob_one - min_prob_two > 0, 'Drop', 'No Drop')) %>%
   select(hashtag, dip) %>%
-  mutate(dip = factor(dip, levels=c('No dip', 'Dip')))
+  mutate(dip = factor(dip, levels=c('No Drop', 'Drop')))
 
 # condition on dip
 pt7 = df_pk %>%
@@ -304,21 +324,21 @@ pt7 = df_pk %>%
     theme_bw() +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
-          legend.position = c(.46, .25),
+          legend.position = c(.58, .27),
           legend.justification = c("right", "top"),
           legend.box.just = "right",
           legend.box = "horizontal",
           legend.margin = margin(6, 6, 6, 6)) +
-    guides(color=guide_legend(title=element_blank()),
-           linetype=guide_legend(title=element_blank())) +
+    guides(color=guide_legend(title=element_blank(), order=2),
+           linetype=guide_legend(title=element_blank(), order=1)) +
     scale_x_continuous(breaks=seq(1,10)) +
-    scale_y_continuous(limits=c(0.0010,0.019),
-                       breaks=c(0.005, 0.010, 0.015)) +
+    scale_y_continuous(limits=c(0.000,0.019),
+                       breaks=c(0.000, 0.005, 0.010, 0.015)) +
     scale_linetype_manual(values=c("Max p(k) curve"=1,"Min p(k) curve"=2),
                           labels=c(expression(p[U](k)), expression(p[L](k)))) +
     scale_color_manual(values=c("#00BA38", "#619CFF")) +
     labs(y='p(k)',
-         x='Exposure') +
+         x='Exposure at activation') +
     geom_line(aes(x=exposure, y=max_prob, color=dip, linetype='Max p(k) curve')) +
     geom_line(aes(x=exposure, y=min_prob, color=dip, linetype='Min p(k) curve'))
 
@@ -337,21 +357,21 @@ pt8 = df_pk %>%
   theme_bw() +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
-          legend.position = c(.67, .25),
+          legend.position = c(.78, .27),
           legend.justification = c("right", "top"),
           legend.box.just = "right",
           legend.box = "horizontal",
           legend.margin = margin(6, 6, 6, 6)) +
-    guides(color=guide_legend(title=element_blank()),
-           linetype=guide_legend(title=element_blank())) +
+    guides(color=guide_legend(title=element_blank(), order=2),
+           linetype=guide_legend(title=element_blank(), order=1)) +
     scale_x_continuous(breaks=seq(1,10)) +
-    scale_y_continuous(limits=c(0.0010,0.019),
-                       breaks=c(0.005, 0.010, 0.015)) +
+    scale_y_continuous(limits=c(0.000,0.019),
+                       breaks=c(0.000, 0.005, 0.010, 0.015)) +
     scale_linetype_manual(values=c("Max p(k) curve"=1,"Min p(k) curve"=2),
                           labels=c(expression(p[U](k)), expression(p[L](k)))) +
     scale_color_manual(values=c("#00BA38", "#619CFF")) +
-    labs(y=expression(p(k)),
-         x='Exposure') +
+    labs(y='p(k)',
+         x='Exposure at activation') +
     geom_line(aes(x=exposure, y=max_prob, color=as.character(quartile), linetype='Max p(k) curve')) +
     geom_line(aes(x=exposure, y=min_prob, color=as.character(quartile), linetype='Min p(k) curve'))
 

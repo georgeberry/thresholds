@@ -40,7 +40,7 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     # Make each plot, in the correct location
     for (i in 1:numPlots) {
       # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      matchidx <- as.data.frame(which(layout == i, arr.ind = True Distribution))
       
       print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
                                       layout.pos.col = matchidx$col))
@@ -57,6 +57,15 @@ count_df = fread(COUNT_DF_PATH) %>%
     after_activation_alters > 30, 30, after_activation_alters),
     measurement_error = ifelse(
       measurement_error > 25, 25, measurement_error))
+
+count_df %>%
+  group_by(mean_deg) %>%
+  mutate(act=ifelse(after_activation_alters >= threshold, 1, 0)) %>%
+  summarize(tot=n(),
+            sum_obs=sum(observed) / 1000,
+            sum_act=sum(act, na.rm=T) / 1000) %>%
+  mutate(cm_rate = sum_obs/tot,
+         act_rate = sum_act/tot)
 
 thresh_df = count_df %>%
   group_by(threshold, mean_deg) %>%
@@ -89,7 +98,7 @@ cm_ratio_df = count_df %>%
 
 #### plots #####################################################################
 
-# density of True vs Exposure-at-activation-time
+# density of True Distribution vs Exposure-at-activation-time
 p1 = ggplot() +
   theme_bw() +
   theme(axis.ticks = element_blank(),
@@ -108,34 +117,34 @@ p1 = ggplot() +
   geom_line(data=cm_df %>% filter(mean_deg==12),
             aes(x=threshold,
                 y=cm_density,
-                color='Correctly measured'),
+                color='Precisely Measured'),
             stat="identity") +
   geom_point(data=cm_df %>% filter(mean_deg==12),
              aes(x=threshold,
                  y=cm_density,
-                 color='Correctly measured'),
+                 color='Precisely Measured'),
              shape=17,
              size=1) +
   geom_line(data=exposure_df %>% filter(mean_deg==12),
             aes(x=after_activation_alters,
                 y=exposure_density,
-                color='Exposure at activation'),
+                color='EAA Rule'),
             stat="identity") +
   geom_point(data=exposure_df %>% filter(mean_deg==12),
              aes(x=after_activation_alters,
                  y=exposure_density,
-                 color='Exposure at activation'),
+                 color='EAA Rule'),
              shape=17,
              size=1) +
   geom_line(data=thresh_df %>% filter(mean_deg==12),
             aes(x=threshold,
                 y=thresh_density,
-                color='True'),
+                color='True Distribution'),
             stat="identity") +
   geom_point(data=thresh_df %>% filter(mean_deg==12),
              aes(x=threshold,
                  y=thresh_density,
-                 color='True'),
+                 color='True Distribution'),
              shape=15,
              size=1)
 
@@ -157,34 +166,34 @@ p2 = ggplot() +
   geom_line(data=cm_df %>% filter(mean_deg==16),
             aes(x=threshold,
                 y=cm_density,
-                color='Correctly measured'),
+                color='Precisely Measured'),
             stat="identity") +
   geom_point(data=cm_df %>% filter(mean_deg==16),
              aes(x=threshold,
                  y=cm_density,
-                 color='Correctly measured'),
+                 color='Precisely Measured'),
              shape=17,
              size=1) +
   geom_line(data=exposure_df %>% filter(mean_deg==16),
             aes(x=after_activation_alters,
                 y=exposure_density,
-                color='Exposure at activation'),
+                color='EAA Rule'),
             stat="identity") +
   geom_point(data=exposure_df %>% filter(mean_deg==16),
              aes(x=after_activation_alters,
                  y=exposure_density,
-                 color='Exposure at activation'),
+                 color='EAA Rule'),
              shape=17,
              size=1) +
   geom_line(data=thresh_df %>% filter(mean_deg==16),
             aes(x=threshold,
                 y=thresh_density,
-                color='True'),
+                color='True Distribution'),
             stat="identity") +
   geom_point(data=thresh_df %>% filter(mean_deg==16),
              aes(x=threshold,
                  y=thresh_density,
-                 color='True'),
+                 color='True Distribution'),
              shape=15,
              size=1)
 
@@ -210,34 +219,34 @@ p3 = ggplot() +
   geom_line(data=cm_df %>% filter(mean_deg==20),
             aes(x=threshold,
                 y=cm_density,
-                color='Correctly measured'),
+                color='Precisely Measured'),
             stat="identity") +
   geom_point(data=cm_df %>% filter(mean_deg==20),
              aes(x=threshold,
                  y=cm_density,
-                 color='Correctly measured'),
+                 color='Precisely Measured'),
              shape=17,
              size=1) +
   geom_line(data=exposure_df %>% filter(mean_deg==20),
             aes(x=after_activation_alters,
                 y=exposure_density,
-                color='Exposure at activation'),
+                color='EAA Rule'),
             stat="identity") +
   geom_point(data=exposure_df %>% filter(mean_deg==20),
              aes(x=after_activation_alters,
                  y=exposure_density,
-                 color='Exposure at activation'),
+                 color='EAA Rule'),
              shape=17,
              size=1) +
   geom_line(data=thresh_df %>% filter(mean_deg==20),
             aes(x=threshold,
                 y=thresh_density,
-                color='True'),
+                color='True Distribution'),
             stat="identity") +
   geom_point(data=thresh_df %>% filter(mean_deg==20),
              aes(x=threshold,
                  y=thresh_density,
-                 color='True'),
+                 color='True Distribution'),
              shape=15,
              size=1)
 
@@ -248,7 +257,7 @@ ggsave('p3.pdf', p3, device = "pdf", path='/Users/g/Desktop',
 multiplot(p1, p2, p3, cols=3)
 
 
-# True vs correctly measured
+# True Distribution vs Precisely Measured
 p4 = ggplot() +
   theme_bw() +
   theme(axis.ticks=element_blank(),
@@ -262,7 +271,7 @@ p4 = ggplot() +
   scale_y_continuous(breaks=c(0.0,0.05,0.10,0.15,0.20), limits=c(0, 0.25)) +
   scale_color_manual(values=gg_color_hue(3, 90)) +
   labs(x='Threshold',
-       y='Proportion correctly measured',
+       y='Proportion Precisely Measured',
        color='Mean degree',
        shape='Mean degree') +
   geom_line(data=cm_ratio_df,
@@ -285,7 +294,7 @@ RMSE_PATH = '/Users/g/Drive/project-thresholds/thresholds/data/sim_rmse_df.csv'
 
 # The following variables are important
 # - rmse_measured_ols
-# - rmse_true
+# - rmse_True Distribution
 # - rmse_activated_ols
 # - rmse_activated_naive
 df_rmse = fread(RMSE_PATH)
@@ -307,14 +316,25 @@ mm$variable = ordered(factor(mm$variable),
                                'rmse_activated_naive',
                                'rmse_activated_activated',
                                'rmse_measured_activated'),
-                      labels=c('Measured',
-                               'Active',
-                               'Naive',
+                      labels=c('Precisely Measured',
+                               'All Active',
+                               'EAA Rule',
                                'act2',
                                'meas2'))
 
+# vals
+df_rmse %>%
+  filter(epsilon_dist_sd == 1.0) %>%
+  group_by(graph_type, mean_deg) %>%
+  summarize(rmse_true = mean(rmse_true),
+            rmse_act = mean(rmse_activated_ols),
+            rmse_meas = mean(rmse_measured_ols),
+            rmse_eaa = mean(rmse_activated_naive))
+
 p5_df = mm %>%
   filter(epsilon_dist_sd==1.0, graph_type=='plc', !variable %in% c('act2', 'meas2'))
+
+p5_df[!complete.cases(p5_df),]
 
 # violin plot of rmse
 p5 = p5_df %>%
@@ -323,7 +343,7 @@ p5 = p5_df %>%
   theme(axis.ticks=element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        legend.position = c(.28, .96),
+        legend.position = c(.4, .96),
         legend.justification = c("right", "top"),
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6)) +
@@ -345,19 +365,15 @@ p5 = p5_df %>%
                geom="point",
                position=position_dodge(width=0.5),
                shape=3) +
-  labs(x='Mean degree', y='RMSE predicting threshold') +
-  scale_y_continuous(breaks=c(0,2,4,6,8,10), limits=c(0,10.5)) +
+  labs(x='Graph mean degree', y='RMSE predicting threshold') +
+  scale_y_continuous(breaks=c(0,2,4,6,8,10)) +# , limits=c(0,10.5)) +
   guides(color=guide_legend(title="Method"),
          fill=guide_legend(title="Method"))
-
-# mp2
-multiplot(p4, p5, cols=1)
-
 
 ggsave("/Users/g/Desktop/p5.pdf",
        p5,
        device="pdf",
-       width=5.5,
+       width=5,
        height=3.5)
 
 #### small graph plots #########################################################
@@ -385,8 +401,8 @@ pics <- list(G3 = readPicture("/Users/g/Documents/G3.xml"),
 
 df = fread('/Users/g/Desktop/small_graphs.tsv', sep='\t') %>%
   mutate(always_some_wrong=factor(ifelse(all_correct == 0,
-                                        'At least one node always mismeasured',
-                                        'All nodes sometimes correctly measured')))
+                                        'At least one node always uncertain',
+                                        'All nodes sometimes precisely measured')))
 
 df$name = factor(df$name)
 df$name = relevel(df$name, 'G7')
@@ -405,8 +421,8 @@ g = df %>%
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6)) +
   xlab('\n\n\n') +
-  ylab('Proportion correctly measured') +
-  geom_point(aes(x=name, y=cm, color=name, shape=always_some_wrong), position=position_jitter(width=0.1)) +
+  ylab('Proportion precisely measured') +
+  geom_point(aes(x=name, y=cm, color=name, shape=always_some_wrong), position=position_jitter(width=0.05)) +
   guides(color=FALSE) +
   scale_y_continuous(expand = c(0, 0), limits = c(0, 1)) +
   scale_shape_manual(values=c(19, 2)) +
@@ -441,3 +457,37 @@ gg2$layout$clip[gg2$layout$name=="panel"] <- "off"
 ## produce the final, combined grob
 grid.newpage()
 grid.draw(gg2)
+
+#### icm plots ###################################################################
+
+icm_df = fread('/Users/g/Desktop/icm.tsv', sep='\t')
+
+crit_density = icm_df %>%
+  group_by(critical_exposure) %>%
+  summarize(cnt = n()) %>%
+  filter(!is.na(critical_exposure)) %>%
+  ungroup() %>%
+  mutate(cnt = cnt / sum(cnt))
+  
+eaa_density = icm_df %>%
+  group_by(exposure_at_activation) %>%
+  summarize(cnt = n()) %>%
+  filter(!is.na(exposure_at_activation)) %>%
+  ungroup() %>%
+  mutate(cnt = cnt / sum(cnt))
+
+density_ratio = crit_density %>%
+  left_join(eaa_density, by=c('critical_exposure' = 'exposure_at_activation'))
+
+ggplot() +
+  theme_bw() +
+  geom_line(data=crit_density,
+             aes(x=critical_exposure, y=cnt, color='crit')) +
+  geom_line(data=eaa_density,
+             aes(x=exposure_at_activation, y=cnt, color='EAA'))
+
+ggplot(density_ratio) +
+  theme_bw() +
+  labs(title='ratio of EAA rule to true by exposure level', x='exposure') +
+  geom_line(aes(x=critical_exposure, y=cnt.y/cnt.x)) +
+  geom_hline(yintercept=1, linetype='dashed')
