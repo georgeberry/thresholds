@@ -458,79 +458,50 @@ gg2$layout$clip[gg2$layout$name=="panel"] <- "off"
 grid.newpage()
 grid.draw(gg2)
 
-#### icm plots ###################################################################
+#### new plots ###################################################################
 
+new_df = fread('/Users/g/Desktop/new_sim_runs.tsv') %>%
+  mutate(critical_exposure = round(critical_exposure, 1),
+         exposure_at_activation = round(exposure_at_activation, 1))
 
-# pull
-icm_pull_df = fread('/Users/g/Desktop/icm_pull.tsv', sep='\t')
-
-crit_pull_density = icm_pull_df %>%
-  group_by(critical_exposure) %>%
-  summarize(cnt = n()) %>%
-  filter(!is.na(critical_exposure)) %>%
+crit_df = new_df %>%
+  group_by(name) %>%
+  mutate(total_nodes = n()) %>%
   ungroup() %>%
-  mutate(cnt = cnt / sum(cnt))
+  filter(active==1, !is.na(critical_exposure)) %>%
+  select(critical_exposure, name, total_nodes) %>%
+  mutate(critical_exposure = ifelse(critical_exposure > 15, 15, critical_exposure)) %>%
+  group_by(critical_exposure, name) %>%
+  summarize(prob = n() / mean(total_nodes))
+
+eaa_df = new_df %>%
+  group_by(name) %>%
+  mutate(total_nodes = n()) %>%
+  ungroup() %>%
+  filter(active==1, !is.na(critical_exposure)) %>%
+  select(exposure_at_activation, name, total_nodes) %>%
+  mutate(exposure_at_activation = ifelse(exposure_at_activation > 15, 15, exposure_at_activation)) %>%
+  group_by(exposure_at_activation, name) %>%
+  summarize(prob = n() / mean(total_nodes))
   
-eaa_pull_density = icm_pull_df %>%
-  group_by(exposure_at_activation) %>%
-  summarize(cnt = n()) %>%
-  filter(!is.na(exposure_at_activation)) %>%
-  ungroup() %>%
-  mutate(cnt = cnt / sum(cnt))
 
-density_pull_ratio = crit_pull_density %>%
-  left_join(eaa_pull_density, by=c('critical_exposure' = 'exposure_at_activation'))
+plot_graph = function(crit_df, eaa_df, graph_name) {
+  crit_df = crit_df %>%
+    filter(name==graph_name)
+  eaa_df = eaa_df %>%
+    filter(name==graph_name)
+  p = ggplot() +
+    theme_bw() +
+    geom_line(data=crit_df,
+              aes(x=critical_exposure, y=prob, color='True')) +
+    geom_line(data=eaa_df,
+              aes(x=exposure_at_activation, y=prob, color='EAA'))
+  return(p)
+}
 
-ggplot() +
-  theme_bw() +
-  geom_line(data=crit_pull_density,
-             aes(x=critical_exposure, y=cnt, color='crit')) +
-  geom_line(data=eaa_pull_density,
-             aes(x=exposure_at_activation, y=cnt, color='EAA'))
+plot_graph(crit_df, eaa_df, 'icm_push')
+plot_graph(crit_df, eaa_df, 'icm_pull')
+plot_graph(crit_df, eaa_df, 'int_thresh')
+plot_graph(crit_df, eaa_df, 'frac_thresh')
 
-ggplot(density_pull_ratio) +
-  theme_bw() +
-  labs(title='ratio of EAA rule to true by exposure level', x='exposure') +
-  geom_line(aes(x=critical_exposure, y=cnt.y/cnt.x)) +
-  geom_hline(yintercept=1, linetype='dashed')
 
-# push
-icm_push_df = fread('/Users/g/Desktop/icm_push.tsv', sep='\t')
-
-icm_push_df %>%
-  group_by(critical_exposure) %>%
-  summarize(cnt = n())
-
-icm_push_df %>%
-  group_by(exposure_at_activation) %>%
-  summarize(cnt = n())
-
-crit_push_density = icm_push_df %>%
-  group_by(critical_exposure) %>%
-  summarize(cnt = n()) %>%
-  filter(!is.na(critical_exposure)) %>%
-  ungroup() %>%
-  mutate(cnt = cnt / sum(cnt))
-
-eaa_push_density = icm_push_df %>%
-  group_by(exposure_at_activation) %>%
-  summarize(cnt = n()) %>%
-  filter(!is.na(exposure_at_activation)) %>%
-  ungroup() %>%
-  mutate(cnt = cnt / sum(cnt))
-
-density_push_ratio = crit_push_density %>%
-  left_join(eaa_push_density, by=c('critical_exposure' = 'exposure_at_activation'))
-
-ggplot() +
-  theme_bw() +
-  geom_line(data=crit_push_density,
-            aes(x=critical_exposure, y=cnt, color='crit')) +
-  geom_line(data=eaa_push_density,
-            aes(x=exposure_at_activation, y=cnt, color='EAA'))
-
-ggplot(density_push_ratio) +
-  theme_bw() +
-  labs(title='ratio of EAA rule to true by exposure level', x='exposure') +
-  geom_line(aes(x=critical_exposure, y=cnt.y/cnt.x)) +
-  geom_hline(yintercept=1, linetype='dashed')

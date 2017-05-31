@@ -2,6 +2,7 @@ import random
 import networkx as nx
 import pandas as pd
 import numpy as np
+import csv
 
 """
 Activate some seed set of random nodes
@@ -56,9 +57,11 @@ class BaseSim(object):
         """
         Generates records for output
         """
-        return pd.DataFrame(
-            [attr for n, attr in self.g.nodes_iter(data=True)]
-        )
+        records = [attr for n, attr in self.g.nodes_iter(data=True)]
+        for record in records:
+            record['name'] = self.name
+        return records
+
 
     def dynamics(self):
         """
@@ -101,10 +104,44 @@ class ICMBase(BaseSim):
         raise NotImplementedError
 
 
+class ThresholdBase(BaseSim):
+    """
+    Threshold model base, fill in your simulation_epoch function in a subclass
+    """
+    def __init__(self, g, t):
+        """
+        g: graph
+        t: threshold vector
+        """
+        self.g = self.preprocess_graph(g, t)
+        self.inactive_set = set(
+            [n for n, attr in self.g.nodes_iter(data=True)
+             if attr['active'] == 0]
+        )
+        self.newly_active_set = set()
+
+    def preprocess_graph(self, g, t):
+        """
+        Called once to add the appropriate fields to the graph
+        Returns a graph copy
+        """
+        for n, attr in g.nodes_iter(data=True):
+            attr['active'] = 0
+            attr['before_exposure'] = None
+            attr['exposure_at_activation'] = None
+            attr['critical_exposure'] = t[n]
+            attr['threshold'] = t[n]
+        return g.copy()
+
+    def simulation_epoch(self):
+        raise NotImplementedError
+
+
 class ICMPullModel(ICMBase):
     """
     ICM model where each node updates and "pulls" the contagion to it
     """
+    name='icm_push'
     def __init__(self, g, p, s):
         """
         inputs
@@ -155,7 +192,7 @@ class ICMPullModel(ICMBase):
                     self.newly_active_set.add(n_idx)
                     break
             else:
-                attr['before_exposure'] = n_active_nbrs
+                attr['before_exposure'] = before_exposure + n_active_nbrs
         self.inactive_set = self.inactive_set - self.newly_active_set
 
 
@@ -163,6 +200,7 @@ class ICMPushModel(ICMBase):
     """
     ICM model where each node updates and "pulls" the contagion to it
     """
+    name='icm_pull'
     def __init__(self, g, p, s):
         """
         inputs
@@ -173,7 +211,7 @@ class ICMPushModel(ICMBase):
         self.p = p
         self.s = s
         self.g = self.preprocess_graph(g)
-        self.check_set = set(
+        self.newly_active_set = set(
             [n for n, attr in self.g.nodes_iter(data=True)
              if attr['active'] == 1]
         )
@@ -183,8 +221,8 @@ class ICMPushModel(ICMBase):
         One update run of the simulation
         """
         active_itr = np.random.choice(
-            list(self.check_set),
-            size=len(self.check_set),
+            list(self.newly_active_set),
+            size=len(self.newly_active_set),
             replace=False,
         )
         self.newly_active_set = set()
@@ -201,70 +239,24 @@ class ICMPushModel(ICMBase):
                 if random.random() < self.p:
                     nbr_attr['active'] = 1
                     nbr_attr['exposure_at_activation'] = nbr_active_nbrs
-                    if nbr_attr['critical_exposure']:
+                    try:
                         nbr_attr['critical_exposure'] += 1
-                    else:
+                    except:
                         nbr_attr['critical_exposure'] = 1
                     self.newly_active_set.add(nbr_idx)
                 else:
-                    if nbr_attr['critical_exposure']:
+                    try:
                         nbr_attr['critical_exposure'] += 1
-                    else:
+                    except:
                         nbr_attr['critical_exposure'] = 1
                     nbr_attr['before_exposure'] = nbr_active_nbrs
-        self.check_set = self.newly_active_set
 
-
-class ThresholdBase(BaseSim):
-    """
-    Threshold model base, fill in your simulation_epoch function in a subclass
-    """
-    def __init__(self, g, t):
-        """
-        g: graph
-        t: threshold vector
-        """
-        self.g = self.preprocess_graph(g, t)
-        self.inactive_set = set(
-            [n for n, attr in self.g.nodes_iter(data=True)
-             if attr['active'] == 0]
-        )
-        self.newly_active_set = set()
-
-    def preprocess_graph(self, g, t):
-        """
-        Called once to add the appropriate fields to the graph
-        Returns a graph copy
-        """
-        for n, attr in g.nodes_iter(data=True):
-            attr['active'] = 0
-            attr['before_exposure'] = None
-            attr['exposure_at_activation'] = None
-            attr['critical_exposure'] = None
-            attr['threshold'] = t[n]
-        return g.copy()
-
-    def simulation_epoch(self):
-        raise NotImplementedError
-
-    def stop_rule(self):
-        """
-        If this is True, the simulation stops
-        """
-        if len(self.newly_active_set) == 0:
-            return True
-        return None
-
-    def generate_output(self):
-        """
-        Generates records for output
-        """
-        return [attr for n, attr in self.g.nodes_iter(data=True)]
 
 class IntThresholdModel(ThresholdBase):
     """
     Threshold model where each node has an integer activation threshold
     """
+    name='int_thresh'
     def simulation_epoch(self):
         """
         One update run of the simulation
@@ -288,10 +280,12 @@ class IntThresholdModel(ThresholdBase):
                 attr['before_exposure'] = n_active_nbrs
         self.inactive_set = self.inactive_set - self.newly_active_set
 
+
 class FracThresholdModel(ThresholdBase):
     """
     Threshold model where each node has a fractional threshold
     """
+    name='frac_thresh'
     def simulation_epoch(self):
         """
         One update run of the simulation
@@ -319,34 +313,51 @@ class FracThresholdModel(ThresholdBase):
 
 # diagnostic fns
 
-def print_n_active(records):
-    print(sum([x['active'] == 1 for x in records]))
+def print_diagnostics(df):
+    print(sum(df.active))
+    print(df[['before_exposure', 'exposure_at_activation', 'critical_exposure']].head())
+    #print(df.exposure_at_activation - df.critical_exposure)
 
 if __name__ == '__main__':
-    seed = 42
+    # seed = 42
+    # random.seed(seed)
     p = 0.2
     s = 0.1
-    gsize = 10000
-    random.seed(seed)
-    g = nx.powerlaw_cluster_graph(gsize, 4, 0.1, seed=seed)
+    gsize = 1000
+    n_runs = 100
 
-    icm_push = ICMPushModel(g, p=0.2, s=0.02).dynamics()
-    icm_pull = ICMPullModel(g, p=0.2, s=0.02).dynamics()
+    count = 0
 
-    int_t = np.random.randint(0,10,size=gsize)
-    int_th = IntThresholdModel(g, int_t).dynamics()
+    with open('/Users/g/Desktop/new_sim_runs.tsv', 'w') as outfile:
+        fieldnames = [
+            'active',
+            'before_exposure',
+            'exposure_at_activation',
+            'critical_exposure',
+            'threshold',
+            'name'
+        ]
+        w = csv.DictWriter(outfile, fieldnames=fieldnames, delimiter='\t')
+        w.writeheader()
+        for sim_idx in range(n_runs):
+            count += 1
+            g = nx.barabasi_albert_graph(gsize, 6) #, seed=seed)
+            int_t = np.random.randint(0,10,size=gsize)
+            frac_t = np.random.random(size=gsize)
+            frac_seeds = random.sample(
+                range(len(frac_t)),
+                round(len(frac_t) * s),
+            )
+            for idx in frac_seeds:
+                frac_t[idx] = 0.0
 
-    frac_t = np.random.random(size=gsize)
-    frac_seeds = random.sample(
-        range(len(frac_t)),
-        round(len(frac_t) * s),
-    )
-    for idx in frac_seeds:
-        frac_t[idx] = 0.0
-    frac_th = FracThresholdModel(g, frac_t).dynamics()
-
-    #diagnostics
-    print_n_active(icm_push)
-    print_n_active(icm_pull)
-    print_n_active(int_th)
-    print_n_active(frac_th)
+            results = [
+                ICMPushModel(g, p=p, s=s).dynamics(),
+                ICMPullModel(g, p=p, s=s).dynamics(),
+                IntThresholdModel(g, int_t).dynamics(),
+                FracThresholdModel(g, frac_t).dynamics(),
+            ]
+            for res in results:
+                for elem in res:
+                    w.writerow(elem)
+            print('done with run {}'.format(count))
