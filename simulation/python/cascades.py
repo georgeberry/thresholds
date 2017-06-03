@@ -5,16 +5,25 @@ import numpy as np
 import csv
 
 """
-Activate some seed set of random nodes
+Classes:
+    - BaseSim
+    - ICMBase(BaseSim)
+    - ThresholdBase(BaseSim)
+    - ICMPullModel(ICMBase)
+    - ICMPushModel(ICMBase)
+    - IntThresholdModel(BaseSim)
+    - FracThresholdModel(BaseSim)
 
-Update inactive nodes one at a time
+See BaseSim for important methods
 
-Activate w/ some independent probability p
+Functions:
+    - normal_threhsold_distribution
+    - exponential_threshold_distribution
+    - uniform_threshold_distribution
 
-Record before and after exposures
-
-Both push and pull model
 """
+
+#### Simulation base class #####################################################
 
 class BaseSim(object):
     """
@@ -22,31 +31,39 @@ class BaseSim(object):
         g: a graph
         subclass arguments
     - outputs
-        records: [node1_data, node2_data, ...]
+        records: [{node1_data}, {node2_data}, ...]
+
+    Provides standard methods for sim dynamics, stopping rule, output
+    Override the rest yourself
     """
     def __init__(self):
         """
-        Overwrite in sublcass
         We store arguments on the class
+        - Ovderride in subclass
         """
         raise NotImplementedError
 
     def preprocess_graph(self, g):
         """
         Called once to add the appropriate fields to the graph
-        Returns a graph copy
+        Should return graph copy
+        - Override in subclass
         """
         raise NotImplementedError
 
     def simulation_epoch(self):
         """
         One update run of the simulation
+        Usually this will include going through all nodes once
+        Having this update one node is fine, but it will be slower
+        - Override in subclass
         """
         raise NotImplementedError
 
     def stop_rule(self):
         """
         Check all nodes and none activate
+        - This method should not be overridden
         """
         # stop condition: no newly active nodes to push from
         if len(self.newly_active_set) == 0:
@@ -56,16 +73,17 @@ class BaseSim(object):
     def generate_output(self):
         """
         Generates records for output
+        - This method should not be overriden
         """
         records = [attr for n, attr in self.g.nodes_iter(data=True)]
         for record in records:
             record['name'] = self.name
         return records
 
-
     def dynamics(self):
         """
         Method to run the simulation and return output
+        - This method should not be overriden
         """
         while True:
             self.simulation_epoch()
@@ -73,10 +91,22 @@ class BaseSim(object):
                 break
         return self.generate_output()
 
+    def get_inactive_itr(self):
+        if len(self.inactive_set) > 0:
+            inactive_itr = np.random.choice(
+                list(self.inactive_set),
+                size=len(self.inactive_set),
+                replace=False,
+            )
+        else:
+            inactive_itr = []
+        return inactive_itr
+
+#### Intermediate classes based on sim type ####################################
 
 class ICMBase(BaseSim):
     """
-    You need to definite __init__
+    You need to definite __init__ and simulation_epoch in subclass
     """
     def __init__(self):
         raise NotImplementedError
@@ -108,11 +138,12 @@ class ThresholdBase(BaseSim):
     """
     Threshold model base, fill in your simulation_epoch function in a subclass
     """
-    def __init__(self, g, t):
+    def __init__(self, g, t, name):
         """
         g: graph
         t: threshold vector
         """
+        self.name = name
         self.g = self.preprocess_graph(g, t)
         self.inactive_set = set(
             [n for n, attr in self.g.nodes_iter(data=True)
@@ -137,12 +168,13 @@ class ThresholdBase(BaseSim):
         raise NotImplementedError
 
 
+#### Classes that actually run sims ############################################
+
 class ICMPullModel(ICMBase):
     """
     ICM model where each node updates and "pulls" the contagion to it
     """
-    name='icm_push'
-    def __init__(self, g, p, s):
+    def __init__(self, g, p, s, name):
         """
         inputs
             g: a graph
@@ -151,6 +183,7 @@ class ICMPullModel(ICMBase):
         """
         self.p = p
         self.s = s
+        self.name = name
         self.g = self.preprocess_graph(g)
         self.inactive_set = set(
             [n for n, attr in self.g.nodes_iter(data=True)
@@ -162,11 +195,7 @@ class ICMPullModel(ICMBase):
         """
         One update run of the simulation
         """
-        inactive_itr = np.random.choice(
-            list(self.inactive_set),
-            size=len(self.inactive_set),
-            replace=False,
-        )
+        inactive_itr = self.get_inactive_itr()
         self.newly_active_set = set()
         for n_idx in inactive_itr:
             attr = self.g.node[n_idx]
@@ -201,7 +230,7 @@ class ICMPushModel(ICMBase):
     ICM model where each node updates and "pulls" the contagion to it
     """
     name='icm_pull'
-    def __init__(self, g, p, s):
+    def __init__(self, g, p, s, name):
         """
         inputs
             g: a graph
@@ -210,6 +239,7 @@ class ICMPushModel(ICMBase):
         """
         self.p = p
         self.s = s
+        self.name = name
         self.g = self.preprocess_graph(g)
         self.newly_active_set = set(
             [n for n, attr in self.g.nodes_iter(data=True)
@@ -261,11 +291,7 @@ class IntThresholdModel(ThresholdBase):
         """
         One update run of the simulation
         """
-        inactive_itr = np.random.choice(
-            list(self.inactive_set),
-            size=len(self.inactive_set),
-            replace=False,
-        )
+        inactive_itr = self.get_inactive_itr()
         self.newly_active_set = set()
         for n_idx in inactive_itr:
             attr = self.g.node[n_idx]
@@ -290,11 +316,7 @@ class FracThresholdModel(ThresholdBase):
         """
         One update run of the simulation
         """
-        inactive_itr = np.random.choice(
-            list(self.inactive_set),
-            size=len(self.inactive_set),
-            replace=False,
-        )
+        inactive_itr = self.get_inactive_itr()
         self.newly_active_set = set()
         for n_idx in inactive_itr:
             attr = self.g.node[n_idx]
@@ -311,12 +333,41 @@ class FracThresholdModel(ThresholdBase):
         self.inactive_set = self.inactive_set - self.newly_active_set
 
 
+#### distribution generating functions #########################################
+
+def set_seeds(th_vector, seed_frac):
+    n_nodes = len(th_vector)
+    seed_num = round(seed_frac * n_nodes)
+    already_existing_seeds = sum([x <= 0.0 for x in th_vector])
+    seeds_to_add = seed_num - already_existing_seeds
+    if seeds_to_add > 0:
+        seed_idxs = random.sample(
+            range(n_nodes),
+            seeds_to_add,
+        )
+        for idx in seed_idxs:
+            th_vector[idx] = 0.0
+    return th_vector
+
+def normal_threhsold_distribution(n=1000, mean=5, sd=1, seed_frac=0.01):
+    th = np.random.normal(loc=mean, scale=sd, size=n)
+    return set_seeds(th, seed_frac)
+
+def exponential_threshold_distribution(n=1000, beta=3, seed_frac=0.01):
+    th = np.random.normal(scale=beta, size=n)
+    return set_seeds(th, seed_frac)
+
+def uniform_threshold_distribution(n=1000, min=0, max=10, seed_frac=0.01):
+    th = np.random.randint(0,10,size=gsize)
+    return set_seeds(th, seed_frac)
+
 # diagnostic fns
 
 def print_diagnostics(df):
     print(sum(df.active))
     print(df[['before_exposure', 'exposure_at_activation', 'critical_exposure']].head())
     #print(df.exposure_at_activation - df.critical_exposure)
+
 
 if __name__ == '__main__':
     # seed = 42
@@ -341,21 +392,67 @@ if __name__ == '__main__':
         w.writeheader()
         for sim_idx in range(n_runs):
             count += 1
-            g = nx.barabasi_albert_graph(gsize, 6) #, seed=seed)
-            int_t = np.random.randint(0,10,size=gsize)
-            frac_t = np.random.random(size=gsize)
-            frac_seeds = random.sample(
-                range(len(frac_t)),
-                round(len(frac_t) * s),
+            g = nx.barabasi_albert_graph(gsize, 6)
+
+
+            # threshold dists
+            int_norm_dist = normal_threhsold_distribution(
+                n=len(g),
+                mean=5,
+                sd=1,
+                seed_frac=s,
             )
-            for idx in frac_seeds:
-                frac_t[idx] = 0.0
+            int_exp_dist = exponential_threshold_distribution(
+                n=len(g),
+                beta=3,
+                seed_frac=s,
+            )
+            int_unif_dist = uniform_threshold_distribution(
+                n=len(g),
+                min=0,
+                max=11,
+                seed_frac=s,
+            )
+            frac_norm_dist = int_norm_dist / max(int_norm_dist)
+            frac_exp_dist = int_exp_dist / max(int_exp_dist)
+            frac_unif_dist = int_unif_dist / max(int_unif_dist)
 
             results = [
-                ICMPushModel(g, p=p, s=s).dynamics(),
-                ICMPullModel(g, p=p, s=s).dynamics(),
-                IntThresholdModel(g, int_t).dynamics(),
-                FracThresholdModel(g, frac_t).dynamics(),
+                ICMPushModel(
+                    g,
+                    p=p,
+                    s=s,
+                    name='icm_push',
+                ).dynamics(),
+                ICMPullModel(g,
+                    p=p,
+                    s=s,
+                    name='icm_pull',
+                ).dynamics(),
+                IntThresholdModel(g,
+                    int_norm_dist,
+                    name='th_int_norm',
+                ).dynamics(),
+                IntThresholdModel(g,
+                    int_exp_dist,
+                    name='th_int_exp',
+                ).dynamics(),
+                IntThresholdModel(g,
+                    int_unif_dist,
+                    name='th_int_unif',
+                ).dynamics(),
+                FracThresholdModel(g,
+                    frac_norm_dist,
+                    name='th_frac_norm',
+                ).dynamics(),
+                FracThresholdModel(g,
+                    frac_exp_dist,
+                    name='th_frac_exp',
+                ).dynamics(),
+                FracThresholdModel(g,
+                    frac_unif_dist,
+                    name='th_frac_unif',
+                ).dynamics(),
             ]
             for res in results:
                 for elem in res:
