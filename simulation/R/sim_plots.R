@@ -14,34 +14,34 @@ gg_color_hue <- function(n, offset=0) {
 
 multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
   library(grid)
-  
+
   # Make a list from the ... arguments and plotlist
   plots <- c(list(...), plotlist)
-  
+
   numPlots = length(plots)
-  
+
   # If layout is NULL, then use 'cols' to determine layout
   if (is.null(layout)) {
     # Make the panel
     # ncol: Number of columns of plots
     # nrow: Number of rows needed, calculated from # of cols
     layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                     ncol = cols, nrow = ceiling(numPlots/cols))
+                    ncol = cols, nrow = ceiling(numPlots/cols))
   }
-  
-  if (numPlots==1) {
+
+ if (numPlots==1) {
     print(plots[[1]])
-    
+
   } else {
     # Set up the page
     grid.newpage()
     pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-    
+
     # Make each plot, in the correct location
     for (i in 1:numPlots) {
       # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = True Distribution))
-      
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
       print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
                                       layout.pos.col = matchidx$col))
     }
@@ -464,44 +464,186 @@ new_df = fread('/Users/g/Desktop/new_sim_runs.tsv') %>%
   mutate(critical_exposure = round(critical_exposure, 1),
          exposure_at_activation = round(exposure_at_activation, 1))
 
+# check
+new_df %>%
+  group_by(name) %>%
+  summarize(sum(active) / n())
+
+new_df %>%
+  group_by(name, critical_exposure) %>%
+  summarize(n())
+
+# plot dfs
+
 crit_df = new_df %>%
   group_by(name) %>%
   mutate(total_nodes = n()) %>%
   ungroup() %>%
   filter(active==1, !is.na(critical_exposure)) %>%
-  select(critical_exposure, name, total_nodes) %>%
-  mutate(critical_exposure = ifelse(critical_exposure > 15, 15, critical_exposure)) %>%
-  group_by(critical_exposure, name) %>%
-  summarize(prob = n() / mean(total_nodes))
+  mutate(exposure = ifelse(critical_exposure > 10, 10, critical_exposure)) %>%
+  select(exposure, name, total_nodes) %>%
+  group_by(exposure, name) %>%
+  summarize(prob = n() / mean(total_nodes),
+            kind = 'True') %>%
+  group_by(name) %>%
+  arrange(name, exposure) %>%
+  mutate(cum_prob = cumsum(prob))
 
 eaa_df = new_df %>%
   group_by(name) %>%
   mutate(total_nodes = n()) %>%
   ungroup() %>%
   filter(active==1, !is.na(critical_exposure)) %>%
-  select(exposure_at_activation, name, total_nodes) %>%
-  mutate(exposure_at_activation = ifelse(exposure_at_activation > 15, 15, exposure_at_activation)) %>%
-  group_by(exposure_at_activation, name) %>%
-  summarize(prob = n() / mean(total_nodes))
-  
+  mutate(exposure = ifelse(exposure_at_activation > 10, 10, exposure_at_activation)) %>%
+  select(exposure, name, total_nodes) %>%
+  group_by(exposure, name) %>%
+  summarize(prob = n() / mean(total_nodes),
+            kind = 'EAA') %>%
+    group_by(name) %>%
+  arrange(name, exposure) %>%
+  mutate(cum_prob = cumsum(prob))
 
-plot_graph = function(crit_df, eaa_df, graph_name) {
-  crit_df = crit_df %>%
-    filter(name==graph_name)
-  eaa_df = eaa_df %>%
-    filter(name==graph_name)
-  p = ggplot() +
-    theme_bw() +
-    geom_line(data=crit_df,
-              aes(x=critical_exposure, y=prob, color='True')) +
-    geom_line(data=eaa_df,
-              aes(x=exposure_at_activation, y=prob, color='EAA'))
+plot_df = rbind(crit_df, eaa_df)
+
+plot_pdf = function(plot_df,
+                    graph_name,
+                    title,
+                    legend=FALSE) {
+  plot_df = plot_df %>%
+    filter(name == graph_name)
+  # frational
+  if (graph_name %in% c('th_frac_norm', 'th_frac_exp', 'th_frac_unif', 'th_frac_cons')) {
+    p = ggplot(data=plot_df) +
+      theme_bw() +
+      theme(panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank()) +
+      labs(y=expression(p(k[i])), x=expression(k[i]), title=element_blank()) + 
+      scale_y_continuous(limits=c(0.00, 0.4)) +
+      scale_x_continuous(limits=c(0, 1),
+                         breaks=c(0,.2,.4,.6,.8,1)) + 
+      guides(color=FALSE) +
+      geom_line(aes(x=exposure, y=prob, color=kind))
+  # non-fractional
+  } else {
+    p = ggplot(data=plot_df) +
+      theme_bw() +
+      theme(panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank()) +
+      labs(y=expression(p(k[i])), x=expression(k[i]), title=element_blank()) + 
+      scale_y_continuous(limits=c(0.00, 0.4)) +
+      scale_x_continuous(limits=c(0, 10),
+                         breaks=c(0,2,4,6,8,10)) + 
+      guides(color=FALSE) +
+      geom_line(aes(x=exposure, y=prob, color=kind))
+  }
+  # add legend
+  if (legend == TRUE) {
+    p = p +
+      theme(axis.ticks = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            legend.position = c(0.44, 0.99),
+            legend.justification = c("right", "top"),
+            legend.box.just = "right",
+            legend.margin = margin(6, 6, 6, 6)) +
+      guides(color=guide_legend(title=element_blank()))
+  }
   return(p)
 }
 
-plot_graph(crit_df, eaa_df, 'icm_push')
-plot_graph(crit_df, eaa_df, 'icm_pull')
-plot_graph(crit_df, eaa_df, 'int_thresh')
-plot_graph(crit_df, eaa_df, 'frac_thresh')
+pdf_p1 = plot_pdf(plot_df, 'icm_push', 'ICM "push" model', legend=TRUE)
+pdf_p2 = plot_pdf(plot_df, 'icm_pull', 'ICM "pull" model')
+pdf_p3 = plot_pdf(plot_df, 'th_int_norm', 'Integer, normal')
+pdf_p4 = plot_pdf(plot_df, 'th_int_exp', 'Integer, exponential')
+pdf_p5 = plot_pdf(plot_df, 'th_int_unif', 'Integer, uniform')
+pdf_p6 = plot_pdf(plot_df, 'th_frac_norm', 'Fractional, normal')
+pdf_p7 = plot_pdf(plot_df, 'th_frac_exp', 'Fractional, exponential')
+pdf_p8 = plot_pdf(plot_df, 'th_frac_unif', 'Fractional, uniform')
+pdf_p9 = plot_df %>%
+  filter(name == 'th_frac_cons', kind == 'EAA') %>%
+  ggplot(data=.) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  labs(y=expression(p(k[i])), x=expression(k[i]), title=element_blank()) + 
+  scale_y_continuous(limits=c(0.00, 0.4)) +
+  scale_x_continuous(limits=c(0, 1),
+                     breaks=c(0,.2,.4,.6,.8,1)) + 
+  guides(color=FALSE) +
+  geom_line(aes(x=exposure, y=prob, color='EAA')) +
+  geom_vline(aes(xintercept=0.2, color='True'), linetype='dashed')
+
+multiplot(pdf_p1, pdf_p3, pdf_p7, pdf_p2,  pdf_p4,  pdf_p9, cols=2)
 
 
+
+
+
+
+
+
+
+plot_cdf = function(plot_df,
+                    graph_name,
+                    title,
+                    legend=FALSE) {
+  plot_df = plot_df %>%
+    filter(name == graph_name)
+  if (graph_name %in% c('th_frac_norm', 'th_frac_exp', 'th_frac_unif', 'th_frac_cons')) {
+    p = ggplot(data=plot_df) +
+      theme_bw() +
+      theme(axis.ticks = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank()) +
+      labs(x=element_blank(), y=element_blank(), title=element_blank()) + 
+      scale_y_continuous(limits=c(0.00, 1.00)) +
+      scale_x_continuous(limits=c(0, 1),
+                         breaks=c(0,.2,.4,.6,.8,1)) + 
+      guides(color=FALSE) +
+      geom_line(aes(x=exposure, y=cum_prob, color=kind)) +
+      geom_line(aes(x=exposure, y=cum_prob, color=kind))
+  } else {
+    p = ggplot(data=plot_df) +
+      theme_bw() +
+      theme(axis.ticks = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank()) +
+      labs(x=element_blank(), y=element_blank(), title=element_blank()) + 
+      scale_y_continuous(limits=c(0.00, 1.00)) +
+      scale_x_continuous(limits=c(0, 10),
+                         breaks=c(0,2,4,6,8,10)) + 
+      guides(color=FALSE) +
+      geom_line(aes(x=exposure, y=cum_prob, color=kind)) +
+      geom_line(aes(x=exposure, y=cum_prob, color=kind))
+  }
+  if (legend == TRUE) {
+    p = ggplot(data=plot_df) +
+      theme_bw() +
+      theme(axis.ticks = element_blank(),
+            panel.grid.major = element_blank(),
+            panel.grid.minor = element_blank(),
+            legend.position = c(.48, .98),
+            legend.justification = c("right", "top"),
+            legend.box.just = "right",
+            legend.margin = margin(6, 6, 6, 6)) +
+      labs(x=element_blank(), y=element_blank(), title=element_blank()) + 
+      scale_y_continuous(limits=c(0.00, 1.00)) +
+      scale_x_continuous(limits=c(0, 10),
+                         breaks=c(0,2,4,6,8,10)) + 
+      geom_line(aes(x=exposure, y=cum_prob, color=kind)) +
+      geom_line(aes(x=exposure, y=cum_prob, color=kind)) +
+      guides(color=guide_legend(title=element_blank()))
+  }
+  return(p)
+}
+
+cdf_p1 = plot_cdf(plot_df, 'icm_push', 'ICM "push" model')
+cdf_p2 = plot_cdf(plot_df, 'icm_pull', 'ICM "pull" model')
+cdf_p3 = plot_cdf(plot_df, 'th_int_norm', 'Integer, normal', legend=TRUE)
+cdf_p4 = plot_cdf(plot_df, 'th_int_exp', 'Integer, exponential')
+cdf_p5 = plot_cdf(plot_df, 'th_int_unif', 'Integer, uniform')
+cdf_p6 = plot_cdf(plot_df, 'th_frac_norm', 'Fractional, normal')
+cdf_p7 = plot_cdf(plot_df, 'th_frac_exp', 'Fractional, exponential')
+cdf_p8 = plot_cdf(plot_df, 'th_frac_unif', 'Fractional, uniform')
+
+multiplot(cdf_p1, cdf_p2, cdf_p3, cdf_p4, cdf_p7, cdf_p8, cols=2)

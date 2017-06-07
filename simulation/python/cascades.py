@@ -350,16 +350,16 @@ def set_seeds(th_vector, seed_frac):
     return th_vector
 
 def normal_threhsold_distribution(n=1000, mean=5, sd=1, seed_frac=0.01):
-    th = np.random.normal(loc=mean, scale=sd, size=n)
-    return set_seeds(th, seed_frac)
+    th = np.ceil(np.random.normal(loc=mean, scale=sd, size=n))
+    return set_seeds(np.array(th), seed_frac)
 
 def exponential_threshold_distribution(n=1000, beta=3, seed_frac=0.01):
-    th = np.random.normal(scale=beta, size=n)
-    return set_seeds(th, seed_frac)
+    th = np.ceil(np.random.exponential(scale=beta, size=n))
+    return set_seeds(np.array(th), seed_frac)
 
 def uniform_threshold_distribution(n=1000, min=0, max=10, seed_frac=0.01):
-    th = np.random.randint(0,10,size=gsize)
-    return set_seeds(th, seed_frac)
+    th = np.ceil(np.random.randint(0,10,size=gsize))
+    return set_seeds(np.array(th), seed_frac)
 
 # diagnostic fns
 
@@ -373,7 +373,7 @@ if __name__ == '__main__':
     # seed = 42
     # random.seed(seed)
     p = 0.2
-    s = 0.1
+    s = 0.05
     gsize = 1000
     n_runs = 100
 
@@ -413,9 +413,13 @@ if __name__ == '__main__':
                 max=11,
                 seed_frac=s,
             )
-            frac_norm_dist = int_norm_dist / max(int_norm_dist)
-            frac_exp_dist = int_exp_dist / max(int_exp_dist)
-            frac_unif_dist = int_unif_dist / max(int_unif_dist)
+            frac_norm_dist = 0.5 * (int_norm_dist / np.max(int_norm_dist))
+            frac_exp_dist = int_exp_dist / np.max(int_exp_dist)
+            frac_unif_dist = 0.75 * (int_unif_dist / np.max(int_unif_dist))
+            frac_cons_dist = set_seeds(
+                np.zeros((1000,)) + .2,
+                s,
+            )
 
             results = [
                 ICMPushModel(
@@ -452,6 +456,10 @@ if __name__ == '__main__':
                 FracThresholdModel(g,
                     frac_unif_dist,
                     name='th_frac_unif',
+                ).dynamics(),
+                FracThresholdModel(g,
+                    frac_cons_dist,
+                    name='th_frac_cons',
                 ).dynamics(),
             ]
             for res in results:
