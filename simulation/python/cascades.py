@@ -258,6 +258,7 @@ class ICMPushModel(ICMBase):
         self.newly_active_set = set()
         for n_idx in active_itr:
             nbrs = self.g[n_idx].keys()
+            # this iterates through each neighbor of the focal node
             for nbr_idx in nbrs:
                 nbr_attr = self.g.node[nbr_idx]
                 if nbr_attr['active'] == 1:
@@ -312,6 +313,8 @@ class FracThresholdModel(ThresholdBase):
     Threshold model where each node has a fractional threshold
     """
     name='frac_thresh'
+    bins = np.linspace(0,1,num=21)
+
     def simulation_epoch(self):
         """
         One update run of the simulation
@@ -332,6 +335,37 @@ class FracThresholdModel(ThresholdBase):
                 attr['before_exposure'] = frac_active_nbrs
         self.inactive_set = self.inactive_set - self.newly_active_set
 
+    def closest_twentieth(self, num):
+        if num is None:
+            return None
+        vec = np.zeros(len(self.bins)) + num
+        # argmin of the abs val min
+        argmin = np.argmin(
+            np.abs(self.bins - vec)
+        )
+        return self.bins[argmin]
+
+    def generate_output(self):
+        """
+        Generates records for output
+        -
+        """
+        records = [attr for n, attr in self.g.nodes_iter(data=True)]
+        for record in records:
+            record['name'] = self.name
+            record['critical_exposure'] = self.closest_twentieth(
+                record['critical_exposure']
+            )
+            record['before_exposure'] = self.closest_twentieth(
+                record['before_exposure']
+            )
+            record['threshold'] = self.closest_twentieth(
+                record['threshold']
+            )
+            record['exposure_at_activation'] = self.closest_twentieth(
+                record['exposure_at_activation']
+            )
+        return records
 
 #### distribution generating functions #########################################
 

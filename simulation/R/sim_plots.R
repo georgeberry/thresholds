@@ -343,7 +343,7 @@ p5 = p5_df %>%
   theme(axis.ticks=element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        legend.position = c(.4, .96),
+        legend.position = c(.42, .96),
         legend.justification = c("right", "top"),
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6)) +
@@ -365,7 +365,7 @@ p5 = p5_df %>%
                geom="point",
                position=position_dodge(width=0.5),
                shape=3) +
-  labs(x='Graph mean degree', y='RMSE predicting threshold') +
+  labs(x='Graph mean degree', y='RMSE predicting critical value') +
   scale_y_continuous(breaks=c(0,2,4,6,8,10)) +# , limits=c(0,10.5)) +
   guides(color=guide_legend(title="Method"),
          fill=guide_legend(title="Method"))
@@ -460,9 +460,7 @@ grid.draw(gg2)
 
 #### new plots ###################################################################
 
-new_df = fread('/Users/g/Desktop/new_sim_runs.tsv') %>%
-  mutate(critical_exposure = round(critical_exposure, 1),
-         exposure_at_activation = round(exposure_at_activation, 1))
+new_df = fread('/Users/g/Desktop/new_sim_runs.tsv')
 
 # check
 new_df %>%
@@ -470,7 +468,8 @@ new_df %>%
   summarize(sum(active) / n())
 
 new_df %>%
-  group_by(name, critical_exposure) %>%
+  filter(name=='th_frac_cons') %>%
+  group_by(name, exposure_at_activation) %>%
   summarize(n())
 
 # plot dfs
@@ -508,6 +507,8 @@ plot_df = rbind(crit_df, eaa_df)
 plot_pdf = function(plot_df,
                     graph_name,
                     title,
+                    x_label,
+                    y_label,
                     legend=FALSE) {
   plot_df = plot_df %>%
     filter(name == graph_name)
@@ -517,7 +518,7 @@ plot_pdf = function(plot_df,
       theme_bw() +
       theme(panel.grid.major = element_blank(),
             panel.grid.minor = element_blank()) +
-      labs(y=expression(p(k[i])), x=expression(k[i]), title=element_blank()) + 
+      labs(y=y_label, x=x_label, title=element_blank()) + 
       scale_y_continuous(limits=c(0.00, 0.4)) +
       scale_x_continuous(limits=c(0, 1),
                          breaks=c(0,.2,.4,.6,.8,1)) + 
@@ -529,7 +530,7 @@ plot_pdf = function(plot_df,
       theme_bw() +
       theme(panel.grid.major = element_blank(),
             panel.grid.minor = element_blank()) +
-      labs(y=expression(p(k[i])), x=expression(k[i]), title=element_blank()) + 
+      labs(y=y_label, x=x_label, title=element_blank()) + 
       scale_y_continuous(limits=c(0.00, 0.4)) +
       scale_x_continuous(limits=c(0, 10),
                          breaks=c(0,2,4,6,8,10)) + 
@@ -542,7 +543,7 @@ plot_pdf = function(plot_df,
       theme(axis.ticks = element_blank(),
             panel.grid.major = element_blank(),
             panel.grid.minor = element_blank(),
-            legend.position = c(0.44, 0.99),
+            legend.position = c(0.5, 0.99),
             legend.justification = c("right", "top"),
             legend.box.just = "right",
             legend.margin = margin(6, 6, 6, 6)) +
@@ -551,21 +552,21 @@ plot_pdf = function(plot_df,
   return(p)
 }
 
-pdf_p1 = plot_pdf(plot_df, 'icm_push', 'ICM "push" model', legend=TRUE)
-pdf_p2 = plot_pdf(plot_df, 'icm_pull', 'ICM "pull" model')
-pdf_p3 = plot_pdf(plot_df, 'th_int_norm', 'Integer, normal')
-pdf_p4 = plot_pdf(plot_df, 'th_int_exp', 'Integer, exponential')
-pdf_p5 = plot_pdf(plot_df, 'th_int_unif', 'Integer, uniform')
-pdf_p6 = plot_pdf(plot_df, 'th_frac_norm', 'Fractional, normal')
-pdf_p7 = plot_pdf(plot_df, 'th_frac_exp', 'Fractional, exponential')
-pdf_p8 = plot_pdf(plot_df, 'th_frac_unif', 'Fractional, uniform')
+pdf_p1 = plot_pdf(plot_df, 'icm_push', 'ICM "push" model', 'Push, p=0.2', 'Proportion', legend=TRUE)
+pdf_p2 = plot_pdf(plot_df, 'icm_pull', 'ICM "pull" model', 'Random updates, p=0.2', '')
+pdf_p3 = plot_pdf(plot_df, 'th_int_norm', 'Integer, normal', 'Integer threshold', '')
+pdf_p4 = plot_pdf(plot_df, 'th_int_exp', 'Integer, exponential', 'Integer threshold', 'Proportion')
+pdf_p5 = plot_pdf(plot_df, 'th_int_unif', 'Integer, uniform', 'Integer threshold', '')
+pdf_p6 = plot_pdf(plot_df, 'th_frac_norm', 'Fractional, normal', 'Fractional threshold', '')
+pdf_p7 = plot_pdf(plot_df, 'th_frac_exp', 'Fractional, exponential', 'Fractional threshold', 'Proportion')
+pdf_p8 = plot_pdf(plot_df, 'th_frac_unif', 'Fractional, uniform', 'Fractional threshold', '')
 pdf_p9 = plot_df %>%
   filter(name == 'th_frac_cons', kind == 'EAA') %>%
   ggplot(data=.) +
   theme_bw() +
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank()) +
-  labs(y=expression(p(k[i])), x=expression(k[i]), title=element_blank()) + 
+  labs(y='', x='Fractional threshold', title=element_blank()) + 
   scale_y_continuous(limits=c(0.00, 0.4)) +
   scale_x_continuous(limits=c(0, 1),
                      breaks=c(0,.2,.4,.6,.8,1)) + 
@@ -573,10 +574,18 @@ pdf_p9 = plot_df %>%
   geom_line(aes(x=exposure, y=prob, color='EAA')) +
   geom_vline(aes(xintercept=0.2, color='True'), linetype='dashed')
 
-multiplot(pdf_p1, pdf_p3, pdf_p7, pdf_p2,  pdf_p4,  pdf_p9, cols=2)
+multiplot(pdf_p1,
+          pdf_p4,
+          pdf_p7,
+          pdf_p2,
+          pdf_p3,
+          pdf_p9,
+          cols=2)
 
 
-
+# p1, p2
+# p3, p4
+# p7, p9
 
 
 

@@ -196,7 +196,7 @@ df_p3 %>%
   filter(exposure <= 2)
 
 pt3 = df_p3 %>%
-  filter(quartile %in% c('Q1 Mean', 'Overall Mean', 'Q4 Mean'), exposure <= 10) %>%
+  filter(quartile %in% c('Q1 Mean', 'Overall Mean', 'Q4 Mean'), exposure <= 5) %>%
   mutate(quartile = factor(quartile, levels = c('Q4 Mean', 'Overall Mean', 'Q1 Mean'))) %>%
   ggplot(.) +
     theme_bw() +
@@ -210,12 +210,12 @@ pt3 = df_p3 %>%
     scale_x_continuous(breaks=seq(1,10)) +
     scale_y_continuous(breaks=c(0.00, 0.2, 0.4, 0.6, 0.8, 1.00),
                        limits=c(0,1)) +
-    labs(y='Proportion correctly measured',
+    labs(y='Proportion precisely measured',
          x='Exposure at activation') +
     geom_line(aes(x=exposure, y=ratio, color=quartile)) +
     geom_hline(yintercept=1, linetype="dashed")
 
-ggsave('/Users/g/Desktop/pt3.pdf', pt3, device='pdf', width=5, height=3)
+ggsave('/Users/g/Desktop/pt3.pdf', pt3, device='pdf', width=4, height=3)
 
 #### first usages ##############################################################
 
@@ -315,7 +315,7 @@ df_dip = df_exp_one %>%
 
 # condition on dip
 pt7 = df_pk %>%
-  filter(exposure <= 10) %>%
+  filter(exposure <= 5) %>%
   left_join(df_dip, by='hashtag') %>%
   group_by(dip, exposure) %>%
   summarize(max_prob = sum(max_adopters) / sum(cum_max_exposed),
@@ -324,7 +324,7 @@ pt7 = df_pk %>%
     theme_bw() +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
-          legend.position = c(.58, .27),
+          legend.position = c(.72, .27),
           legend.justification = c("right", "top"),
           legend.box.just = "right",
           legend.box = "horizontal",
@@ -332,11 +332,10 @@ pt7 = df_pk %>%
     guides(color=guide_legend(title=element_blank(), order=2),
            linetype=guide_legend(title=element_blank(), order=1)) +
     scale_x_continuous(breaks=seq(1,10)) +
-    scale_y_continuous(limits=c(0.000,0.019),
-                       breaks=c(0.000, 0.005, 0.010, 0.015)) +
+    scale_y_continuous(limits=c(0.000,0.02),
+                       breaks=c(0.000, 0.005, 0.010, 0.015, 0.02)) +
     scale_linetype_manual(values=c("Max p(k) curve"=1,"Min p(k) curve"=2),
                           labels=c(expression(p[U](k)), expression(p[L](k)))) +
-    scale_color_manual(values=c("#00BA38", "#619CFF")) +
     labs(y='p(k)',
          x='Exposure at activation') +
     geom_line(aes(x=exposure, y=max_prob, color=dip, linetype='Max p(k) curve')) +
@@ -346,7 +345,7 @@ ggsave('/Users/g/Desktop/pt7.pdf', pt7, device='pdf', width=6, height=4)
 
 # condition on clustering
 pt8 = df_pk %>%
-  filter(exposure <= 10) %>%
+  filter(exposure <= 5) %>%
   left_join(df_net_q, by='hashtag') %>%
   group_by(quartile, exposure) %>%
   summarize(max_prob = sum(max_adopters) / sum(cum_max_exposed),
@@ -357,7 +356,7 @@ pt8 = df_pk %>%
   theme_bw() +
     theme(panel.grid.major = element_blank(),
           panel.grid.minor = element_blank(),
-          legend.position = c(.78, .27),
+          legend.position = c(0.97, .27),
           legend.justification = c("right", "top"),
           legend.box.just = "right",
           legend.box = "horizontal",
@@ -365,11 +364,10 @@ pt8 = df_pk %>%
     guides(color=guide_legend(title=element_blank(), order=2),
            linetype=guide_legend(title=element_blank(), order=1)) +
     scale_x_continuous(breaks=seq(1,10)) +
-    scale_y_continuous(limits=c(0.000,0.019),
-                       breaks=c(0.000, 0.005, 0.010, 0.015)) +
+    scale_y_continuous(limits=c(0.000,0.02),
+                       breaks=c(0.000, 0.005, 0.010, 0.015, 0.02)) +
     scale_linetype_manual(values=c("Max p(k) curve"=1,"Min p(k) curve"=2),
                           labels=c(expression(p[U](k)), expression(p[L](k)))) +
-    scale_color_manual(values=c("#00BA38", "#619CFF")) +
     labs(y='p(k)',
          x='Exposure at activation') +
     geom_line(aes(x=exposure, y=max_prob, color=as.character(quartile), linetype='Max p(k) curve')) +
