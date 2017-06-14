@@ -4,6 +4,7 @@ library(ggplot2)
 library(grid)
 library(grImport)
 library(reshape)
+library(stargazer)
 
 #### boilerplate #################################################################
 
@@ -656,3 +657,186 @@ cdf_p7 = plot_cdf(plot_df, 'th_frac_exp', 'Fractional, exponential')
 cdf_p8 = plot_cdf(plot_df, 'th_frac_unif', 'Fractional, uniform')
 
 multiplot(cdf_p1, cdf_p2, cdf_p3, cdf_p4, cdf_p7, cdf_p8, cols=2)
+
+
+### SI modeling plots ############################################################
+
+# how many obs?
+N = 10000
+
+# simple model: 0 to 10 uniform exposure dist
+# activate with p = exposure / 10
+coinflip = function(x) {
+  res = rbinom(1,1,x / 10)
+  if (is.na(res) == TRUE) {
+    print(x)
+    print(res)
+  }
+  return(res)
+}
+
+x_raw = rpois(N, 4)
+x_base = ifelse(x_raw > 10, 10, x_raw)
+y = vapply(x_base, coinflip, 1)
+
+## weak influence ##
+
+# true model
+x = x_base
+true_mod = lm(y~x)
+true_mod_log = glm(y~x, family=binomial)
+true_mod_df = data.frame(x=seq(min(x_base), max(x_base), len=max(x_base) + 1))
+true_mod_df$y = predict(true_mod_log, newdata=true_mod_df, type="response")
+p_df_true = data.frame(x=x, y=y) %>%
+  group_by(x) %>%
+  summarize(p=sum(y) / n()) %>%
+  arrange(x)
+
+# exp
+x = x_base + ceiling(rexp(N, 0.5) * y)
+x = ifelse(x > 10, 10, x)
+exp_mod = lm(y~x)
+exp_mod_log = glm(y~x, family=binomial)
+exp_mod_df = data.frame(x=seq(min(x_base), max(x_base), len=max(x_base) + 1))
+exp_mod_df$y = predict(exp_mod_log, newdata=exp_mod_df, type="response")
+p_df_exp = data.frame(x=x, y=y) %>%
+  group_by(x) %>%
+  summarize(p=sum(y) / n()) %>%
+  arrange(x)
+
+# norm > 0
+draws = rnorm(N, 0, 2)
+err_norm = ceiling(draws * (draws > 0) * y)
+x = x_base + err_norm
+x = ifelse(x > 10, 10, x)
+norm_mod = lm(y~x)
+norm_mod_log = glm(y~x, family=binomial)
+norm_mod_df = data.frame(x=seq(min(x_base), max(x_base), len=max(x_base) + 1))
+norm_mod_df$y = predict(norm_mod_log, newdata=norm_mod_df, type="response")
+p_df_norm = data.frame(x=x, y=y) %>%
+  group_by(x) %>%
+  summarize(p=sum(y) / n()) %>%
+  arrange(x)
+
+# binom
+err_binom = 3 * rbinom(N, 1, 0.5) * y
+x = x_base + err_binom
+x = ifelse(x > 10, 10, x)
+binom_mod = lm(y~x)
+binom_mod_log = glm(y~x, family=binomial)
+binom_mod_df = data.frame(x=seq(min(x_base), max(x_base), len=max(x_base) + 1))
+binom_mod_df$y = predict(binom_mod_log, newdata=binom_mod_df, type="response")
+p_df_binom = data.frame(x=x, y=y) %>%
+  group_by(x) %>%
+  summarize(p=sum(y) / n()) %>%
+  arrange(x)
+
+stargazer(true_mod, exp_mod, norm_mod, binom_mod,
+          title='Weak influence effect',
+          column.labels=c('True', 'Exp error', 'Norm > 0 error', 'Binom error'),
+          covariate.labels=c('x', '\alpha'),
+          ci=TRUE,
+          omit.stat=c('f', 'n', 'rsq', 'adj.rsq', 'ser'))
+
+stargazer(true_mod_log, exp_mod_log, norm_mod_log, binom_mod_log,
+          title='Weak influence effect',
+          column.labels=c('True', 'Exp error', 'Norm > 0 error', 'Binom error'),
+          covariate.labels=c('x', '\alpha'),
+          ci=TRUE,
+          omit.stat=c('f', 'n', 'rsq', 'adj.rsq', 'ser'))
+
+
+
+si_p1 = ggplot() +
+  theme_bw() +
+  theme(axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(.25, .99),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  scale_x_continuous(breaks=0:10) +
+  labs(y='Predicted y', x='Exposure') +
+  guides(color=guide_legend(title=element_blank())) +
+  geom_abline(aes(intercept=true_mod$coefficients[1],
+                  slope=true_mod$coefficients[2],
+                  color='True')) +
+  geom_abline(aes(intercept=norm_mod$coefficients[1],
+                  slope=norm_mod$coefficients[2],
+                  color='Norm')) +
+  geom_abline(aes(intercept=exp_mod$coefficients[1],
+                  slope=exp_mod$coefficients[2],
+                  color='Exp')) +
+  geom_abline(aes(intercept=binom_mod$coefficients[1],
+                  slope=binom_mod$coefficients[2],
+                  color='Binom')) +
+  geom_point(data=p_df_true,
+             aes(x=x, y=p, color='True')) +
+  geom_point(data=p_df_norm,
+             aes(x=x, y=p, color='Norm')) +
+  geom_point(data=p_df_exp,
+             aes(x=x, y=p, color='Exp')) +
+  geom_point(data=p_df_binom,
+             aes(x=x, y=p, color='Binom'))
+
+si_p2 = ggplot() +
+  theme_bw() +
+  theme(axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        legend.position = c(.25, .99),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6)) +
+  scale_x_continuous(breaks=0:10) +
+  labs(y='Predicted y', x='Exposure') +
+  guides(color=guide_legend(title=element_blank())) +
+  geom_line(data=true_mod_df,
+            aes(x=x, y=y, color='True')) +
+  geom_line(data=norm_mod_df,
+            aes(x=x, y=y, color='Norm')) +
+  geom_line(data=exp_mod_df,
+            aes(x=x, y=y, color='Exp')) +
+  geom_line(data=binom_mod_df,
+            aes(x=x, y=y, color='Binom')) +
+  geom_point(data=p_df_true,
+             aes(x=x, y=p, color='True')) +
+  geom_point(data=p_df_norm,
+             aes(x=x, y=p, color='Norm')) +
+  geom_point(data=p_df_exp,
+             aes(x=x, y=p, color='Exp')) +
+  geom_point(data=p_df_binom,
+             aes(x=x, y=p, color='Binom'))
+
+multiplot(si_p1, si_p2, cols=2)
+
+## false influence
+
+x_base = rep(0, N)
+
+# true model
+x = x_base
+true_mod = lm(y~x)
+
+# exp
+x = x_base + ceiling(rexp(N, 0.5) * y)
+exp_mod = lm(y~x)
+
+# norm > 0
+draws = rnorm(N, 0, 2)
+err_norm = ceiling(draws * (draws > 0) * y)
+x = x_base + err_norm
+norm_mod = lm(y~x)
+
+# binom
+err_binom = 3 * rbinom(N, 1, 0.5) * y
+x = x_base + err_binom
+binom_mod = lm(y~x)
+
+stargazer(true_mod, exp_mod, norm_mod, binom_mod,
+          title='False influence effect',
+          column.labels=c('True', 'Exp error', 'Norm > 0 error', 'Binom error'),
+          covariate.labels=c('x', '\alpha'),
+          ci=TRUE,
+          omit.stat=c('f','n','rsq','adj.rsq', 'ser'))
