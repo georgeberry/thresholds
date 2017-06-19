@@ -544,10 +544,10 @@ plot_pdf = function(plot_df,
       theme(axis.ticks = element_blank(),
             panel.grid.major = element_blank(),
             panel.grid.minor = element_blank(),
-            legend.position = c(0.5, 0.99),
+            legend.position = c(0.42, 0.99),
             legend.justification = c("right", "top"),
             legend.box.just = "right",
-            legend.margin = margin(6, 6, 6, 6)) +
+            legend.margin = margin(0, 0, 0, 0)) +
       guides(color=guide_legend(title=element_blank()))
   }
   return(p)
