@@ -1,17 +1,10 @@
-## Overview
+# Opacity problem code
 
-![datamorpheus](http://i.imgur.com/fUCt7hf.png)
+Code for [The Opacity Problem in Social Contagion](https://www.sciencedirect.com/science/article/pii/S0378873317303465) by Berry, Cameron, Park, and Macy. Social Networks, 2019.
 
-This is an in-progress project by myself and [Chris](https://github.com/chrisjcameron) modeling adoption thresholds for behavior.
+Feel free to use our code, please cite if you do.
 
-The goal is to recover thresholds from empirical data.
-
-## Todo list
-
-1. Extend argument to probabalistic models of thresholds
-1. Simplify argument about mismeasurement in models
-1. Can we prove something about the direction of bias?
-1. Finish simulations
+If you have questions, please shoot an email to George at geb97 at cornell dot edu, or just message him on Twitter [@george_berry](https://twitter.com/george_berry).
 
 # License
 
